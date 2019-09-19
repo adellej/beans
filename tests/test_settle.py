@@ -1,0 +1,22 @@
+""" test to check if settle has been compiled correctly """
+
+import beans.settler as se
+import numpy as np
+
+def test_settle_location():
+    se.Settle()
+    return
+
+def test_settle_output():
+    # initialize settle interface
+    settle = se.Settle()
+
+    # run settle:
+    res = settle.full(F=0.1,M=0.1,X=0.7,Z=0.02, C=0, R=11.2, Ma=1.4)
+    print(res)
+    res = settle.full(F=0.1,M=0.1,X=0.7,Z=0.02, C=0, R=11.2, Ma=1.4)
+    print(res)
+    result = np.allclose(res, [66.32432920153866, 7.1244386103642094, 7.516383459074593]) #alpha,tdel, E_b
+    assert result 
+
+    return
