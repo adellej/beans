@@ -1,3 +1,5 @@
+''' This file generates the mass radius prior fits from A. Steiner's baseline model from his bamr code (https://isospin.roam.utk.edu/static/code/bamr/guide.html#output-files) available here '''
+
 # read in file
 file2 = tables.open_file('qlmxb_threep_base_all_out') # base model
 
@@ -36,20 +38,3 @@ for i in range(0,97):
     sigma.append(np.std(R_mcmc2[i]))
 
 
-# make prior function:
-# required arrays: mu, sigma and Marray
-def mr_prior(M, R):
-    # hard mass limits: M = 0.2-2.5, R = 9.5-16
-    # exclude values outside of domain of interpolation:
-    if M > 2.5 or M < 0.2:
-        return -np.inf
-    if R > 16 or R < 9.5:
-        return -np.inf
-    else:
-        # extract closest mass grid coordinate:
-        index = np.searchsorted(Marray, M)
-
-        for i in [index]:
-            y = stats.norm.pdf(R, mu[i], sigma[i])
-
-            return y
