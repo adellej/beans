@@ -1,5 +1,11 @@
 ''' This file generates the mass radius prior fits from A. Steiner's baseline model from his bamr code (https://isospin.roam.utk.edu/static/code/bamr/guide.html#output-files) available here '''
 
+import numpy as np
+import tables
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+from scipy import stats
+
 # read in file
 file2 = tables.open_file('qlmxb_threep_base_all_out') # base model
 

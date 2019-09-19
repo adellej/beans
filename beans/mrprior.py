@@ -1,3 +1,9 @@
+import numpy as np
+import tables
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+from scipy import stats
+
 # read in file
 file2 = tables.open_file('qlmxb_threep_base_all_out') # base model
 
@@ -37,7 +43,7 @@ for i in range(0,97):
 
 
 # make prior function:
-# required arrays: mu, sigma and Marray
+# required arrays: mu, sissgma and Marray
 def mr_prior(M, R):
     # hard mass limits: M = 0.2-2.5, R = 9.5-16
     # exclude values outside of domain of interpolation:
