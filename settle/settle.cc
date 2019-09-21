@@ -105,8 +105,10 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
   //printf("Radius = %lg km\n", G.R/1e5);
   G.R *= 1e5; // convert to cm
 
-  G.g = G.M*G.ZZ*6.67428e-8/pow(G.R,2);  //printf("Gravity g=%lg\n", G.g);
   G.ZZ  =pow((1.0 - ((2*G.M*6.67428e-8)/(G.R*pow(2.9979e10,2)))),-0.5);
+
+  G.g = G.M*G.ZZ*6.67428e-8/pow(G.R,2);  //printf("Gravity g=%lg\n", G.g);
+
 
   //EOS.Q = 900.0; printf("Q=%lg in the crust\n", EOS.Q);
 
@@ -212,7 +214,7 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
 
 
   //printf("z=%lg\n", ODE.get_y(3,ODE.kount));
-
+  yb=0.65*yb;
   *trec  = G.ZZ * yb / (3600.0 * G.Medd * G.mdot);
 
   //printf("Recurrence time =%lg hours\n", *trec);
@@ -408,7 +410,13 @@ double doint(double yb)
   x1=EOS.triple_alpha(); EOS.T8*=1.001; EOS.rho=find_rho();
   x2=EOS.triple_alpha(); EOS.T8/=1.001; EOS.rho=find_rho();
   heat=EOS.triple_alpha()*(log(x2/x1)/log(1.001))/(1e8*EOS.T8);
-  if (EOS.X[1]>1e-3) heat*=F3a;
+  //if (EOS.X[1]>1e-3) heat*=F3a;
+  //smoothly turn on F3a between X=0 and X=1:
+  if (EOS.X[1] > 0.143)heat*=F3a;
+  else{
+  heat*=(F3a-1.0)*(EOS.X[1]/0.143) + 1.0;
+  }
+
 
   //printf("yb=%lg, Tb=%lg, heat-cool/cool=%lg\n", yb, Tb, (heat-cool)/cool);
 

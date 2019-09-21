@@ -1,8 +1,11 @@
-# ------------------------------------------------------------------------- #
-# Now we define the functions that generate the burst train
-# ------------------------------------------------------------------------- #
+""" This module defines the functions that generate the burst train """
+
+import numpy as np
+from settle import settle
+import random
+
 def mean_flux(t1,t2,tobs,a,b):
-    import numpy as np
+    
 
 # Calculates the mean flux between t1 and t2 from the piecewise linear
 # interpolation of tobs,a,b
@@ -65,7 +68,6 @@ def mean_flux(t1,t2,tobs,a,b):
 #and vary the persistent flux by a random amount within the uncertainty of the measurement.
 
 def get_a_b(pflux, pfluxe, tobs,n_burst,bstart):
-    import numpy as np
 
 # Do piecewise continuous fits to the flux evolution, here
 # determine the appropriate parameters for each interval:
@@ -114,9 +116,6 @@ double = 0
 run = 1
 def next_burst(base,z,x_0,t1,tobs,a,b,r1,cfac, mass, radius,binpath,direction,run=run,debug=debug):
 # t2,e_b,alpha,mdot,qnuc,xbar,
-    import numpy as np
-    from settle import settle
-    import random
 
 # Routine to find the next burst in the series and return it's properties
 # Adapted from sim_burst.pro
