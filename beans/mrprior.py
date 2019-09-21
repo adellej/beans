@@ -9,13 +9,11 @@ from scipy import stats
 # read in file
 path_to_data_file = pathlib.Path(__file__).parent / "mr_prior_fit.txt"
 data = np.loadtxt(path_to_data_file)
-mu = data[:,0]
-sigma = data[:,1]
+mu = data[:, 0]
+sigma = data[:, 1]
 
 # create grid points for mass
-Marray = np.linspace(
-    0.2, 3.0, 97
-)  
+Marray = np.linspace(0.2, 3.0, 97)
 
 # only go to 97 because last 3 mass grid points have very lowly populated posteriors for R and cannot get a good fit of mu and sigma.
 

@@ -1,0 +1,41 @@
+# The analysis results below have been extracted from the
+#
+# Multi-INstrument Burst ARchive (MINBAR) version 0.90
+#
+# comprising analyses of thermonuclear (type-I) X-ray bursts observed by
+# the Rossi X-ray Timing Explorer (RXTE), BeppoSAX, and INTEGRAL.
+#
+# The data provided here is PRELIMINARY and NOT SUITABLE FOR PUBLICATION.
+#
+# For more information, see the project home page < http://burst.erc.monash.edu/minbar >, the project wiki
+# <http://burst.erc.monash.edu/wiki/index.php?n=MINBAR.Home > or contact the PI Duncan Galloway.
+#
+# The last comment line before the data gives the column names and units
+#
+#"Start time (MJD)" "Stop time (MJD)" "Mean flux (3-25 keV, 10^-9 erg/cm^2/s)" "Error on flux"
+52562.06185	52562.08407	2.437	0.013
+52562.12505	52562.54866	2.524	0.016
+52563.11324	52563.14171	2.501	0.007
+52563.17921	52563.21255	2.536	0.010
+52563.24519	52563.54866	2.541	0.011
+52564.16741	52564.53338	2.298	0.029
+52565.02366	52565.04657	2.084	0.008
+52565.08963	52565.52435	1.946	0.008
+52566.01116	52566.03407	1.913	0.003
+52566.07713	52566.10491	1.853	0.002
+52566.14310	52566.44657	1.826	0.013
+52567.06532	52567.09241	1.695	0.007
+52567.13130	52567.43477	1.667	0.010
+52567.47574	52567.50144	1.652	0.005
+52568.05352	52568.07991	1.511	0.009
+52568.11949	52568.42296	1.440	0.009
+52569.04171	52569.06810	1.469	0.005
+52569.10769	52569.34519	1.465	0.009
+52569.37088	52569.41116	1.458	0.011
+52569.45213	52569.47713	1.441	0.007
+52570.02921	52570.05560	1.361	0.001
+52570.09519	52570.33338	1.323	0.019
+52570.35907	52570.39935	1.295	0.013
+52570.44032	52570.46394	1.259	0.003
+52570.51046	52570.53060	1.247	0.007
+52570.95144	52570.97227	1.184	0.001	

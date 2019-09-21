@@ -1,0 +1,15 @@
+# The analysis results below have been extracted from the
+#
+# Multi-INstrument Burst ARchive (MINBAR) version 0.90
+#
+# comprising analyses of thermonuclear (type-I) X-ray bursts observed by
+# the Rossi X-ray Timing Explorer (RXTE), BeppoSAX, and INTEGRAL.
+#
+# The data provided here is PRELIMINARY and NOT SUITABLE FOR PUBLICATION.
+#
+# For more information, see the project home page < http://burst.erc.monash.edu/minbar >, the project wiki
+# <http://burst.erc.monash.edu/wiki/index.php?n=MINBAR.Home > or contact the PI Duncan Galloway.
+#
+# The last comment line before the data gives the column names and units
+#
+#"Start time (MJD)" "Stop time (MJD)" "Mean flux (3-25 keV, 10^-9 erg/cm^2/s)" "Error on flux"
