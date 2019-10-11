@@ -27,7 +27,6 @@ from burstrain import *
 from run_model import runmodel
 from get_data import get_obs
 from mrprior import mr_prior
-from likelihood import *
 from get_data import *
 from run_emcee import runemcee
 
@@ -56,8 +55,8 @@ gti_checking = 0
 run =1
 
 # set location of your observation data files:
-obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/obs.txt'
-burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/bursts.txt'
+obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt'
+burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt'
 gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt'
 
 # and finally the bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
@@ -85,7 +84,7 @@ print(y, yerr)
 
 # test model works:
 test, valid = runmodel(theta, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking)
-
+print("# -------------------------------------------------------------------------#")
 print("Testing the model works..")
 print("result: ", test, valid)
 # Ideally want to format below so the identity of which value goes with which burst is clear

@@ -1,6 +1,12 @@
 Welcome to beans's documentation!
 ======================================
 
+.. automodule:: beans.settle
+    :members:
+
+.. automodule:: beans.burstrain
+    :members:
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:

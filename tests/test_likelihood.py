@@ -1,14 +1,17 @@
 """ tests likelihood and prior functions for the emcee initialisation """
 
 from beans.mrprior import mr_prior
+import numpy as np
+from beans.get_data import get_obs
+import pathlib
 
-def test_likelihood():
+# def test_likelihood():
 
-    return
+#     return
 
-def test_lnZprior():
+# def test_lnZprior():
 
-    return
+#     return
 
 
 def test_fit_file():
@@ -18,11 +21,11 @@ def test_fit_file():
 
     return mr_prior(M, R)
 
-def test_lnprior(theta):
+# def test_lnprior(theta):
 
-    return
+#     return
 
 
-def test_lnprob(theta, x, y, yerr):
+# def test_lnprob(theta, x, y, yerr):
 
-    return
+#     return
