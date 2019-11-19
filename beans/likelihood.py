@@ -199,10 +199,11 @@ def lnprob(theta, x, y, yerr):
     like, model = lnlike(theta, x, y, yerr)
 
     if (not np.isfinite(lp)) or (not np.isfinite(like)):
-        return -np.inf, model
+        return -np.inf, -np.inf,  model["x_0"][0], model["z"][0], model['base'][0], model["r1"][0], model["r2"][0], model["r3"][0], model["mass"][0], model["radius"][0]
 
     # we return the logprobability as well as the theta parameters at this point so we can extract results later
     return lp + like, lp, model["x_0"][0], model["z"][0], model['base'][0], model["r1"][0], model["r2"][0], model["r3"][0], model["mass"][0], model["radius"][0]
+    
 
 
 # -------------------------------------------------------------- #

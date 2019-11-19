@@ -1,3 +1,51 @@
+==========
+Parameters
+==========
+
+There are 10 important parameters that the code will predict, and 3 important parameters that are observed (and you give the code). These are:
+
+Observed:
+
+- **time**
+The observed times of each burst in your burst train.
+
+- **fluence**
+The observed fluence of each burst in your burst train. Fluence is the integrated burst flux.
+
+- **alpha**
+The observed alpha of each burst in your burst train. Alpha is the ratio between fluence and the persistent flux (i.e. nuclear to gravitational energy).
+
+Predicted:
+
+These are the *theta* parameters. 
+
+- **X** (or x_0)
+Hydrogen mass fraction of the accreted fuel.
+
+- **Z**
+CNO metallicity of the accreted fuel.
+
+- **Q_b**
+Base heating (MeV/nucleon)
+
+- **f_a** 
+Nuisance parameter in likelihood.
+
+- **f_E**
+Nuisance parameter in likelihood.
+
+- **r1** 
+Scaling factor.
+
+- **r2** 
+Scaling factor between observed and predicted alphas.
+
+- **r3**
+Scaling factor between observed and predicted fluences. 
+
+For equations describing the scaling factors see Goodwin et al. (2019) Equations 12, 13, and 14 - https://arxiv.org/pdf/1907.00996 
+
+
 =====
 Usage
 =====
@@ -8,25 +56,30 @@ To use beans, there are a few steps you need to follow ::
 2. Setup all of the initial conditions in initialise.py
 3. Run the code!
 
-============
+
 Observations
-============
+------------
 
 This code works best with an uninterrupted train of X-ray bursts from a single outburst of a source. The observations need to be in ascii format and put in the beans/data/ folder. There are 3 types of observations, with only 2 required. These are persistent, burst, and satellite gtis.
 
-Persistent observations:
+**Persistent observations:**
+Ascii format, with columns in the following order:
+start time (MJD), stop time (MJD) persistent flux measurements (in 3-25keV 1e-9 erg/cm^2/s), pflux error
 
-Burst observations:
+**Burst observations:**
+Ascii format, with columns in the following order:
+time (MJD), fluence (in 1e-9 erg/cm^2/s) fluence error, alpha, alpha error
 
-Satellite gtis:
+**Satellite gtis:**
+These are the satellite telescope "good time intervals" (gtis). This is information on when the telescope was actually observing the source, and for how long, and when it was looking at other things, or was at a point in its orbit where it could not observe. The gtis should be available from the raw telescope data. The file format should be a tab-separated file with 2 columns: start time of obs, stop time of obs (both in MJD).
 
 Once you have collected the required data in the correct format and placed it in the beans/data/ folder, you can move on to initialisation.
 
-==============
-Initialisation
-==============
 
-All initialisation is done in initialise.py. This is the only code that you need to edit (unless you want to change/edit things). The paramters you need to enter are listed below.
+Initialisation
+--------------
+
+All initialisation is done in initialise.py. This is the only code that you need to edit (unless you want to change/edit things). The parameters you need to enter are listed below.
 
 - **ndim, nwalkers**
 ndim is the dimension of your parameter space (will be 10 unless you add extra parameters to theta). nwalkers is the number of walkers you want the MCMC algorithm to use. Something around 200 should be fine. If you are having convergence issues try doubling the number of walkers - check out the emcee documentation for more information.
@@ -42,6 +95,7 @@ This sets the initial location of your walkers in parameter space. Theta is each
     theta = X, Z, Q_b, f_a, f_E, r1, r2, r3
 
 So an example set of starting conditions would be:
+
 .. code-block:: 
 
     theta = 0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2
@@ -81,11 +135,11 @@ Bolometric correction to apply to the persistent flux measurements. If they are 
 - **restart**
 If your run crashes and you would like to restart from the save file of a previous run with the run_id set above, set this to True. Can also be used if your max step number was not high enough and the chains did not converge before the run finished if you want to start where it finished last time. If this is a new run, set this to False.
 
-================
-Running the Code
-================
 
-Please note that the code can take a long time (~week) to run, depending on the number of bursts in the burst train, and the number of steps you choose to use. So I recommend running it on a desktop you know is not going switch off and using terminal software such as tmux or similar. 
+Running the Code
+----------------
+
+Please note that the code can take a long time (~week) to run, depending on the number of bursts in the burst train, and the number of steps you choose to use. So I recommend running it on a desktop you know is not going to switch off and using terminal software such as tmux or similar. 
 
 Once you have filled out the required parameters in initialise.py and put all of the required data files in beans/data/, you are ready to go. To run the code just type:
 
@@ -95,13 +149,14 @@ Once you have filled out the required parameters in initialise.py and put all of
 
 This will print some text to the terminal and if all is well you will see a progress bar appear which will give you an idea of how long the run is going to take. When you see "Complete! Chains are converged" this means the run finished, and the chains were converged. When you see "Complete! WARNING max number of steps reached but chains are not converged." This means the run finished but reached the maximum number of steps (nsteps) without converging. 
 
-=====================
+
 Analysing the Results
-=====================
+---------------------
 
 The output of the MCMC algorithm is saved in hdf5 format, and will be located in whichever folder you chose when you set **run_id**. For initial analysis of the chains you can run:
 
 .. code-block:: console
+
     $ python analyse.py
 
 And it will create a plot of the posterior distributions of your parameters. 
