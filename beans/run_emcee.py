@@ -3,65 +3,78 @@ import numpy as np
 import emcee
 import sys
 import pickle
+from multiprocessing import Pool
+import time
 
-def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, threads, run_id):
+def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart):
 
     # This section now defines the initial walker positions and next defines the chain and runs emcee.
 
     pos = [theta + 1e-4 * np.random.randn(ndim) for i in range(nwalkers)]
 
     print("# -------------------------------------------------------------------------#")
-    print("Ready to run", run_id, "with", len(pos), "walkers")
 
-    # Define the sampler for emcee. Threads argument should be set to how many cores your computer has.
-    # sampler.reset()
-    sampler = emcee.EnsembleSampler(
-        nwalkers, ndim, lnprob, args=(x, y, yerr), threads=threads
-    )
+    # define the dtype of the blobs
+    dtype = [("lnprob", float), ("x_0", float), ("z", float), ("base", float), ("r1", float), ("r2", float), ("r3", float), ("mass", float), ("radius", float)]
 
-    print("Running sampler...")
-    # Option to run without progress bar:
-    # run = sampler.run_mcmc(pos, 1000)
+    # set the intial position of the walkers
+    pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
 
-    # Option to run with progress bar:
-    width = 60
+    print('Ready to run',run_id,'with',len(pos),'walkers')
 
-    # open file to incrementally save progress in case run crashes 
-    # f = open("chain.dat", "w")
-    # f.close()
-    
-    for i, result in enumerate(sampler.sample(pos, iterations=nsteps, storechain=False)):
-        n = int((width + 1) * float(i) / nsteps)
-        sys.stdout.write("\r[{0}{1}]".format("#" * n, " " * (width - n)))
+    with Pool() as pool:
+        print("Beginning sampling..")
+        # use emcee backend to save as a HD5 file
+        reader = emcee.backends.HDFBackend(filename=f"chains_1808/test1.h5")
+        if restart == False:
+            reader.reset(nwalkers, ndim)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype)
 
-        # position = result[0]
-        # f = open("chain.dat", "a")
-        # for k in range(position.shape[0]):
-        #     np.savetxt(f, np.column_stack((k, position[k])))
-        # f.close()
-    sys.stdout.write("\n")
+        # We'll track how the average autocorrelation time estimate changes
+        index = 0
+        autocorr = np.empty(nsteps)
 
-    print("...sampler run " + run_id + " complete")
+        # This will be useful to testing convergence
+        old_tau = np.inf
+        for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
+            # Only check convergence every 100 steps
+            if sampler.iteration % 100:
+                continue
 
-    # -------------------------------------------------------------------------#
-    # Save multi-threaded sampler:
-    print(f"Now saving the chains to file chains/{run_id}_chain.p")
+            # Compute the autocorrelation time so far
+            # Using tol=0 means that we'll always get an estimate even
+            # if it isn't trustworthy
+            tau = sampler.get_autocorr_time(tol=0)
+            autocorr[index] = np.mean(tau)
+            index += 1
 
+            # Check convergence
+            converged = np.all(tau * 100 < sampler.iteration)
+            converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+            if converged:
+                print('Complete! Chains are converged')
+                break
+            old_tau = tau
 
-    def __getstate__(sampler):
-        sampler_dict = sampler.__dict__.copy()
-        del sampler_dict["pool"]
-        return sampler_dict
+        tau = sampler.get_autocorr_time()
+        print('Complete! WARNING max number of steps reached but chains are not converged.')
+        
 
+    #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
 
-    sampler_nopool = __getstate__(sampler)
-    pickle.dump(sampler_nopool, open("chains/" + run_id + "_chain.p", "wb"))
+    # with Pool() as pool:
+    #     print("Beginning sampling..")
+    #     # use emcee backend to save as a HD5 file
+    #     reader = emcee.backends.HDFBackend(f"chains_{run_id}.h5")
+    #     reader.reset(nwalkers, ndim)
+    #     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype)
+    #     start = time.time()
+    #     sampler.run_mcmc(pos, nsteps, progress=True, store=True)
+    #     end = time.time()
+    #     multi_time = end-start
 
+    #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
 
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-
-    print("All done!")
 
     return sampler
 
