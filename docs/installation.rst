@@ -53,9 +53,9 @@ Once you have downloaded the source code, and have all of the dependencies, navi
 
 .. code-block:: console
 
-    $ c++ -Ofast -o settle *.c *.cc -lm
+    $ make
 
-This will create a file called libsettle.so which is a precompiled binary that is used by beans to run settle. 
+This will create a file called libsettle.so which is a precompiled binary that is used by beans to run settle. The makefile may need to be edited depending on your operating system. 
 
 Now that you have compiled settle I recommend you run the test suite to check you have all the required dependencies and the code is operating as expected. To do this navigate to beans/ and type:
 
