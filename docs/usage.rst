@@ -53,7 +53,7 @@ Usage
 To use beans, there are a few steps you need to follow ::
 
 1. Collect all of the required data in the correct format and put it in beans/data folder.
-2. Setup all of the initial conditions in initialise.py
+2. Choose all of the initial conditions and initialise the class object Beans. 
 3. Run the code!
 
 
@@ -79,7 +79,16 @@ Once you have collected the required data in the correct format and placed it in
 Initialisation
 --------------
 
-All initialisation is done in initialise.py. This is the only code that you need to edit (unless you want to change/edit things). The parameters you need to enter are listed below.
+All initialisation is done by calling the class object Beans. The parameters you need to enter are listed below. Example iniitlisation would be something like:
+
+.. code-block:: console
+
+    from beans import Beans
+
+    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
+
+This should print some information to the terminal that will tel you if reading in the observation data and testing the model was successful. If there are no errors here, move on to running the code. 
+
 
 - **ndim, nwalkers**
 ndim is the dimension of your parameter space (will be 10 unless you add extra parameters to theta). nwalkers is the number of walkers you want the MCMC algorithm to use. Something around 200 should be fine. If you are having convergence issues try doubling the number of walkers - check out the emcee documentation for more information.
@@ -141,11 +150,16 @@ Running the Code
 
 Please note that the code can take a long time (~week) to run, depending on the number of bursts in the burst train, and the number of steps you choose to use. So I recommend running it on a desktop you know is not going to switch off and using terminal software such as tmux or similar. 
 
-Once you have filled out the required parameters in initialise.py and put all of the required data files in beans/data/, you are ready to go. To run the code just type:
+Once you have filled out the required parameters in initialise.py and put all of the required data files in beans/data/, you are ready to go. Running the code is done with the following command:
 
 .. code-block:: console
 
-    $ python beans.py
+    from beans import Beans
+
+    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
+
+    B.do_run()
+    
 
 This will print some text to the terminal and if all is well you will see a progress bar appear which will give you an idea of how long the run is going to take. When you see "Complete! Chains are converged" this means the run finished, and the chains were converged. When you see "Complete! WARNING max number of steps reached but chains are not converged." This means the run finished but reached the maximum number of steps (nsteps) without converging. 
 
@@ -157,11 +171,15 @@ The output of the MCMC algorithm is saved in hdf5 format, and will be located in
 
 .. code-block:: console
 
-    $ python analyse.py
+    from beans import Beans
 
-And it will create a plot of the posterior distributions of your parameters. 
+    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
 
-The interesting model information is saved in the "blobs" part of the sampler. This is where the parameters for each model run that was executed by emcee are saved (the output of the generate_burst_train routine). Unfortunately to save in HDF5 format this dictionary had to be converted to a string, so it needs to be turned back into a dictionary when you read in the save file. The script analyse.py has an example of how to do this, and how to access the data you want. 
+    B.do_analysis()
+
+And it will create a plot of the posterior distributions of your parameters. Further analysis is up to you. 
+
+The interesting model information is saved in the "blobs" part of the sampler. This is where the parameters for each model run that was executed by emcee are saved (the output of the generate_burst_train routine). Unfortunately to save in HDF5 format this dictionary had to be converted to a string, so it needs to be turned back into a dictionary when you read in the save file. Have a look in the function do_analysis for an example on how to do this. 
 
 **Checking Chain Convergence**
 
@@ -169,4 +187,4 @@ There are 2 main methods of checking the convergence and behaviour of your MCMC 
 
 **Obtaining Parameter Constraints**
 
-The posterior distributions are the true constraints on your parameters that MCMC gives you. However, you may wish to obtain numbers with uncertainties to report for the parameters. There are a few ways this can be done, you could choose to take the maximum likelihood value, or you could take the middle value of the distributions. The analysis code in analyse.py does this one way, but you should always check multiple methods and see if the results are significantly different. The "predicted" parameters are Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred, gravitypred, redshiftpred, and the central values of these and 1 sigma uncertainties are saved in the text file (runid)_parameterconstraints_pred.txt. The "observed" parameters are time, fluence, and alpha. These are arrays that contain an entry for each of the predicted bursts. These will be as long as the numburstssim you chose in the initialisation. The time array has 1 extra element than the ebs and alphas because ebs and alphas do not include predictions for the reference burst (with index tref). 
+The posterior distributions are the true constraints on your parameters that MCMC gives you. However, you may wish to obtain numbers with uncertainties to report for the parameters. There are a few ways this can be done, you could choose to take the maximum likelihood value, or you could take the middle value of the distributions. The analysis code in do_analysis does this one way, but you should always check multiple methods and see if the results are significantly different. The "predicted" parameters are Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred, gravitypred, redshiftpred, and the central values of these and 1 sigma uncertainties are saved in the text file (run_id)_parameterconstraints_pred.txt. The "observed" parameters are time, fluence, and alpha. These are arrays that contain an entry for each of the predicted bursts. These will be as long as the numburstssim you chose in the initialisation. The time array has 1 extra element than the ebs and alphas because ebs and alphas do not include predictions for the reference burst (with index tref). 

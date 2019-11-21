@@ -46,6 +46,7 @@ The first thing to do is check that you have all of the required python dependen
 - multiprocessing
 - os
 - time
+- h5py
 
 
 Once you have downloaded the source code, and have all of the dependencies, navigate to beans/settle and you will need to compile settle. Settle can be compiled by typing the following (provided you have gcc):

@@ -339,18 +339,19 @@ class Beans:
 
         # to get the parameter middle values and uncertainty use the functions get_param_uncert_obs and get_param_uncert_pred, e.g.
 
-        t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
-        times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
+        #t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
+        #times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
+        times = get_param_uncert_obs(time, self.numburstssim+1)
         timepred = [x[0] for x in times]
         timepred_errup = [x[1] for x in times]
         timepred_errlow = [x[2] for x in times]
-        eb1, eb2, eb3, eb4, eb5, eb6 = get_param_uncert_obs(e_b, self.numburstssim)
-        ebs = [list(eb1), list(eb2), list(eb3), list(eb4), list(eb5), list(eb6)]
+        
+        ebs = get_param_uncert_obs(e_b, self.numburstssim)
         ebpred = [x[0] for x in ebs]
         ebpred_errup = [x[1] for x in ebs]
         ebpred_errlow = [x[2] for x in ebs]
 
-        alpha1, alpha2, alpha3, alpha4, alpha5, alpha6 = get_param_uncert_obs(alpha, self.numburstssim)
+        alphas = get_param_uncert_obs(alpha, self.numburstssim)
 
         Xpred = np.array(list(get_param_uncert(X))[0])
         Zpred = np.array(list(get_param_uncert(Z))[0])
