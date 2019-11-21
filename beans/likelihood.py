@@ -138,6 +138,9 @@ def lnlike(theta, x, y, yerr):
         debug=debug,
     )
 
+    #model2 =  np.string_(model2, dtype='S1000')
+    model2 = str(model2).encode('ASCII')
+
     # Now also return the model
     return -0.5 * np.sum(cpts), model2
 
@@ -156,9 +159,7 @@ def lnZprior(z):
 
     beta = stats.beta
     ZCNO = 0.01
-    # if z == 0.:
-    #    return -np.inf
-    # else:
+
     return np.log(
         beta(10, 3).pdf((np.log10(z / ZCNO) + 3) / 3.75) / (3.75 * np.log(10) * z)
     )
@@ -199,10 +200,10 @@ def lnprob(theta, x, y, yerr):
     like, model = lnlike(theta, x, y, yerr)
 
     if (not np.isfinite(lp)) or (not np.isfinite(like)):
-        return -np.inf, -np.inf,  model["x_0"][0], model["z"][0], model['base'][0], model["r1"][0], model["r2"][0], model["r3"][0], model["mass"][0], model["radius"][0]
+        return -np.inf, -np.inf, model
 
     # we return the logprobability as well as the theta parameters at this point so we can extract results later
-    return lp + like, lp, model["x_0"][0], model["z"][0], model['base'][0], model["r1"][0], model["r2"][0], model["r3"][0], model["mass"][0], model["radius"][0]
+    return lp + like, lp, model
     
 
 

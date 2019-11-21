@@ -5,6 +5,7 @@ import sys
 import pickle
 from multiprocessing import Pool
 import time
+import h5py
 
 def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart):
 
@@ -15,7 +16,8 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
     print("# -------------------------------------------------------------------------#")
 
     # define the dtype of the blobs
-    dtype = [("lnprob", float), ("x_0", float), ("z", float), ("base", float), ("r1", float), ("r2", float), ("r3", float), ("mass", float), ("radius", float)]
+    #dtype = [("lnprob", float), ("model", "S1000")]
+    dtype = [("lnprob", float), ("model", h5py.string_dtype(encoding='ascii'))]
 
     # set the intial position of the walkers
     pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
@@ -25,7 +27,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
     with Pool() as pool:
         print("Beginning sampling..")
         # use emcee backend to save as a HD5 file
-        reader = emcee.backends.HDFBackend(filename=f"chains_1808/test1.h5")
+        reader = emcee.backends.HDFBackend(filename=run_id+".h5")
         if restart == False:
             reader.reset(nwalkers, ndim)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype)

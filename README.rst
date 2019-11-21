@@ -16,8 +16,8 @@ beans
 
 
 
-Bayesian parameter Estimation of Accreting Neutron Stars
---------------------------------------------------------
+Bayesian Estimation of Accreting Neutron Star parameters (BEANSp)
+-----------------------------------------------------------------
 
 * Free software: MIT license
 * Documentation: https://beans-7.readthedocs.io/en/latest/

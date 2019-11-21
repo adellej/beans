@@ -122,10 +122,9 @@ def get_a_b(pflux, pfluxe, tobs, n_burst, bstart):
 # Next we define the different functions that will generate the burst train: generate_burst_train and next_burst
 
 # ------------------------------------------------------------------------- #
-debug = 0
-double = 0
-run = 1
 
+run=1
+debug=0
 
 def next_burst(
     base,
@@ -139,9 +138,7 @@ def next_burst(
     cfac,
     mass,
     radius,
-    direction,
-    run=run,
-    debug=debug,
+    direction
 ):
     # t2,e_b,alpha,mdot,qnuc,xbar,
 
@@ -280,10 +277,7 @@ def generate_burst_train(
     pflux,
     pfluxe,
     tobs,
-    numburstssim,
-    run=run,
-    double=double,
-    debug=debug,
+    numburstssim
 ):
 
     # This routine generates a simulated burst train. The output is a
@@ -403,9 +397,7 @@ def generate_burst_train(
                 cfac1,
                 mass,
                 radius,
-                direction=-1,
-                run=run,
-                debug=debug,
+                direction=-1
             )
 
             # Also find the time for the *next* burst in the train, t3
@@ -422,9 +414,7 @@ def generate_burst_train(
                 cfac2,
                 mass,
                 radius,
-                direction=1,
-                run=run,
-                debug=debug,
+                direction=1
             )
 
         else:
@@ -442,9 +432,7 @@ def generate_burst_train(
                 cfac1,
                 mass,
                 radius,
-                direction=-1,
-                run=run,
-                debug=debug,
+                direction=-1
             )
 
             # Also find the time for the *next* burst in the train, t3
@@ -461,9 +449,7 @@ def generate_burst_train(
                 cfac2,
                 mass,
                 radius,
-                direction=1,
-                run=run,
-                debug=debug,
+                direction=1
             )
 
         t2 = result2.t2
@@ -551,7 +537,7 @@ def generate_burst_train(
     # result["qnuc"] = sqnuc
     # result["xbar"] = sxbar
     result["mass"] = [mass]
-    result["radius"] = [radius]
+    result["radius"] =  [radius]
 
     return result
 

@@ -160,3 +160,13 @@ The output of the MCMC algorithm is saved in hdf5 format, and will be located in
     $ python analyse.py
 
 And it will create a plot of the posterior distributions of your parameters. 
+
+The interesting model information is saved in the "blobs" part of the sampler. This is where the parameters for each model run that was executed by emcee are saved (the output of the generate_burst_train routine). Unfortunately to save in HDF5 format this dictionary had to be converted to a string, so it needs to be turned back into a dictionary when you read in the save file. The script analyse.py has an example of how to do this, and how to access the data you want. 
+
+**Checking Chain Convergence**
+
+There are 2 main methods of checking the convergence and behaviour of your MCMC chains. One is the autocorrelation time, which emcee conveniently calculates for you, and the other is the acceptance fraction. Goodman and Weare (2010) provide a good discussion on what these are and why they are important. Running analyse.py will print these to the terminal for you to check. 
+
+**Obtaining Parameter Constraints**
+
+The posterior distributions are the true constraints on your parameters that MCMC gives you. However, you may wish to obtain numbers with uncertainties to report for the parameters. There are a few ways this can be done, you could choose to take the maximum likelihood value, or you could take the middle value of the distributions. The analysis code in analyse.py does this one way, but you should always check multiple methods and see if the results are significantly different. The "predicted" parameters are Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred, gravitypred, redshiftpred, and the central values of these and 1 sigma uncertainties are saved in the text file (runid)_parameterconstraints_pred.txt. The "observed" parameters are time, fluence, and alpha. These are arrays that contain an entry for each of the predicted bursts. These will be as long as the numburstssim you chose in the initialisation. The time array has 1 extra element than the ebs and alphas because ebs and alphas do not include predictions for the reference burst (with index tref). 

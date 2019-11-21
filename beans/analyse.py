@@ -22,6 +22,8 @@ import time
 from multiprocessing import Pool
 import os
 import time
+import ast
+import matplotlib.gridspec as gridspec
 
 # -------------------------------------------------------------------------#
 ## load local  modules
@@ -32,68 +34,22 @@ from get_data import get_obs
 from mrprior import mr_prior
 from get_data import *
 from run_emcee import runemcee
-from likelihood import lnlike, lnZprior, lnprob
-from initialise import init
 
 
-def analyse(name):
-# run_id = "chains_1808/test1"
-    burnin = 10
-    thin = 5
-    ndim, nwalkers, nsteps, run_id, theta, x, y, yerr, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, bc, ref_ind, gti_checking, fluen, restart = init()
+def get_param_uncert_obs1(param_array, numburstssim):
+    # Get uncertainties on individual parameters:
+    p1, p2, p3, p4 ,p5, p6, p7 = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), zip(*np.percentile(param_array, [16, 50, 84], axis=0)))
+    # this will return 
+    return p1, p2, p3, p4, p5, p6, p7
+def get_param_uncert_obs(param_array, numburstssim):
+    # Get uncertainties on individual parameters:
+    p1, p2, p3, p4 ,p5, p6 = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), zip(*np.percentile(param_array, [16, 50, 84], axis=0)))
+    # this will return 
+    return p1, p2, p3, p4, p5, p6
 
-    # load in sampler:
-    reader = emcee.backends.HDFBackend(filename=name+".h5")
-    print(reader.iteration)
-    #sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
-
-    # tau = reader.get_autocorr_time()
-    # burnin = int(2 * np.max(tau))
-    # thin = int(0.5 * np.min(tau))
-    # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
-    # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
-    # log_prior_samples = reader.get_blobs(discard=burnin, flat=True, thin=thin)
-    samples = reader.get_chain(flat=True)
-    log_prob_samples = reader.get_log_prob(flat=True)
-    log_prior_samples = reader.get_blobs(flat=True)
-
-    # print("burn-in: {0}".format(burnin))
-    # print("thin: {0}".format(thin))
-    # print("flat chain shape: {0}".format(samples.shape))
-    # print("flat log prob shape: {0}".format(log_prob_samples.shape))
-    # print("flat log prior shape: {0}".format(log_prior_samples.shape))
-
-    # all_samples = np.concatenate(
-    #     (samples, log_prob_samples[:, None], log_prior_samples[:, None]), axis=1
-    # )
-
-    # labels = list(map(r"$\theta_{{{0}}}$".format, range(1, ndim + 1)))
-    # labels += ["log prob", "log prior"]
-
-    # figure = corner.corner(all_samples, labels=labels)
-    # figure.savefig('corner.pdf')
-
-    c = ChainConsumer()
-    c.add_chain(samples)
-    c.plotter.plot(filename=name+"_posteriors.pdf", figsize="column")
-
-
-    # model = generate_burst_train( base,
-    #     z,
-    #     x_0,
-    #     r1,
-    #     r2,
-    #     r3,
-    #     mass,
-    #     radius,
-    #     bstart,
-    #     pflux,
-    #     pfluxe,
-    #     tobs,
-    #     numburstssim,
-    #     run=run
-    #     double=double,
-    #     debug=debug,
-    # )
-
-analyse(name="chains_1808/test1")
+def get_param_uncert(param_array):
+    # Get uncertainties on individual parameters:
+    p = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), zip(*np.percentile(param_array, [16, 50, 84], axis=0)))
+    # this will return 
+    return p
+                                        
