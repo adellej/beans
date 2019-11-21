@@ -32,7 +32,7 @@ from get_data import get_obs
 from mrprior import mr_prior
 from get_data import get_obs
 from run_emcee import runemcee
-from analyse import get_param_uncert_obs1, get_param_uncert_obs, get_param_uncert
+from analyse import get_param_uncert_obs, get_param_uncert
 from initialise import init
 
 class Beans:
@@ -345,7 +345,7 @@ class Beans:
         timepred = [x[0] for x in times]
         timepred_errup = [x[1] for x in times]
         timepred_errlow = [x[2] for x in times]
-        
+
         ebs = get_param_uncert_obs(e_b, self.numburstssim)
         ebpred = [x[0] for x in ebs]
         ebpred_errup = [x[1] for x in ebs]
