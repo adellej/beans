@@ -2,6 +2,7 @@
 
 from astropy.io import ascii
 import numpy as np
+import pathlib
 
 def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     """  
@@ -26,10 +27,10 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     #Read in the gtis (required arrays are st (start time) and et (end time) of times telescope IS observing (indexes need to match)
     # gtis should be in MJD
     if gti_checking == 1:
-        gtidata = np.loadtxt(gtiname)
+        gtidata = np.loadtxt(pathlib.Path(__file__).resolve().parent.parent / "data" / gtiname)
     # Read in the burst and observation data that contains initial conditions and burst observation parameters:
-    obsdata = ascii.read(obsname)
-    burstdata = ascii.read(burstname)
+    obsdata = ascii.read(pathlib.Path(__file__).resolve().parent.parent / "data" / obsname)
+    burstdata = ascii.read(pathlib.Path(__file__).resolve().parent.parent / "data" / burstname)
 
     # -------------------------------------------------------------------------#
     # Need len(tobs) to intialise emcee:

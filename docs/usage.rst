@@ -84,10 +84,10 @@ All initialisation is done by calling the class object Beans. The parameters you
 .. code-block:: console
 
     from beans import Beans
+    
+    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
 
-    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
-
-This should print some information to the terminal that will tel you if reading in the observation data and testing the model was successful. If there are no errors here, move on to running the code. 
+This should print some information to the terminal that will tell you if reading in the observation data and testing the model was successful. If there are no errors here, move on to running the code. 
 
 
 - **ndim, nwalkers**
@@ -156,7 +156,7 @@ Once you have filled out the required parameters in initialise.py and put all of
 
     from beans import Beans
 
-    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
+    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
 
     B.do_run()
     
@@ -173,7 +173,7 @@ The output of the MCMC algorithm is saved in hdf5 format, and will be located in
 
     from beans import Beans
 
-    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
+    B = Beans(ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False)
 
     B.do_analysis()
 

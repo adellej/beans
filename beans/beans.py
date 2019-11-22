@@ -11,7 +11,6 @@ from astropy.io import ascii
 import pickle
 from matplotlib.ticker import MaxNLocator
 import sys
-import idlsave
 from scipy.stats.kde import gaussian_kde
 import scipy.stats as stats
 import matplotlib.mlab as mlab
@@ -37,7 +36,7 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
 
         from initialise import init
         from run_model import runmodel
@@ -54,7 +53,7 @@ class Beans:
         self.ref_ind = ref_ind # Define index of reference burst (should be middle of predicted burst train). This burst will not be simulated but will be used as a reference to predict the other bursts.
         self.gti_checking = gti_checking #Option to turn on gti time checking (1 for on, 0 for off):
         self.obsname = obsname #set location of your observation data files
-        self.burstname = burstname #set location of your burst data files:=
+        self.burstname = burstname #set location of your burst data files
         self.gtiname = gtiname #set location of your gti data files
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
@@ -384,9 +383,20 @@ class Beans:
         # make plot of posterior distributions of your parameters:
         c = ChainConsumer()
         c.add_chain(samples)
-        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
+        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"], figsize="column")
         
         # make plot of posterior distributions of the mass, radius, surface gravity, and redshift:
+        # stack data for input to chainconsumer:
+        mass = mass.ravel()
+        radius = radius.ravel()
+        gravity = gravity.ravel()
+        redshift = redshift.ravel()
+        mrgr = np.column_stack((mass, radius, gravity, redshift))
+
+        # plot with chainconsumer:
+        c = ChainConsumer()
+        c.add_chain(mrgr)
+        c.plotter.plot(filename=self.run_id+"_massradius.pdf", parameters=["M", "R", "g", "1+z"],figsize="column")
 
         # make plot of observed burst comparison with predicted bursts:
         # get the observed bursts for comparison:

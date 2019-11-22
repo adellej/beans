@@ -46,16 +46,25 @@ The first thing to do is check that you have all of the required python dependen
 - multiprocessing
 - os
 - time
-- h5py
+- h5py v2.10.0 or above. To install h5py v2.10.0 on Ubuntu you will need to use pip wheels, e.g. $ pip install h5py==2.10.0
+- pytest 
+- pickle
+-pathlib
 
-
-Once you have downloaded the source code, and have all of the dependencies, navigate to beans/settle and you will need to compile settle. Settle can be compiled by typing the following (provided you have gcc):
+Once you have downloaded the source code, and have all of the dependencies, navigate to beans/settle and you will need to compile settle. Compiling settle requires a different command depending if you are using Mac or Linux. For Mac type:
 
 .. code-block:: console
 
-    $ make
+    $ make mac
 
-This will create a file called libsettle.so which is a precompiled binary that is used by beans to run settle. The makefile may need to be edited depending on your operating system. 
+For Linux type:
+
+.. code-block:: console
+
+    $ make linux
+
+
+This will create a file called libsettle.so which is a precompiled binary that is used by beans to run settle. The makefile may need to be edited if either of these methods do not compile the code.
 
 Now that you have compiled settle I recommend you run the test suite to check you have all the required dependencies and the code is operating as expected. To do this navigate to beans/ and type:
 
