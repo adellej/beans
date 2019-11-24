@@ -1,0 +1,33 @@
+# The analysis results below have been extracted from the
+#
+# Multi-INstrument Burst ARchive (MINBAR) version 0.70
+#
+# comprising analyses of thermonuclear (type-I) X-ray bursts observed by
+# the Rossi X-ray Timing Explorer (RXTE), BeppoSAX, and INTEGRAL.
+#
+# The data provided here is PRELIMINARY and NOT SUITABLE FOR PUBLICATION.
+#
+# For more information, see the project home page < http://burst.sci.monash.edu/minbar >, the project wiki
+# <http://burst.sci.monash.edu/wiki/index.php?n=MINBAR.Home > or contact the PI Duncan Galloway.
+#
+# The last comment line before the data gives the column names and units
+#
+# "Starttime[MJDUT]" "Fluen[1e-6erg/cm^2]" "Errfluen" "Peakflux[1e-9erg/cm^2/" "Errpeakflux" "alpha" "Erralpha" "Persflux [1e-9 erg/cm^2/" "Errpersflux" "ID"  
+55086.16902	13.1500	3.5500	1.71	0.25	0.0	0.0	0.000	0.000	084400550010	
+55088.32967	20.6100	0.1700	1.91	0.03	0.0	0.0	0.000	0.000	94041-01-01-02	
+55089.16495	6.7800	2.4500	1.00	0.17	0.0	0.0	0.000	0.000	084500550010	
+55089.72042	21.0900	0.2400	1.95	0.04	0.0	0.0	0.000	0.000	94041-01-01-06	
+55091.27320	8.3300	4.7900	0.76	0.30	0.0	0.0	0.000	0.000	084600110010	
+55091.27323	22.1300	0.2400	2.19	0.04	0.0	0.0	0.000	0.000	94041-01-01-12	
+55091.61710	9.6400	5.0300	0.96	0.33	0.0	0.0	0.000	0.000	084600210010	
+55091.61715	22.0400	0.2400	2.04	0.04	0.0	0.0	0.000	0.000	94041-01-01-07	
+55092.33917	11.0900	1.8300	1.69	0.32	0.0	0.0	0.000	0.000	084600400010	
+55092.73622	10.4800	3.5000	1.04	0.25	0.0	0.0	0.000	0.000	084600500010	
+55093.10222	12.6800	2.9300	1.09	0.19	0.0	0.0	0.000	0.000	084600600010	
+55093.46659	13.6000	2.3500	0.97	0.13	0.0	0.0	0.000	0.000	084600700010	
+55094.61842	23.7800	0.1500	2.23	0.02	0.0	0.0	0.000	0.000	94041-01-02-12	
+55097.60216	23.8100	0.2500	2.41	0.04	0.0	0.0	0.000	0.000	94041-01-02-20	
+55098.77724	0.2991	0.0000	0.00	0.00	0.0	0.0	0.000	0.000	94041-01-02-10	
+55099.31361	31.4800	0.1600	3.49	0.03	0.0	0.0	0.000	0.000	94041-01-03-00	
+55100.63290	23.6500	0.2500	2.78	0.05	0.0	0.0	0.000	0.000	94041-01-03-03	
+55101.28984	25.9200	0.1800	2.85	0.03	0.0	0.0	0.000	0.000	94041-01-03-04	
