@@ -1,7 +1,7 @@
 """ This module defines the functions that generate the burst train """
 
 import numpy as np
-from settle import settle
+from beans.settle import settle
 import random
 
 def mean_flux(t1, t2, tobs, a, b):
