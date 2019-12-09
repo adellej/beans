@@ -1,14 +1,4 @@
-# settle:  settle.o
-# 	g++ -fPIC -c *.cc *.c
-# 	g++ -shared -fPIC -Wl,-install_name,libsettle.so  -o libsettle.so *.o
-# 	#objdump -T libsettle.so | grep main
-
-mac: settle.o
-	g++ -fPIC -c *.cc *.c
-	g++ -shared -fPIC -Wl,-install_name,libsettle.so  -o libsettle.so *.o
-	#objdump -T libsettle.so | grep main
-
-linux: settle.o 
+settle:  settle.o
 	g++ -fPIC -c *.cc *.c
 	g++ -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
 	#objdump -T libsettle.so | grep main
