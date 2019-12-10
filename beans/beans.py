@@ -42,7 +42,7 @@ class Beans:
         from run_model import runmodel
         # Set up initial conditions:
 
-        self.ndim = ndim       
+        self.ndim = ndim
         self.nwalkers = nwalkers # nwalkers and nsteps are the number of walkers and number of steps for emcee to do
         self.nsteps = nsteps
         self.run_id = run_id # Where you want output to be saved and under what name
@@ -59,7 +59,7 @@ class Beans:
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
 
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
- 
+
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -237,14 +237,14 @@ class Beans:
 
         # we return the logprobability as well as the theta parameters at this point so we can extract results later
         return lp + like, lp, model
-        
+
 
 
     # -------------------------------------------------------------- #
 
     def do_run(self):
         ## Running the chain
-        # we use multiprocessing to speed things up. Emcee parameters are defined in runemcee module. 
+        # we use multiprocessing to speed things up. Emcee parameters are defined in runemcee module.
 
         print("# -------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
@@ -266,11 +266,9 @@ class Beans:
     def do_analysis(self):
        # run_id = "chains_1808/test1"
 
-        # constants:     
+        # constants:
         c = 2.9979e10
         G = 6.67428e-8
-        burnin = 10
-        thin = 5
 
     # -------------------------------------------------------------------------#
         # load in sampler:
@@ -278,9 +276,9 @@ class Beans:
         #sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
 
         #tau = sampler.get_autocorr_time()
-        tau = 2
-        # burnin = int(2 * np.max(tau))
-        # thin = int(0.5 * np.min(tau))
+        tau = 10
+        burnin = int(2 * np.max(tau))
+        thin = int(0.5 * np.min(tau))
         samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
         log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
         blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
@@ -294,7 +292,7 @@ class Beans:
         #accept = reader.acceptance_fraction/nsteps #this will be an array with the acceptance fraction for each walker
         #print(f"The average acceptance fraction of the walkers is: {np.mean(accept)}")
 
-        # get the autocorrelation times: 
+        # get the autocorrelation times:
         # print("burn-in: {0}".format(burnin))
         # print("thin: {0}".format(thin))
         # print("flat chain shape: {0}".format(samples.shape))
@@ -340,17 +338,17 @@ class Beans:
 
         #t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
         #times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
-        times = get_param_uncert_obs(time, self.numburstssim+1)
+        times = get_param_uncert_obs(time, self.numburstssim*2+1)
         timepred = [x[0] for x in times]
         timepred_errup = [x[1] for x in times]
         timepred_errlow = [x[2] for x in times]
 
-        ebs = get_param_uncert_obs(e_b, self.numburstssim)
+        ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
         ebpred = [x[0] for x in ebs]
         ebpred_errup = [x[1] for x in ebs]
         ebpred_errlow = [x[2] for x in ebs]
 
-        alphas = get_param_uncert_obs(alpha, self.numburstssim)
+        alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
 
         Xpred = np.array(list(get_param_uncert(X))[0])
         Zpred = np.array(list(get_param_uncert(Z))[0])
@@ -384,7 +382,7 @@ class Beans:
         c = ChainConsumer()
         c.add_chain(samples)
         c.plotter.plot(filename=self.run_id+"_posteriors.pdf", parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"], figsize="column")
-        
+
         # make plot of posterior distributions of the mass, radius, surface gravity, and redshift:
         # stack data for input to chainconsumer:
         mass = mass.ravel()

@@ -8,10 +8,12 @@ import emcee
 import corner
 import random
 import math
+import subprocess
 from astropy.io import ascii
 import pickle
 from matplotlib.ticker import MaxNLocator
 import sys
+import idlsave
 from scipy.stats.kde import gaussian_kde
 import scipy.stats as stats
 import matplotlib.mlab as mlab
@@ -21,7 +23,6 @@ from chainconsumer import ChainConsumer
 from multiprocessing import Pool
 import os
 import time
-import pathlib
 
 # -------------------------------------------------------------------------#
 ## load local  modules

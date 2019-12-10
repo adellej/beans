@@ -2,7 +2,6 @@
 
 from astropy.io import ascii
 import numpy as np
-import pathlib
 
 def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     """  
@@ -27,16 +26,16 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     #Read in the gtis (required arrays are st (start time) and et (end time) of times telescope IS observing (indexes need to match)
     # gtis should be in MJD
     if gti_checking == 1:
-        gtidata = np.loadtxt(pathlib.Path(__file__).resolve().parent.parent / "data" / gtiname)
+        gtidata = np.loadtxt(gtiname)
     # Read in the burst and observation data that contains initial conditions and burst observation parameters:
-    obsdata = ascii.read(pathlib.Path(__file__).resolve().parent.parent / "data" / obsname)
-    burstdata = ascii.read(pathlib.Path(__file__).resolve().parent.parent / "data" / burstname)
+    obsdata = ascii.read(obsname)
+    burstdata = ascii.read(burstname)
 
     # -------------------------------------------------------------------------#
     # Need len(tobs) to intialise emcee:
     # Get the observing times and peak flux arrays:
-    ta_1 = np.array(obsdata['col1'])
-    ta_2 = np.array(obsdata['col2'])
+    ta_1 = obsdata['col1']
+    ta_2 = obsdata['col2']
 
     ssa_1 = ta_1
     ssa_2 = ta_2
@@ -67,6 +66,12 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     fluene = np.array(fluene)
     alpha = np.array(burstdata['col4'])
     alphae = np.array([burstdata['col5']])
+
+    # If alphas are pre-calculated, read them in here. If not the initialisation routine will do it below
+    #alpha = bursts['col9']
+    #alpha = np.array(alpha)
+    #alpha_err = bursts['col10']
+    #alpha_err = np.array(alpha_err)
 
     # Define reference time as start of first burst
     bstart0 = bstart[0]
