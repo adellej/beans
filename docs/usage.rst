@@ -101,7 +101,7 @@ This sets the initial location of your walkers in parameter space. Theta is each
 
 .. code-block:: console
 
-    theta = X, Z, Q_b, f_a, f_E, r1, r2, r3
+    theta = X, Z, Q_b, f_a, f_E, r1, r2, r3, M, R
 
 So an example set of starting conditions would be:
 
