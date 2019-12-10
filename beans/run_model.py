@@ -1,6 +1,6 @@
 # -------------------------------------------------------------------------#
 import numpy as np
-from beans.burstrain import *
+from burstrain import *
 
 def runmodel(theta, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking):
 
