@@ -273,15 +273,17 @@ class Beans:
     # -------------------------------------------------------------------------#
         # load in sampler:
         reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
+        #sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
 
-        tau = sampler.get_autocorr_time()
-        burnin = int(2 * np.max(tau))
-        thin = int(0.5 * np.min(tau))
-        samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
-        log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
-        blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
-    
+        #tau = sampler.get_autocorr_time()
+        # burnin = int(2 * np.max(tau))
+        # thin = int(0.5 * np.min(tau))
+        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
+        tau = 1
+        samples = reader.get_chain(flat=True)
+        blobs = reader.get_blobs(flat=True)
 
         data = []
         for i in range(len(blobs["model"])):
@@ -318,6 +320,13 @@ class Beans:
         r3 = np.array([data[i]['r3'] for i in range(len(data))])
         mass = np.array([data[i]['mass'] for i in range(len(data))])
         radius = np.array([data[i]['radius'] for i in range(len(data))])
+
+        print(X[-1])
+        print(Z[-1])
+        print(base[-1])
+        print(mdot[-1])
+        print(mass[-1])
+        print(radius[-1])
 
         # calculate redshift and gravity from mass and radius:
         R = np.array(radius)*1e5 #cgs
