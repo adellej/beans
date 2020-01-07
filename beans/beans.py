@@ -198,25 +198,16 @@ class Beans:
         )
 
 
-    def lnprior(self, theta):
+    def lnprior(self, theta_in):
         import numpy as np
 
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
+        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
-        if (
-            0.00001 < X < 0.76
-            and 0.00001 < Z < 0.056
-            and 0.000001 <= Q_b < 5.0
-            and 0 < f_a < 100
-            and 0 < f_E < 100
-            and 0.005 < r1 < 1.0
-            and 0.005 < r2 < 3.0
-            and 0 < r3 * 1e3 < 1000
-            and 1.15 < mass < 2.5
-            and 9 < radius < 17
-        ):  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
+        if 0.00001 < X < 0.76 and 0.00001 < Z < 0.056 and 0.000001 <= Q_b < 5.0 \
+            and 0 < f_a < 100 and 0 < f_E < 100 and 0.005 < r1 < 1.0 and 0.005 < r2 < 3.0 and 0 < r3 * 1e3 < 1000 and 1.15 < mass < 2.5 and 9 < radius < 17:  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
             return 0.0 + self.lnZprior(Z) + mr_prior(mass, radius)
-        return -np.inf
+        else:
+            return -np.inf
 
 
     # -------------------------------------------------------------------------#
@@ -257,7 +248,8 @@ class Beans:
         print("# -------------------------------------------------------------------------#")
 
         sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
-        print(f"Complete!")
+        #print(f"Complete!")
+        self.do_analysis()
         sampler.reset()
 
 # -------------------------------------------------------------------------#
@@ -273,15 +265,17 @@ class Beans:
     # -------------------------------------------------------------------------#
         # load in sampler:
         reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
-        #sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
+        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
 
-        #tau = sampler.get_autocorr_time()
-        tau = 10
+        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
         burnin = int(2 * np.max(tau))
         thin = int(0.5 * np.min(tau))
-        samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
-        log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
-        blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
+        samples=reader.get_chain(flat=True)
+        sampler=reader.get_chain(flat=False)
+        blobs = reader.get_blobs(flat=True)
+        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
 
         data = []
         for i in range(len(blobs["model"])):
@@ -299,9 +293,95 @@ class Beans:
         # print("flat log prob shape: {0}".format(log_prob_samples.shape))
         # print("flat log prior shape: {0}".format(log_prior_samples.shape))
 
-        print(f"The autocorrelation time for each parameter is: {tau}")
+        # alternate method of checking if the chains are converged:
+        # This code is from https://dfm.io/posts/autocorr/ 
+
+        # get autocorrelation time:
+
+        def next_pow_two(n):
+            i = 1
+            while i < n:
+                i = i << 1
+            return i
+
+        def autocorr_func_1d(x, norm=True):
+            x = np.atleast_1d(x)
+            if len(x.shape) != 1:
+                raise ValueError("invalid dimensions for 1D autocorrelation function")
+            n = next_pow_two(len(x))
+
+            # Compute the FFT and then (from that) the auto-correlation function
+            f = np.fft.fft(x - np.mean(x), n=2*n)
+            acf = np.fft.ifft(f * np.conjugate(f))[:len(x)].real
+            acf /= 4*n
+            
+            # Optionally normalize
+            if norm:
+                acf /= acf[0]
+
+            return acf
 
 
+        # Automated windowing procedure following Sokal (1989)
+        def auto_window(taus, c):
+            m = np.arange(len(taus)) < c * taus
+            if np.any(m):
+                return np.argmin(m)
+            return len(taus) - 1
+
+        # Following the suggestion from Goodman & Weare (2010)
+        def autocorr_gw2010(y, c=5.0):
+            f = autocorr_func_1d(np.mean(y, axis=0))
+            taus = 2.0*np.cumsum(f)-1.0
+            window = auto_window(taus, c)
+            return taus[window]
+
+        def autocorr_new(y, c=5.0):
+            f = np.zeros(y.shape[1])
+            for yy in y:
+                f += autocorr_func_1d(yy)
+            f /= len(y)
+            taus = 2.0*np.cumsum(f)-1.0
+            window = auto_window(taus, c)
+            return taus[window]
+
+        # Compute the estimators for a few different chain lengths
+
+        #loop through 10 parameters:
+        f = plt.figure(figsize=(5,4))
+
+        param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$", "$r{\mathrm{1}}$",\
+                "$r{\mathrm{2}}$", "$r{\mathrm{3}}$", "$M$", "$R$"]
+        for j in range(10):
+            chain = sampler[:, :, j].T
+
+            N = np.exp(np.linspace(np.log(100), np.log(chain.shape[0]), 10)).astype(int)
+            print(N)
+            gw2010 = np.empty(len(N))
+            new = np.empty(len(N))
+            for i, n in enumerate(N):
+                gw2010[i] = autocorr_gw2010(chain[:, :n])
+                new[i] = autocorr_new(chain[:, :n])
+
+            # Plot the comparisons
+            #plt.loglog(N, gw2010, "o-", label="G\&W 2010")
+            plt.loglog(N, new, "o-", label=f"{param[j]}")
+            ylim = plt.gca().get_ylim()
+            
+            #plt.ylim(ylim)
+        plt.xlabel("Number of samples, $N$", fontsize='xx-large')
+        plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
+
+            
+        plt.plot(N, np.array(N)/100.0, "--k")# label=r"$\tau = N/100$")
+        plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
+        plt.savefig('{}_autocorrelationtimes.pdf'.format(self.run_id))
+        plt.show()
+
+
+        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
     # -------------------------------------------------------------------------#
         # Get parameters for each model run from the blobs structure:
 
@@ -326,6 +406,15 @@ class Beans:
         gravity = M*redshift*G/R**2 #cgs
 
         # calculate distance and inclincation from scaling factors:
+        r1 = np.array(r1)
+        r2 = np.array(r2)
+        r3 = np.array(r3)
+        print(np.min(r1))
+        print(np.min(r2))
+        print(np.min(r3))
+        print(np.min(mass))
+        print(np.min(X))
+        
         sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
         xip = np.power(sqrt, 0.5)
         xib = (0.74816*xip)/r2
@@ -372,7 +461,7 @@ class Beans:
 
         # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
 
-        np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred) , header='value, upper uncertainty, lower uncertainty')
+        np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred \n value, upper uncertainty, lower uncertainty')
 
     # -------------------------------------------------------------------------#
     # PLOTS
@@ -380,8 +469,8 @@ class Beans:
 
         # make plot of posterior distributions of your parameters:
         c = ChainConsumer()
-        c.add_chain(samples)
-        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"], figsize="column")
+        c.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
 
         # make plot of posterior distributions of the mass, radius, surface gravity, and redshift:
         # stack data for input to chainconsumer:
@@ -393,8 +482,8 @@ class Beans:
 
         # plot with chainconsumer:
         c = ChainConsumer()
-        c.add_chain(mrgr)
-        c.plotter.plot(filename=self.run_id+"_massradius.pdf", parameters=["M", "R", "g", "1+z"],figsize="column")
+        c.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
+        c.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
 
         # make plot of observed burst comparison with predicted bursts:
         # get the observed bursts for comparison:

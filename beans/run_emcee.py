@@ -46,6 +46,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
             # Compute the autocorrelation time so far
             # Using tol=0 means that we'll always get an estimate even
             # if it isn't trustworthy
+            
             tau = sampler.get_autocorr_time(tol=0)
             autocorr[index] = np.mean(tau)
             index += 1
@@ -58,8 +59,8 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
                 break
             old_tau = tau
 
-        tau = sampler.get_autocorr_time()
-        print('Complete! WARNING max number of steps reached but chains are not converged.')
+        #tau = sampler.get_autocorr_time()
+        print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
         
 
     #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
