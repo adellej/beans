@@ -214,14 +214,14 @@ class Beans:
     # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
 
     # define lnprob, which is the full log-probability function
-    def lnprob(self, theta, x, y, yerr):
+    def lnprob(self, theta_in, x, y, yerr):
         import numpy as np
 
-        lp = self.lnprior(theta)
+        lp = self.lnprior(theta_in)
 
         # Now also returns the model, to accumulate along with the likelihoods
 
-        like, model = self.lnlike(theta, x, y, yerr)
+        like, model = self.lnlike(theta_in, x, y, yerr)
 
         if (not np.isfinite(lp)) or (not np.isfinite(like)):
             return -np.inf, -np.inf, model
@@ -270,7 +270,7 @@ class Beans:
         tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
         burnin = int(2 * np.max(tau))
         thin = int(0.5 * np.min(tau))
-        samples=reader.get_chain(flat=True)
+        samples=reader.get_chain(flat=True, discard=burnin)
         sampler=reader.get_chain(flat=False)
         blobs = reader.get_blobs(flat=True)
         # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
@@ -348,12 +348,13 @@ class Beans:
         # Compute the estimators for a few different chain lengths
 
         #loop through 10 parameters:
-        f = plt.figure(figsize=(5,4))
+        f = plt.figure(figsize=(8,5))
 
         param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$", "$r{\mathrm{1}}$",\
                 "$r{\mathrm{2}}$", "$r{\mathrm{3}}$", "$M$", "$R$"]
         for j in range(10):
             chain = sampler[:, :, j].T
+            print(np.shape(sampler))
 
             N = np.exp(np.linspace(np.log(100), np.log(chain.shape[0]), 10)).astype(int)
             print(N)
@@ -366,6 +367,7 @@ class Beans:
             # Plot the comparisons
             #plt.loglog(N, gw2010, "o-", label="G\&W 2010")
             plt.loglog(N, new, "o-", label=f"{param[j]}")
+            plt.loglog(N, gw2010, "o-", label=None)
             ylim = plt.gca().get_ylim()
             
             #plt.ylim(ylim)
@@ -373,7 +375,7 @@ class Beans:
         plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
 
             
-        plt.plot(N, np.array(N)/100.0, "--k")# label=r"$\tau = N/100$")
+        plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)

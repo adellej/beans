@@ -248,9 +248,7 @@ def next_burst(
     )
     # assign elements
     result.t2 = t1 + direction * tmp.tdel / 24.0
-    result.e_b = (
-        tmp.E_b
-    )  # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
+    result.e_b = tmp.E_b # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
     result.alpha = tmp.alpha
     # result.qnuc = tmp.Q_nuc
     # result.xbar = tmp.xbar

@@ -22,7 +22,10 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
     # set the intial position of the walkers
     pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
 
-    print('Ready to run',run_id,'with',len(pos),'walkers')
+    if restart == True:
+        print('Restarting',run_id,'with',len(pos),'walkers')
+    else:
+        print('Ready to run',run_id,'with',len(pos),'walkers')
 
     with Pool() as pool:
         print("Beginning sampling..")

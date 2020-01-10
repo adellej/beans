@@ -2,9 +2,9 @@
 import numpy as np
 from burstrain import *
 
-def runmodel(theta, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking):
+def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking):
 
-    X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta
+    X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
 
     # Set the imput parameters to generate_burst_train
