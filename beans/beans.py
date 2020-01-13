@@ -273,9 +273,10 @@ class Beans:
     # -------------------------------------------------------------------------#
         # load in sampler:
         reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
+        #sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
 
-        tau = sampler.get_autocorr_time()
+        #tau = sampler.get_autocorr_time()
+        tau = 10
         burnin = int(2 * np.max(tau))
         thin = int(0.5 * np.min(tau))
         samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
