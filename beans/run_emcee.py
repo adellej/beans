@@ -11,21 +11,21 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
     # This section now defines the initial walker positions and next defines the chain and runs emcee.
 
-    pos = [theta + 1e-4 * np.random.randn(ndim) for i in range(nwalkers)]
-
     print("# -------------------------------------------------------------------------#")
 
     # define the dtype of the blobs
     #dtype = [("lnprob", float), ("model", "S1000")]
     dtype = [("lnprob", float), ("model", h5py.string_dtype(encoding='ascii'))]
 
-    # set the intial position of the walkers
-    pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+
 
     if restart == True:
-        print('Restarting',run_id,'with',len(pos),'walkers')
+        print('Restarting',run_id,'with',nwalkers,'walkers')
     else:
-        print('Ready to run',run_id,'with',len(pos),'walkers')
+        # set the intial position of the walkers
+        #pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        print('Ready to run',run_id,'with',nwalkers,'walkers')
+
 
     with Pool() as pool:
         print("Beginning sampling..")

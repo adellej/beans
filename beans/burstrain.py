@@ -275,7 +275,8 @@ def generate_burst_train(
     pflux,
     pfluxe,
     tobs,
-    numburstssim
+    numburstssim,
+    ref_ind
 ):
 
     # This routine generates a simulated burst train. The output is a
@@ -324,7 +325,7 @@ def generate_burst_train(
     # and three preceding. However, the last burst in the train (the 8th) for
     # runs test17 were wildly variable, so now restrict the extent by one
 
-    sbt = bstart[1]
+    sbt = bstart[ref_ind]
     salpha = -1
     flag = 1  # Initially OK
 
@@ -355,26 +356,26 @@ def generate_burst_train(
 
         #    if i lt 3*(1+double) then $
 
-        # Here we introduce recurrence time corrections since the accretion rate is not flat over the extrapolated time, resulting in the recurrence time being underestimated by settle. Correction factors are from Zac, calculated using KEPLER
+        # Here we introduce recurrence time corrections since the accretion rate is not flat over the extrapolated time, resulting in the recurrence time being underestimated by settle. Correction factors are from Zac, calculated using KEPLER for SAX J1808.4--3658
 
-        if i == 0:  # This is observed burst at 1.89
-            cfac1 = 1.02041
-            cfac2 = 1.02041
-        if (
-            i == 1
-        ):  # to the right this is 3rd observed burst, to left it is predicted burst
-            cfac1 = 1.00
-            cfac2 = 1.1905
-        if (
-            i == 2
-        ):  # to the right this is 4th observed burst, to left is predicted burst
-            cfac1 = 1.00
-            cfac2 = 1.2346
-        if (
-            i == 3
-        ):  # to the right this is final predicted burst, to the left is first observed burst (note that cfac = 1.25 is estimated interpolation)
-            cfac1 = 1.00
-            cfac2 = 1.25
+        # if i == 0:  # This is observed burst at 1.89
+        #     cfac1 = 1.02041
+        #     cfac2 = 1.02041
+        # if (
+        #     i == 1
+        # ):  # to the right this is 3rd observed burst, to left it is predicted burst
+        #     cfac1 = 1.00
+        #     cfac2 = 1.1905
+        # if (
+        #     i == 2
+        # ):  # to the right this is 4th observed burst, to left is predicted burst
+        #     cfac1 = 1.00
+        #     cfac2 = 1.2346
+        # if (
+        #     i == 3
+        # ):  # to the right this is final predicted burst, to the left is first observed burst (note that cfac = 1.25 is estimated interpolation)
+        #     cfac1 = 1.00
+        #     cfac2 = 1.25
         # if i == 4: # to the right this is final predicted burst, to the left is first observed burst (note that cfac = 1.25 is estimated interpolation)
         #    cfac1 = 0.98
         #    cfac2 = 1.27
@@ -392,7 +393,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac1,
+                1.0,
                 mass,
                 radius,
                 direction=-1
@@ -409,7 +410,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac2,
+                1.0,
                 mass,
                 radius,
                 direction=1
@@ -427,7 +428,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac1,
+                1.0,
                 mass,
                 radius,
                 direction=-1
@@ -444,7 +445,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac2,
+                1.0,
                 mass,
                 radius,
                 direction=1

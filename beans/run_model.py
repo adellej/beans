@@ -38,7 +38,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_i
     #   RADIUS          FLOAT     11.2
 
     result = generate_burst_train(
-        base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim
+        base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
     )
 
     tpred = result["time"]

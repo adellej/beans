@@ -36,7 +36,7 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
 
         from initialise import init
         from run_model import runmodel
@@ -71,44 +71,31 @@ class Beans:
         print("result: ", test, valid)
 
 
-    def lnlike(self, theta, x, y, yerr):
+    def lnlike(self, theta_in, x, y, yerr):
 
         # define y = "data" parameters
 
-        for x, i in zip(
-            [x for x in range(0, len(self.bstart) - 1) if x != self.ref_ind],
-            [i for i in range(0, len(self.bstart) - 1) if i != self.ref_ind],
-        ):
-            globals()["t%s" % i] = y[x]
-        for x, i in zip(
-            range(len(self.bstart) - 1, len(self.fluen) + len(self.bstart) - 1), range(0, len(self.bstart))
-        ):
-            globals()["Eb%s" % i] = y[x]
-        for x, i in zip(
-            range(len(self.fluen) + len(self.bstart) - 1, len(y)), range(0, len(self.bstart - 1))
-        ):
-            globals()["a%s" % i] = y[x]
+        for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
+            globals()['t%s' % i] = self.y[x]
+        for x,i in zip(range(len(self.bstart)-1, len(self.fluen)+len(self.bstart)-1),range(0,len(self.bstart))):
+            globals()['Eb%s' % i] = self.y[x]
+        for x,i in zip(range(len(self.fluen)+len(self.bstart)-1, len(self.y)),range(0, len(self.bstart-1))):
+            globals()['a%s' % i] = self.y[x]
 
-        # define yerr as variance terms (errors) for our data parameters (listed in same order as for y)
-        # *note that we have to enter three time errors for the code to work however in reality the error should be the same for all of them (st0, st2 and st3 are really dummy parameters)
+    # define yerr as variance terms (errors) for our data parameters (listed in same order as for y)
+    # *note that we have to enter three time errors for the code to work however in reality the error should be the same for all of them (st0, st2 and st3 are really dummy parameters)
 
-        for x, i in zip(
-            [x for x in range(0, len(self.bstart) - 1) if x != self.ref_ind],
-            [i for i in range(0, len(self.bstart) - 1) if i != self.ref_ind],
-        ):
-            globals()["st%s" % i] = yerr[x]
-        for x, i in zip(
-            range(len(self.bstart) - 1, len(self.fluen) + len(self.bstart) - 1), range(0, len(self.bstart))
-        ):
-            globals()["sEb%s" % i] = yerr[x]
-        for x, i in zip(
-            range(len(self.fluen) + len(self.bstart) - 1, len(self.y)), range(0, len(self.bstart - 1))
-        ):
-            globals()["sa%s" % i] = yerr[x]
+        for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
+            globals()['st%s' % i] = self.yerr[x]
+        for x,i in zip(range(len(self.bstart)-1, len(self.fluen)+len(self.bstart)-1),range(0,len(self.bstart))):
+            globals()['sEb%s' % i] = self.yerr[x]
+        for x,i in zip(range(len(self.fluen)+len(self.bstart)-1, len(self.y)),range(0, len(self.bstart-1))):
+            globals()['sa%s' % i] = self.yerr[x]
+
 
         # define theta = model parameters, which we define priors for
 
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta
+        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
         # Instead of treating s_t as a parameter, we just hardwire it here
 
@@ -116,29 +103,29 @@ class Beans:
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
         model, valid = runmodel(
-            theta, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking
+            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking
         )
 
         if not valid:
             return -np.inf, model
 
         # multiplying by scaling factors to match with the data
-        model[len(self.bstart) - 1 : len(self.fluen) + len(self.bstart) - 1] *= r3
-        model[len(self.fluen) + len(self.bstart) - 1 : len(self.y)] *= r2
+        model[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1] *= r3
+        model[len(self.fluen)+len(self.bstart)-1:len(self.y)] *= r2
 
-        # To simplify final likelihood expression we define inv_sigma2 for each data parameter that describe the error.
-        # The variance (eg sEb0) is underestimated by some fractional amount, f, for each set of parameters.
+    # To simplify final likelihood expression we define inv_sigma2 for each data parameter that describe the error.
+    # The variance (eg sEb0) is underestimated by some fractional amount, f, for each set of parameters.
 
-        sEb = self.yerr[len(self.bstart) - 1 : len(self.fluen) + len(self.bstart) - 1]
-        sa = self.yerr[len(self.fluen) + len(self.bstart) - 1 : len(self.yerr)]
+        sEb = yerr[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1]
+        sa = yerr[len(self.fluen)+len(self.bstart)-1:len(self.yerr)]
 
         inv_sigma2 = []
-        for i in range(0, len(self.bstart) - 1):
-            inv_sigma2.append(1.0 / (s_t ** 2))
-        for i in range(0, len(self.bstart)):
-            inv_sigma2.append(1.0 / ((sEb[i] * f_E) ** 2))
-        for i in range(0, len(self.bstart) - 1):
-            inv_sigma2.append(1.0 / ((sa[i] * f_a) ** 2))
+        for i in range (0,len(self.bstart)-1):
+            inv_sigma2.append(1.0/(s_t**2))
+        for i in range(0,len(self.bstart)):
+            inv_sigma2.append(1.0/((sEb[i]*f_E)**2))
+        for i in range(0,len(self.bstart)-1):
+            inv_sigma2.append(1.0/((sa[i]*f_a)**2))
 
         # Final likelihood expression
         cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
@@ -169,6 +156,7 @@ class Beans:
             self.pfluxe,
             self.tobs,
             self.numburstssim,
+            self.ref_ind
         )
 
         #model2 =  np.string_(model2, dtype='S1000')
@@ -246,11 +234,59 @@ class Beans:
         print("# -------------------------------------------------------------------------#")
         print(f"The theta parameters will begin at: {self.theta}")
         print("# -------------------------------------------------------------------------#")
+        print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
+        # make plot of observed burst comparison with predicted bursts:
+        # get the observed bursts for comparison:
+        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
+        base = Q_b
+        z = Z
+        x = X
+        r1 = r1
+        r2 = r2
+        r3 = r3
+        mass = mass
+        radius = radius
+
+        model = generate_burst_train(
+            base,
+            z,
+            x,
+            r1,
+            r2,
+            r3,
+            mass,
+            radius,
+            self.bstart,
+            self.pflux,
+            self.pfluxe,
+            self.tobs,
+            self.numburstssim,
+            self.ref_ind
+        )
+        timepred = model["time"]
+        ebpred = np.array(model["e_b"])*np.array(model["r3"])
+
+        tobs = self.bstart
+        ebobs = self.fluen
+        plt.figure(figsize=(10,7))
+        plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
+        plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
+        #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
+        #plt.errorbar(tobs, ebobs, fmt='.',color='black')
+        plt.xlabel("Time (days after start of outburst)")
+        plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
+        plt.title("Initial guess of parameters")
+        plt.legend(loc=2)
+        plt.show()
+
+        print("# -------------------------------------------------------------------------#")
+        print("Beginning sampling..")
 
         sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
-        #print(f"Complete!")
+        print(f"Sampling complete!")
         self.do_analysis()
-        sampler.reset()
+        #if self.restart == False:
+            #sampler.reset()
 
 # -------------------------------------------------------------------------#
 # Analyse and display the results:
@@ -266,8 +302,8 @@ class Beans:
         # load in sampler:
         reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
-
-        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
+        tau = 20
+        #tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
         burnin = int(2 * np.max(tau))
         thin = int(0.5 * np.min(tau))
         samples=reader.get_chain(flat=True, discard=burnin)
@@ -367,7 +403,7 @@ class Beans:
             # Plot the comparisons
             #plt.loglog(N, gw2010, "o-", label="G\&W 2010")
             plt.loglog(N, new, "o-", label=f"{param[j]}")
-            plt.loglog(N, gw2010, "o-", label=None)
+           #plt.loglog(N, gw2010, "o-", label=None)
             ylim = plt.gca().get_ylim()
             
             #plt.ylim(ylim)
@@ -508,3 +544,22 @@ class Beans:
 
         plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
         plt.show()
+
+
+        # plot the chains:
+        ndim = 10
+
+        labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
+        plt.clf()
+        fig, axes = plt.subplots(ndim, 1, sharex=True, figsize=(8, 9))
+
+        for i in range(ndim):
+            axes[i].plot(samples, color="k", alpha=0.4)
+            axes[i].yaxis.set_major_locator(MaxNLocator(5))
+            axes[i].set_ylabel(labels[i])
+
+        axes[ndim-1].set_xlabel("step number")
+        plt.tight_layout(h_pad=0.0)
+        plt.savefig(self.run_id+'chain-plot.pdf')
+        plt.show()
+           
