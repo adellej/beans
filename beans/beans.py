@@ -554,7 +554,7 @@ class Beans:
         fig, axes = plt.subplots(ndim, 1, sharex=True, figsize=(8, 9))
 
         for i in range(ndim):
-            axes[i].plot(samples, color="k", alpha=0.4)
+            axes[i].plot(sampler[:,:,i].T, color="k", alpha=0.4)
             axes[i].yaxis.set_major_locator(MaxNLocator(5))
             axes[i].set_ylabel(labels[i])
 

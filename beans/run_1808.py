@@ -4,7 +4,7 @@
 from beans import Beans
 
 
-B = Beans(run_id='1808/test6', nsteps=1000, obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt')
+B = Beans(run_id='1808/test7', nsteps=1000, obsname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_obs.txt', burstname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_bursts.txt', gtiname='/Users/adelle/Documents/MCMC_burstcode_beans/beans/data/1808_gti.txt')
 
 #B.do_run() 
 
