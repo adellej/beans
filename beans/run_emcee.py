@@ -20,10 +20,11 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
 
     if restart == True:
+        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
         print('Restarting',run_id,'with',nwalkers,'walkers')
     else:
         # set the intial position of the walkers
-        #pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
         print('Ready to run',run_id,'with',nwalkers,'walkers')
 
 
