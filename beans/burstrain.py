@@ -149,7 +149,7 @@ def next_burst(
     # if len(direction) == 0 then direction=1.
     # if len(dbg) == 0 then dbg=0
     # if len(run) == 0 then run=0
-    mdot_res = 0.001
+    mdot_res = 1e-6
     fn = "next_burst"
     tol = 1.0e-6
     seed = 49221941
@@ -241,7 +241,7 @@ def next_burst(
             t2 = -99.99
         else:
             t2 = +99.99
-
+    print(f'mdot={mdot}')
         # create array
     result = np.recarray(
         (1,), dtype=[("t2", np.float64), ("e_b", np.float64), ("alpha", np.float64)]
@@ -537,6 +537,8 @@ def generate_burst_train(
     # result["xbar"] = sxbar
     result["mass"] = [mass]
     result["radius"] =  [radius]
+
+    print(f"In burstrain fluence is {se_b}")
 
     return result
 

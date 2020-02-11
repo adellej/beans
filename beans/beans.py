@@ -302,8 +302,8 @@ class Beans:
         # load in sampler:
         reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
-        tau = 20
-        #tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
+        #tau = 20
+        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
         burnin = int(2 * np.max(tau))
         thin = int(0.5 * np.min(tau))
         samples=reader.get_chain(flat=True, discard=burnin)
@@ -392,7 +392,7 @@ class Beans:
             chain = sampler[:, :, j].T
             print(np.shape(sampler))
 
-            N = np.exp(np.linspace(np.log(100), np.log(chain.shape[0]), 10)).astype(int)
+            N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), 10)).astype(int)
             print(N)
             gw2010 = np.empty(len(N))
             new = np.empty(len(N))
@@ -403,7 +403,7 @@ class Beans:
             # Plot the comparisons
             #plt.loglog(N, gw2010, "o-", label="G\&W 2010")
             plt.loglog(N, new, "o-", label=f"{param[j]}")
-           #plt.loglog(N, gw2010, "o-", label=None)
+            plt.loglog(N, gw2010, "o-", label=None, color='grey')
             ylim = plt.gca().get_ylim()
             
             #plt.ylim(ylim)
