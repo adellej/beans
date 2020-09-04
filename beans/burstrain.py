@@ -149,7 +149,7 @@ def next_burst(
     # if len(direction) == 0 then direction=1.
     # if len(dbg) == 0 then dbg=0
     # if len(run) == 0 then run=0
-    mdot_res = 0.001
+    mdot_res = 1e-6
     fn = "next_burst"
     tol = 1.0e-6
     seed = 49221941
@@ -241,16 +241,14 @@ def next_burst(
             t2 = -99.99
         else:
             t2 = +99.99
-
+    print(f'mdot={mdot}')
         # create array
     result = np.recarray(
         (1,), dtype=[("t2", np.float64), ("e_b", np.float64), ("alpha", np.float64)]
     )
     # assign elements
     result.t2 = t1 + direction * tmp.tdel / 24.0
-    result.e_b = (
-        tmp.E_b
-    )  # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
+    result.e_b = tmp.E_b # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
     result.alpha = tmp.alpha
     # result.qnuc = tmp.Q_nuc
     # result.xbar = tmp.xbar
@@ -277,7 +275,8 @@ def generate_burst_train(
     pflux,
     pfluxe,
     tobs,
-    numburstssim
+    numburstssim,
+    ref_ind
 ):
 
     # This routine generates a simulated burst train. The output is a
@@ -326,7 +325,7 @@ def generate_burst_train(
     # and three preceding. However, the last burst in the train (the 8th) for
     # runs test17 were wildly variable, so now restrict the extent by one
 
-    sbt = bstart[1]
+    sbt = bstart[ref_ind]
     salpha = -1
     flag = 1  # Initially OK
 
@@ -357,26 +356,26 @@ def generate_burst_train(
 
         #    if i lt 3*(1+double) then $
 
-        # Here we introduce recurrence time corrections since the accretion rate is not flat over the extrapolated time, resulting in the recurrence time being underestimated by settle. Correction factors are from Zac, calculated using KEPLER
+        # Here we introduce recurrence time corrections since the accretion rate is not flat over the extrapolated time, resulting in the recurrence time being underestimated by settle. Correction factors are from Zac, calculated using KEPLER for SAX J1808.4--3658
 
-        if i == 0:  # This is observed burst at 1.89
-            cfac1 = 1.02041
-            cfac2 = 1.02041
-        if (
-            i == 1
-        ):  # to the right this is 3rd observed burst, to left it is predicted burst
-            cfac1 = 1.00
-            cfac2 = 1.1905
-        if (
-            i == 2
-        ):  # to the right this is 4th observed burst, to left is predicted burst
-            cfac1 = 1.00
-            cfac2 = 1.2346
-        if (
-            i == 3
-        ):  # to the right this is final predicted burst, to the left is first observed burst (note that cfac = 1.25 is estimated interpolation)
-            cfac1 = 1.00
-            cfac2 = 1.25
+        # if i == 0:  # This is observed burst at 1.89
+        #     cfac1 = 1.02041
+        #     cfac2 = 1.02041
+        # if (
+        #     i == 1
+        # ):  # to the right this is 3rd observed burst, to left it is predicted burst
+        #     cfac1 = 1.00
+        #     cfac2 = 1.1905
+        # if (
+        #     i == 2
+        # ):  # to the right this is 4th observed burst, to left is predicted burst
+        #     cfac1 = 1.00
+        #     cfac2 = 1.2346
+        # if (
+        #     i == 3
+        # ):  # to the right this is final predicted burst, to the left is first observed burst (note that cfac = 1.25 is estimated interpolation)
+        #     cfac1 = 1.00
+        #     cfac2 = 1.25
         # if i == 4: # to the right this is final predicted burst, to the left is first observed burst (note that cfac = 1.25 is estimated interpolation)
         #    cfac1 = 0.98
         #    cfac2 = 1.27
@@ -394,7 +393,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac1,
+                1.0,
                 mass,
                 radius,
                 direction=-1
@@ -411,7 +410,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac2,
+                1.0,
                 mass,
                 radius,
                 direction=1
@@ -429,7 +428,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac1,
+                1.0,
                 mass,
                 radius,
                 direction=-1
@@ -446,7 +445,7 @@ def generate_burst_train(
                 a,
                 b,
                 r1,
-                cfac2,
+                1.0,
                 mass,
                 radius,
                 direction=1
@@ -538,6 +537,8 @@ def generate_burst_train(
     # result["xbar"] = sxbar
     result["mass"] = [mass]
     result["radius"] =  [radius]
+
+    print(f"In burstrain fluence is {se_b}")
 
     return result
 

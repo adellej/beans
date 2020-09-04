@@ -36,13 +36,13 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
 
         from initialise import init
         from run_model import runmodel
         # Set up initial conditions:
 
-        self.ndim = ndim       
+        self.ndim = ndim
         self.nwalkers = nwalkers # nwalkers and nsteps are the number of walkers and number of steps for emcee to do
         self.nsteps = nsteps
         self.run_id = run_id # Where you want output to be saved and under what name
@@ -59,7 +59,7 @@ class Beans:
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
 
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
- 
+
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -71,44 +71,31 @@ class Beans:
         print("result: ", test, valid)
 
 
-    def lnlike(self, theta, x, y, yerr):
+    def lnlike(self, theta_in, x, y, yerr):
 
         # define y = "data" parameters
 
-        for x, i in zip(
-            [x for x in range(0, len(self.bstart) - 1) if x != self.ref_ind],
-            [i for i in range(0, len(self.bstart) - 1) if i != self.ref_ind],
-        ):
-            globals()["t%s" % i] = y[x]
-        for x, i in zip(
-            range(len(self.bstart) - 1, len(self.fluen) + len(self.bstart) - 1), range(0, len(self.bstart))
-        ):
-            globals()["Eb%s" % i] = y[x]
-        for x, i in zip(
-            range(len(self.fluen) + len(self.bstart) - 1, len(y)), range(0, len(self.bstart - 1))
-        ):
-            globals()["a%s" % i] = y[x]
+        for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
+            globals()['t%s' % i] = self.y[x]
+        for x,i in zip(range(len(self.bstart)-1, len(self.fluen)+len(self.bstart)-1),range(0,len(self.bstart))):
+            globals()['Eb%s' % i] = self.y[x]
+        for x,i in zip(range(len(self.fluen)+len(self.bstart)-1, len(self.y)),range(0, len(self.bstart-1))):
+            globals()['a%s' % i] = self.y[x]
 
-        # define yerr as variance terms (errors) for our data parameters (listed in same order as for y)
-        # *note that we have to enter three time errors for the code to work however in reality the error should be the same for all of them (st0, st2 and st3 are really dummy parameters)
+    # define yerr as variance terms (errors) for our data parameters (listed in same order as for y)
+    # *note that we have to enter three time errors for the code to work however in reality the error should be the same for all of them (st0, st2 and st3 are really dummy parameters)
 
-        for x, i in zip(
-            [x for x in range(0, len(self.bstart) - 1) if x != self.ref_ind],
-            [i for i in range(0, len(self.bstart) - 1) if i != self.ref_ind],
-        ):
-            globals()["st%s" % i] = yerr[x]
-        for x, i in zip(
-            range(len(self.bstart) - 1, len(self.fluen) + len(self.bstart) - 1), range(0, len(self.bstart))
-        ):
-            globals()["sEb%s" % i] = yerr[x]
-        for x, i in zip(
-            range(len(self.fluen) + len(self.bstart) - 1, len(self.y)), range(0, len(self.bstart - 1))
-        ):
-            globals()["sa%s" % i] = yerr[x]
+        for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
+            globals()['st%s' % i] = self.yerr[x]
+        for x,i in zip(range(len(self.bstart)-1, len(self.fluen)+len(self.bstart)-1),range(0,len(self.bstart))):
+            globals()['sEb%s' % i] = self.yerr[x]
+        for x,i in zip(range(len(self.fluen)+len(self.bstart)-1, len(self.y)),range(0, len(self.bstart-1))):
+            globals()['sa%s' % i] = self.yerr[x]
+
 
         # define theta = model parameters, which we define priors for
 
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta
+        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
         # Instead of treating s_t as a parameter, we just hardwire it here
 
@@ -116,29 +103,29 @@ class Beans:
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
         model, valid = runmodel(
-            theta, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking
+            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking
         )
 
         if not valid:
             return -np.inf, model
 
         # multiplying by scaling factors to match with the data
-        model[len(self.bstart) - 1 : len(self.fluen) + len(self.bstart) - 1] *= r3
-        model[len(self.fluen) + len(self.bstart) - 1 : len(self.y)] *= r2
+        model[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1] *= r3
+        model[len(self.fluen)+len(self.bstart)-1:len(self.y)] *= r2
 
-        # To simplify final likelihood expression we define inv_sigma2 for each data parameter that describe the error.
-        # The variance (eg sEb0) is underestimated by some fractional amount, f, for each set of parameters.
+    # To simplify final likelihood expression we define inv_sigma2 for each data parameter that describe the error.
+    # The variance (eg sEb0) is underestimated by some fractional amount, f, for each set of parameters.
 
-        sEb = self.yerr[len(self.bstart) - 1 : len(self.fluen) + len(self.bstart) - 1]
-        sa = self.yerr[len(self.fluen) + len(self.bstart) - 1 : len(self.yerr)]
+        sEb = yerr[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1]
+        sa = yerr[len(self.fluen)+len(self.bstart)-1:len(self.yerr)]
 
         inv_sigma2 = []
-        for i in range(0, len(self.bstart) - 1):
-            inv_sigma2.append(1.0 / (s_t ** 2))
-        for i in range(0, len(self.bstart)):
-            inv_sigma2.append(1.0 / ((sEb[i] * f_E) ** 2))
-        for i in range(0, len(self.bstart) - 1):
-            inv_sigma2.append(1.0 / ((sa[i] * f_a) ** 2))
+        for i in range (0,len(self.bstart)-1):
+            inv_sigma2.append(1.0/(s_t**2))
+        for i in range(0,len(self.bstart)):
+            inv_sigma2.append(1.0/((sEb[i]*f_E)**2))
+        for i in range(0,len(self.bstart)-1):
+            inv_sigma2.append(1.0/((sa[i]*f_a)**2))
 
         # Final likelihood expression
         cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
@@ -169,6 +156,7 @@ class Beans:
             self.pfluxe,
             self.tobs,
             self.numburstssim,
+            self.ref_ind
         )
 
         #model2 =  np.string_(model2, dtype='S1000')
@@ -198,53 +186,44 @@ class Beans:
         )
 
 
-    def lnprior(self, theta):
+    def lnprior(self, theta_in):
         import numpy as np
 
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
+        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
-        if (
-            0.00001 < X < 0.76
-            and 0.00001 < Z < 0.056
-            and 0.000001 <= Q_b < 5.0
-            and 0 < f_a < 100
-            and 0 < f_E < 100
-            and 0.005 < r1 < 1.0
-            and 0.005 < r2 < 3.0
-            and 0 < r3 * 1e3 < 1000
-            and 1.15 < mass < 2.5
-            and 9 < radius < 17
-        ):  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
+        if 0.00001 < X < 0.76 and 0.00001 < Z < 0.056 and 0.000001 <= Q_b < 5.0 \
+            and 0 < f_a < 100 and 0 < f_E < 100 and 0.005 < r1 < 1.0 and 0.005 < r2 < 3.0 and 0 < r3 * 1e3 < 1000 and 1.15 < mass < 2.5 and 9 < radius < 17:  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
             return 0.0 + self.lnZprior(Z) + mr_prior(mass, radius)
-        return -np.inf
+        else:
+            return -np.inf
 
 
     # -------------------------------------------------------------------------#
     # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
 
     # define lnprob, which is the full log-probability function
-    def lnprob(self, theta, x, y, yerr):
+    def lnprob(self, theta_in, x, y, yerr):
         import numpy as np
 
-        lp = self.lnprior(theta)
+        lp = self.lnprior(theta_in)
 
         # Now also returns the model, to accumulate along with the likelihoods
 
-        like, model = self.lnlike(theta, x, y, yerr)
+        like, model = self.lnlike(theta_in, x, y, yerr)
 
         if (not np.isfinite(lp)) or (not np.isfinite(like)):
             return -np.inf, -np.inf, model
 
         # we return the logprobability as well as the theta parameters at this point so we can extract results later
         return lp + like, lp, model
-        
+
 
 
     # -------------------------------------------------------------- #
 
     def do_run(self):
         ## Running the chain
-        # we use multiprocessing to speed things up. Emcee parameters are defined in runemcee module. 
+        # we use multiprocessing to speed things up. Emcee parameters are defined in runemcee module.
 
         print("# -------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
@@ -255,10 +234,59 @@ class Beans:
         print("# -------------------------------------------------------------------------#")
         print(f"The theta parameters will begin at: {self.theta}")
         print("# -------------------------------------------------------------------------#")
+        print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
+        # make plot of observed burst comparison with predicted bursts:
+        # get the observed bursts for comparison:
+        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
+        base = Q_b
+        z = Z
+        x = X
+        r1 = r1
+        r2 = r2
+        r3 = r3
+        mass = mass
+        radius = radius
+
+        model = generate_burst_train(
+            base,
+            z,
+            x,
+            r1,
+            r2,
+            r3,
+            mass,
+            radius,
+            self.bstart,
+            self.pflux,
+            self.pfluxe,
+            self.tobs,
+            self.numburstssim,
+            self.ref_ind
+        )
+        timepred = model["time"]
+        ebpred = np.array(model["e_b"])*np.array(model["r3"])
+
+        tobs = self.bstart
+        ebobs = self.fluen
+        plt.figure(figsize=(10,7))
+        plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
+        plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
+        #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
+        #plt.errorbar(tobs, ebobs, fmt='.',color='black')
+        plt.xlabel("Time (days after start of outburst)")
+        plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
+        plt.title("Initial guess of parameters")
+        plt.legend(loc=2)
+        plt.show()
+
+        print("# -------------------------------------------------------------------------#")
+        print("Beginning sampling..")
 
         sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
-        print(f"Complete!")
-        sampler.reset()
+        print(f"Sampling complete!")
+        self.do_analysis()
+        #if self.restart == False:
+            #sampler.reset()
 
 # -------------------------------------------------------------------------#
 # Analyse and display the results:
@@ -266,24 +294,24 @@ class Beans:
     def do_analysis(self):
        # run_id = "chains_1808/test1"
 
-        # constants:     
+        # constants:
         c = 2.9979e10
         G = 6.67428e-8
-        burnin = 10
-        thin = 5
 
     # -------------------------------------------------------------------------#
         # load in sampler:
         reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
-        #sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader)
-
-        #tau = sampler.get_autocorr_time()
-        tau = 2
-        # burnin = int(2 * np.max(tau))
-        # thin = int(0.5 * np.min(tau))
-        samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
-        log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
-        blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
+        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
+        #tau = 20
+        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
+        burnin = int(2 * np.max(tau))
+        thin = int(0.5 * np.min(tau))
+        samples=reader.get_chain(flat=True, discard=burnin)
+        sampler=reader.get_chain(flat=False)
+        blobs = reader.get_blobs(flat=True)
+        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
 
         data = []
         for i in range(len(blobs["model"])):
@@ -294,16 +322,104 @@ class Beans:
         #accept = reader.acceptance_fraction/nsteps #this will be an array with the acceptance fraction for each walker
         #print(f"The average acceptance fraction of the walkers is: {np.mean(accept)}")
 
-        # get the autocorrelation times: 
+        # get the autocorrelation times:
         # print("burn-in: {0}".format(burnin))
         # print("thin: {0}".format(thin))
         # print("flat chain shape: {0}".format(samples.shape))
         # print("flat log prob shape: {0}".format(log_prob_samples.shape))
         # print("flat log prior shape: {0}".format(log_prior_samples.shape))
 
-        print(f"The autocorrelation time for each parameter is: {tau}")
+        # alternate method of checking if the chains are converged:
+        # This code is from https://dfm.io/posts/autocorr/ 
+
+        # get autocorrelation time:
+
+        def next_pow_two(n):
+            i = 1
+            while i < n:
+                i = i << 1
+            return i
+
+        def autocorr_func_1d(x, norm=True):
+            x = np.atleast_1d(x)
+            if len(x.shape) != 1:
+                raise ValueError("invalid dimensions for 1D autocorrelation function")
+            n = next_pow_two(len(x))
+
+            # Compute the FFT and then (from that) the auto-correlation function
+            f = np.fft.fft(x - np.mean(x), n=2*n)
+            acf = np.fft.ifft(f * np.conjugate(f))[:len(x)].real
+            acf /= 4*n
+            
+            # Optionally normalize
+            if norm:
+                acf /= acf[0]
+
+            return acf
 
 
+        # Automated windowing procedure following Sokal (1989)
+        def auto_window(taus, c):
+            m = np.arange(len(taus)) < c * taus
+            if np.any(m):
+                return np.argmin(m)
+            return len(taus) - 1
+
+        # Following the suggestion from Goodman & Weare (2010)
+        def autocorr_gw2010(y, c=5.0):
+            f = autocorr_func_1d(np.mean(y, axis=0))
+            taus = 2.0*np.cumsum(f)-1.0
+            window = auto_window(taus, c)
+            return taus[window]
+
+        def autocorr_new(y, c=5.0):
+            f = np.zeros(y.shape[1])
+            for yy in y:
+                f += autocorr_func_1d(yy)
+            f /= len(y)
+            taus = 2.0*np.cumsum(f)-1.0
+            window = auto_window(taus, c)
+            return taus[window]
+
+        # Compute the estimators for a few different chain lengths
+
+        #loop through 10 parameters:
+        f = plt.figure(figsize=(8,5))
+
+        param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$", "$r{\mathrm{1}}$",\
+                "$r{\mathrm{2}}$", "$r{\mathrm{3}}$", "$M$", "$R$"]
+        for j in range(10):
+            chain = sampler[:, :, j].T
+            print(np.shape(sampler))
+
+            N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), 10)).astype(int)
+            print(N)
+            gw2010 = np.empty(len(N))
+            new = np.empty(len(N))
+            for i, n in enumerate(N):
+                gw2010[i] = autocorr_gw2010(chain[:, :n])
+                new[i] = autocorr_new(chain[:, :n])
+
+            # Plot the comparisons
+            #plt.loglog(N, gw2010, "o-", label="G\&W 2010")
+            plt.loglog(N, new, "o-", label=f"{param[j]}")
+            plt.loglog(N, gw2010, "o-", label=None, color='grey')
+            ylim = plt.gca().get_ylim()
+            
+            #plt.ylim(ylim)
+        plt.xlabel("Number of samples, $N$", fontsize='xx-large')
+        plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
+
+            
+        plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
+        plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
+        plt.savefig('{}_autocorrelationtimes.pdf'.format(self.run_id))
+        plt.show()
+
+
+        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
     # -------------------------------------------------------------------------#
         # Get parameters for each model run from the blobs structure:
 
@@ -328,6 +444,15 @@ class Beans:
         gravity = M*redshift*G/R**2 #cgs
 
         # calculate distance and inclincation from scaling factors:
+        r1 = np.array(r1)
+        r2 = np.array(r2)
+        r3 = np.array(r3)
+        print(np.min(r1))
+        print(np.min(r2))
+        print(np.min(r3))
+        print(np.min(mass))
+        print(np.min(X))
+        
         sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
         xip = np.power(sqrt, 0.5)
         xib = (0.74816*xip)/r2
@@ -340,17 +465,17 @@ class Beans:
 
         #t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
         #times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
-        times = get_param_uncert_obs(time, self.numburstssim+1)
+        times = get_param_uncert_obs(time, self.numburstssim*2+1)
         timepred = [x[0] for x in times]
         timepred_errup = [x[1] for x in times]
         timepred_errlow = [x[2] for x in times]
 
-        ebs = get_param_uncert_obs(e_b, self.numburstssim)
+        ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
         ebpred = [x[0] for x in ebs]
         ebpred_errup = [x[1] for x in ebs]
         ebpred_errlow = [x[2] for x in ebs]
 
-        alphas = get_param_uncert_obs(alpha, self.numburstssim)
+        alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
 
         Xpred = np.array(list(get_param_uncert(X))[0])
         Zpred = np.array(list(get_param_uncert(Z))[0])
@@ -374,7 +499,7 @@ class Beans:
 
         # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
 
-        np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred) , header='value, upper uncertainty, lower uncertainty')
+        np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred \n value, upper uncertainty, lower uncertainty')
 
     # -------------------------------------------------------------------------#
     # PLOTS
@@ -382,9 +507,9 @@ class Beans:
 
         # make plot of posterior distributions of your parameters:
         c = ChainConsumer()
-        c.add_chain(samples)
-        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"], figsize="column")
-        
+        c.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
+
         # make plot of posterior distributions of the mass, radius, surface gravity, and redshift:
         # stack data for input to chainconsumer:
         mass = mass.ravel()
@@ -395,8 +520,8 @@ class Beans:
 
         # plot with chainconsumer:
         c = ChainConsumer()
-        c.add_chain(mrgr)
-        c.plotter.plot(filename=self.run_id+"_massradius.pdf", parameters=["M", "R", "g", "1+z"],figsize="column")
+        c.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
+        c.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
 
         # make plot of observed burst comparison with predicted bursts:
         # get the observed bursts for comparison:
@@ -419,3 +544,22 @@ class Beans:
 
         plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
         plt.show()
+
+
+        # plot the chains:
+        ndim = 10
+
+        labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
+        plt.clf()
+        fig, axes = plt.subplots(ndim, 1, sharex=True, figsize=(8, 9))
+
+        for i in range(ndim):
+            axes[i].plot(sampler[:,:,i].T, color="k", alpha=0.4)
+            axes[i].yaxis.set_major_locator(MaxNLocator(5))
+            axes[i].set_ylabel(labels[i])
+
+        axes[ndim-1].set_xlabel("step number")
+        plt.tight_layout(h_pad=0.0)
+        plt.savefig(self.run_id+'chain-plot.pdf')
+        plt.show()
+           

@@ -3,7 +3,9 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+import glob
+
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -11,11 +13,8 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+requirements = [ "numpy","matplotlib"] # add all libraries 
 
-setup_requirements = ['pytest-runner', ]
-
-test_requirements = ['pytest>=3', ]
 
 setup(
     author="Adelle Goodwin",
@@ -37,10 +36,9 @@ setup(
     keywords='beans',
     name='beans',
     packages=find_packages(include=['beans', 'beans.*']),
-    setup_requires=setup_requirements,
     test_suite='tests',
-    tests_require=test_requirements,
     url='https://github.com/adellej/beans',
     version='0.1.0',
     zip_safe=False,
+    ext_modules=[Extension("settle", glob.glob("settle/*.cc"))]
 )

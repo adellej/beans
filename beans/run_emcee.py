@@ -11,18 +11,22 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
     # This section now defines the initial walker positions and next defines the chain and runs emcee.
 
-    pos = [theta + 1e-4 * np.random.randn(ndim) for i in range(nwalkers)]
-
     print("# -------------------------------------------------------------------------#")
 
     # define the dtype of the blobs
     #dtype = [("lnprob", float), ("model", "S1000")]
     dtype = [("lnprob", float), ("model", h5py.string_dtype(encoding='ascii'))]
 
-    # set the intial position of the walkers
-    pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
 
-    print('Ready to run',run_id,'with',len(pos),'walkers')
+
+    if restart == True:
+        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        print('Restarting',run_id,'with',nwalkers,'walkers')
+    else:
+        # set the intial position of the walkers
+        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        print('Ready to run',run_id,'with',nwalkers,'walkers')
+
 
     with Pool() as pool:
         print("Beginning sampling..")
@@ -46,6 +50,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
             # Compute the autocorrelation time so far
             # Using tol=0 means that we'll always get an estimate even
             # if it isn't trustworthy
+            
             tau = sampler.get_autocorr_time(tol=0)
             autocorr[index] = np.mean(tau)
             index += 1
@@ -58,8 +63,8 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
                 break
             old_tau = tau
 
-        tau = sampler.get_autocorr_time()
-        print('Complete! WARNING max number of steps reached but chains are not converged.')
+        #tau = sampler.get_autocorr_time()
+        print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
         
 
     #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
