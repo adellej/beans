@@ -34,7 +34,7 @@ Credits
 
 Software written by Adelle Goodwin. See Goodwin et al. (2019) - https://arxiv.org/pdf/1907.00996.
 
-This code makes use of settle (written by Andrew Cumming), was based on code written by Duncan Galloway, and uses Dan Foreman-Mackey's python implementation of emcee, MCMC. 
+This code makes use of settle (written by Andrew Cumming), was based on code written by Duncan Galloway, and uses Dan Foreman-Mackey's python implementation of MCMC, emcee. 
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
 
