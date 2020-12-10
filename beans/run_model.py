@@ -2,7 +2,8 @@
 import numpy as np
 from burstrain import *
 
-def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking):
+def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking,
+             gti_start=None, gti_end=None, debug=False):
 
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
@@ -38,78 +39,88 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_i
     #   RADIUS          FLOAT     11.2
 
     result = generate_burst_train(
-        base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
-    )
+        base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind,
+        debug=debug)
 
     tpred = result["time"]
 
     # bug testing sample model values
     # model = np.array([-0.04106, 2.77858, 3.99188, 3.73303, 3.68542, 4.16907, 4.71480, 115.000, 126.903, 138.070]) #to test the code we define the model as an array, where the numbers in the array are values for the parameters of y, in the same order as y. Values have been taken from Duncan's example code output
 
-    # Assemble the array for comparison with the data
+    if (y is not None) & (len(tpred) > 0):
 
-    i1 = []
-    for i in range(0, ref_ind):
-        i1.append(np.argmin(np.abs(tpred - y[i])))
+        # Assemble the array for comparison with the data
 
-    i1.append(np.argmin(np.abs(tpred - tref)))
+        i1 = []
+        for i in range(0, ref_ind):
+            i1.append(np.argmin(np.abs(tpred - y[i])))
 
-    for i in range(ref_ind, len(bstart) - 1):
-        i1.append(np.argmin(np.abs(tpred - y[i])))
+        i1.append(np.argmin(np.abs(tpred - tref)))
 
-    li1 = list(i1)
-    li1m1 = [np.max([x - 1, 0]) for x in li1]
+        for i in range(ref_ind, len(bstart) - 1):
+            i1.append(np.argmin(np.abs(tpred - y[i])))
 
-    # We compare the fluences for all the bursts
-    # We add 1 here, and also to the expression for ialpha, because the indexing is different for
-    # the e_b and alpha arrays, compared to the times, coming out of generate_burst_train
+        li1 = list(i1)
+        li1m1 = [np.max([x - 1, 0]) for x in li1]
 
-    ie_b = li1m1
+        # We compare the fluences for all the bursts
+        # We add 1 here, and also to the expression for ialpha, because the indexing is different for
+        # the e_b and alpha arrays, compared to the times, coming out of generate_burst_train
 
-    # We only compare the times of the bursts for observed events #0, 2 & 3; #10 is a "reference"
-    # from which the train is calculated
+        ie_b = li1m1
 
-    i2 = li1
-    i2.pop(ref_ind)
-    itime = i2
+        # We only compare the times of the bursts for observed events #0, 2 & 3; #10 is a "reference"
+        # from which the train is calculated
 
-    # We compare the alpha values only for observed events #1, 2 & 3 as we don't have the recurrence
-    # time for event #0
+        i2 = li1
+        i2.pop(ref_ind)
+        itime = i2
 
-    i11 = []
-    for i in range(0, ref_ind):
-        i11.append(np.argmin(np.abs(tpred - y[i])))
+        # We compare the alpha values only for observed events #1, 2 & 3 as we don't have the recurrence
+        # time for event #0
 
-    i11.append(np.argmin(np.abs(tpred - tref)))
+        i11 = []
+        for i in range(0, ref_ind):
+            i11.append(np.argmin(np.abs(tpred - y[i])))
 
-    for i in range(ref_ind, len(bstart)):
-        i11.append(np.argmin(np.abs(tpred - y[i])))
-    li11 = list(i11)
-    li1m11 = [np.max([x - 1, 0]) for x in li11]
+        i11.append(np.argmin(np.abs(tpred - tref)))
 
-    i3 = li1m11
+        for i in range(ref_ind, len(bstart)):
+            i11.append(np.argmin(np.abs(tpred - y[i])))
+        li11 = list(i11)
+        li1m11 = [np.max([x - 1, 0]) for x in li11]
 
-    i3.pop(0)
-    ialpha = i3
+        i3 = li1m11
 
-    model = []
-    for i in range(0, len(bstart) - 1):
-        model.append(result["time"][itime[i]])
-    for i in range(0, len(bstart)):
-        model.append(result["e_b"][ie_b[i]])
-    for i in range(0, len(bstart) - 1):
-        model.append(result["alpha"][ialpha[i]])
+        i3.pop(0)
+        ialpha = i3
 
-    model = np.array(model)
+        model = []
+        for i in range(0, len(bstart) - 1):
+            model.append(result["time"][itime[i]])
+        for i in range(0, len(bstart)):
+            model.append(result["e_b"][ie_b[i]])
+        for i in range(0, len(bstart) - 1):
+            model.append(result["alpha"][ialpha[i]])
+
+        model = np.array(model)
+    else:
+        # If you're not comparing to observed bursts, just return the result of generate_burst_train
+        model = result
+        i1 = [] # created as empty list for the gti_checking below
 
     # Check here if the model instance is valid, i.e. the bursts that are NOT matched with the
     # observed ones must fall in gaps
     # We use the (global) arrays st, et defined by 1808-match, to avoid copying them over from IDL
     # each time
     valid = True
-    if gti_checking is 1:
-        if "st" not in globals():
+    if gti_checking == 1:
+        # if "st" not in globals():
+        if (gti_start is None) or (gti_end is None):
+            print ('** WARNING ** can''t access GTI information')
             return model, valid
+        else:
+            st, et = gti_start, gti_end
 
         for index, rt in enumerate(tpred):
             if index not in i1:

@@ -3,6 +3,7 @@
 import numpy as np
 from settle import settle
 import random
+import matplotlib.pyplot as plt
 
 def mean_flux(t1, t2, tobs, a, b):
 
@@ -77,7 +78,7 @@ def mean_flux(t1, t2, tobs, a, b):
 # and vary the persistent flux by a random amount within the uncertainty of the measurement.
 
 
-def get_a_b(pflux, pfluxe, tobs, n_burst, bstart):
+def get_a_b(pflux, pfluxe, tobs):
 
     # Do piecewise continuous fits to the flux evolution, here
     # determine the appropriate parameters for each interval:
@@ -105,9 +106,10 @@ def get_a_b(pflux, pfluxe, tobs, n_burst, bstart):
     result["a"] = [a]
     result["b"] = [b]
 
-    mflux = []
-    for i in range(1, n_burst):
-        mflux.append(mean_flux(bstart[i - 1], bstart[i], tobs, a0, b0))
+    # No longer used
+    # mflux = []
+    # for i in range(1, n_burst):
+        # mflux.append(mean_flux(bstart[i - 1], bstart[i], tobs, a0, b0))
 
     # plt.scatter(tobs, fpflux,color='black')
     # plt.scatter(tobs,pflux,color='magenta')
@@ -138,118 +140,124 @@ def next_burst(
     cfac,
     mass,
     radius,
-    direction
-):
-    # t2,e_b,alpha,mdot,qnuc,xbar,
+    direction=1,
+    debug=False ):
+    """
+    Routine to find the next burst in the series and return its properties
+    Adapted from sim_burst.pro
+    """
 
-    # Routine to find the next burst in the series and return it's properties
-    # Adapted from sim_burst.pro
-
-    # common cube
-    # if len(direction) == 0 then direction=1.
-    # if len(dbg) == 0 then dbg=0
-    # if len(run) == 0 then run=0
     mdot_res = 1e-6
     fn = "next_burst"
-    tol = 1.0e-6
-    seed = 49221941
-    # if fine == 0:
-    #    mdot_res==0.001
-    # if fine == 1:
-    #    mdot_res==0.0004
-    #  if fine eq 2 then mdot_res=0.00025
-    # if fine == 2 or run == 1:
-    # mdot_res==0.0002 # Latest newcube4/5
+    assert direction in (1,-1)
 
     minmdot = 0.0
     maxmdot = 1.0
 
-    # change precision of mdot_res:
-    # mdot_res = mdot_res/10.
+    # a, b passed as an array of an array
     a = a[0]
     b = b[0]
 
+    # Determine the initial guess for mean mdot (linear)
     #  i0=min([n_elements(a)-1,max(where(t1 gt tobs))])
-    itobs = max([np.where(t1 > tobs)])
-    itobs = max(itobs)
+    itobs = np.where(t1 > tobs)[0]
+    if (len(itobs) == 0) & (direction == -1):
+        # the start time is before *any* of the observations; don't bother!
+        return None
     if len(itobs) == 0:
-        itobs = [-1]
+        # this makes no sense to me; if the t1 value is < all the tobs values, then the
+        # nearest element would be the zeroth
+        # itobs = [-1]
+        itobs = [0]
     # i0=max([0,min([len(a)-1,max([i for i, value in enumerate(tobs) if value < t1])])])
     i0 = max([0, min([len(a) - 1, max(itobs)])])
-    mdot0 = (
-        (0.67 / 8.8) * (a[i0] + b[i0] * t1) * r1
-    )  # Initial guess at mean mdot (linear)
+    mdot0 = ( (0.67 / 8.8) * (a[i0] + b[i0] * t1) * r1 )
+    if debug:
+        print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
 
-    # print,base,x_0,z,mdot0
-    tmp = settle(base, z, x_0, mdot0, cfac, mass, radius)
+    # Calculate the burst properties for the trial mdot value
+    trial = settle(base, z, x_0, mdot0, cfac, mass, radius)
+    if debug:
+        print ('{}: initial guess mdot0={} @ t1={}, tdel={}, direction={}'.format(fn,mdot0,t1,trial.tdel,direction))
+
+    # Now update the mdot with the value averaged over the trial interval
     if direction == 1:
-        mdot = (0.67 / 8.8) * mean_flux(t1, t1 + tmp.tdel / 24.0, tobs, a, b) * r1
+        mdot = (0.67 / 8.8) * mean_flux(t1, t1 + trial.tdel / 24.0, tobs, a, b) * r1
     else:
-        mdot = (0.67 / 8.8) * mean_flux(t1 - tmp.tdel / 24.0, t1, tobs, a, b) * r1
-
-    #  while abs(mdot-mdot0)/mdot gt 0.01 do begin	; To 1%
+        mdot = (0.67 / 8.8) * mean_flux(t1 - trial.tdel / 24.0, t1, tobs, a, b) * r1
 
     # Now retain the entire history of this iteration, so we can check for loops
 
     mdot_hist = [mdot0]
-
-    # test = np.where(abs(mdot_hist-mdot) < tol)
-    #  while abs(mdot-mdot0) gt mdot_res/2. $
-    # while abs(mdot-mdot_hist[len(mdot_hist)-1]) > mdot_res/2. and (mdot > minmdot and mdot < maxmdot):
-
-    #mdot = np.float64(mdot)
+    tdel_hist = [trial.tdel[0]/24.]
 
     nreturn = 0
+    while (abs(mdot - mdot_hist[-1]) > mdot_res / 2.0) \
+        and (((t1 + trial.tdel / 24.0 < 2.*max(tobs)) & (direction == 1)) \
+            or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
+        and (mdot > minmdot and mdot < maxmdot):
 
-    # while ((abs(mdot-mdot_hist) > mdot_res/2.) - (mdot > minmdot and mdot < maxmdot)).any():
-    while abs(mdot - mdot_hist[len(mdot_hist) - 1]) > mdot_res / 2.0 and (
-        mdot > minmdot and mdot < maxmdot
-    ):
-        #    mdotm1=mdot0
-        #    mdot0=mdot
+        trial = settle(base, z, x_0, mdot[0], cfac, mass, radius)
+        nreturn = nreturn + 1
 
-        mdot_hist.append(mdot)
-        tmp = settle(base, z, x_0, mdot[0], cfac, mass, radius)
+        mdot_hist.append(mdot[0])
+        tdel_hist.append(trial.tdel[0]/24.)
 
         if direction == 1:
-            mdot = (0.67 / 8.8) * mean_flux(t1, t1 + (tmp.tdel / 24.0), tobs, a, b) * r1
-            nreturn = nreturn + 1
+            mdot = (0.67 / 8.8) * mean_flux(t1, t1 + (trial.tdel / 24.0), tobs, a, b) * r1
 
         else:
-            mdot = (0.67 / 8.8) * mean_flux(t1 - (tmp.tdel / 24.0), t1, tobs, a, b) * r1
-            nreturn = nreturn + 1
+            mdot = (0.67 / 8.8) * mean_flux(t1 - (trial.tdel / 24.0), t1, tobs, a, b) * r1
 
         # Break out of the loop here, if necessary
-        # print 'nreturn = {}'.format(nreturn)
-        # test = np.where(abs(mdot_hist-mdot) < tol)
-        #    if abs(mdotm1-mdot) lt tol then begin
         if nreturn > 10:
-            #      mdot=mdot0+(mdot-mdot0)*randomu(seed)
             e = random.random()
-            #      mdot=mdot0+(mdot-mdot0)*randomu(seed)
-            mdot = mdot_hist[len(mdot_hist) - 1] * (1.0 - e) + mdot * e
-        # if dbg:
-        # print 'next_burst: randomizing mdot...'
+            mdot = mdot_hist[-1] * (1.0 - e) + mdot * e
+            # Perhaps you should try to reset this randomly every 10 steps? - dkg
+            # Yes, otherwise every trial above 10 steps will be random
+            nreturn = 0
 
-    # print,abs(mdot-mdot0)/mdot
-    # t2 = 0.0
-    # if dbg:
-    #    print mdot0,tmp
+    # save the final versions to the history arrays
+    mdot_hist.append(mdot[0])
+    tdel_hist.append(trial.tdel[0]/24.)
+    if debug:
+        print('{}: mdot_hist={}'.format(fn, mdot_hist))
 
-    if mdot < minmdot or mdot > maxmdot and run == 0:
-        if mdot < minmdot:
-            t2 = -99.99
-        else:
-            t2 = +99.99
-    print(f'mdot={mdot}')
+        # now produce a diagnostic plot with the debug flag
+        # plt.plot(t1+np.array(tdel_hist), mdot_hist, '.', label='tdel history')
+        for tdel in tdel_hist:
+            plt.axvline(t1+tdel, color='k', ls='--')
+        # also calculate a bunch of values to compare with
+        t_arr = np.arange(t1, max(tobs), step=0.1)
+        m_arr = [0]
+        t_arr2 = [t1]
+        for t in t_arr[1:]:
+            _mdot = (0.67 / 8.8) * mean_flux(t1, t, tobs, a, b) * r1
+            _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius)
+            t_arr2.append(t1+_tmp.tdel[0]/24.)
+            m_arr.append(_mdot)
+        plt.plot(t_arr, np.array(t_arr2), '-', label='tdel')
+        plt.plot(t_arr, t_arr, '-', label='1:1')
+        plt.xlim((0,1.1*max(t1+np.array(tdel_hist))))
+        plt.ylim((0,1.1*max(t1+np.array(tdel_hist))))
+        # plt.plot(np.array(t_arr2), np.array(m_arr), '.')
+        plt.legend()
+        plt.show()
+        breakpoint()
+
+    # if mdot < minmdot or mdot > maxmdot:
+    if abs(mdot - mdot_hist[-2]) > mdot_res / 2.0:
+        return None
+
         # create array
+    print(f'{fn}: mdot={mdot}, tdel={trial.tdel}')
     result = np.recarray(
         (1,), dtype=[("t2", np.float64), ("e_b", np.float64), ("alpha", np.float64)]
     )
     # assign elements
-    result.t2 = t1 + direction * tmp.tdel / 24.0
-    result.e_b = tmp.E_b # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
-    result.alpha = tmp.alpha
+    result.t2 = t1 + direction * trial.tdel / 24.0
+    result.e_b = trial.E_b # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
+    result.alpha = trial.alpha
     # result.qnuc = tmp.Q_nuc
     # result.xbar = tmp.xbar
     result.mdot = mdot
@@ -271,12 +279,14 @@ def generate_burst_train(
     r3,
     mass,
     radius,
+    # Now all the parameters below can be passed from a Beans object
     bstart,
     pflux,
     pfluxe,
     tobs,
     numburstssim,
-    ref_ind
+    ref_ind,
+    debug=False
 ):
 
     # This routine generates a simulated burst train. The output is a
@@ -325,7 +335,14 @@ def generate_burst_train(
     # and three preceding. However, the last burst in the train (the 8th) for
     # runs test17 were wildly variable, so now restrict the extent by one
 
-    sbt = bstart[ref_ind]
+    if bstart is not None:
+        sbt = bstart[ref_ind]
+    else:
+        # In the absence of any bursts, set the reference time to ref_ind (can be
+        # any time within the outburst)
+        # sbt = 0.0
+        sbt = ref_ind
+
     salpha = -1
     flag = 1  # Initially OK
 
@@ -341,12 +358,15 @@ def generate_burst_train(
 
     # Get a and b for varying persistent flux:
 
-    n_burst = len(bstart)
-    result0 = get_a_b(pflux, pfluxe, tobs, n_burst, bstart)
+    # n_burst = len(bstart)
+    result0 = get_a_b(pflux, pfluxe, tobs)# , n_burst, bstart)
     a = result0["a"]
     b = result0["b"]
 
-    stime = []
+    stime = []  # initialise array to store simulated times
+    forward, backward = True, True  # go in both directions at the start
+    earliest = sbt  # this is the earliest burst in the train
+    latest = sbt    # this is the time of the latest burst in the train
     # for i in range (0,2*(1+double)+1): # Do the 5th burst also, forward only
     for i in range(0, numburstssim):  # Do the 5th burst also, forward only
         # print "i = ",i
@@ -380,15 +400,13 @@ def generate_burst_train(
         #    cfac1 = 0.98
         #    cfac2 = 1.27
 
-        if len(stime) == 0:
-
-            # Find the time for the *previous* burst in the train, t2
-
+        if backward:
+            # Find the time for the *previous* burst in the train
             result2 = next_burst(
                 base,
                 z,
                 x_0,
-                sbt,
+                earliest,
                 tobs,
                 a,
                 b,
@@ -396,16 +414,18 @@ def generate_burst_train(
                 1.0,
                 mass,
                 radius,
-                direction=-1
+                direction=-1,
+                debug=debug
             )
 
-            # Also find the time for the *next* burst in the train, t3
+        if forward:
+            # Also find the time for the *next* burst in the train
 
             result3 = next_burst(
                 base,
                 z,
                 x_0,
-                sbt,
+                latest,
                 tobs,
                 a,
                 b,
@@ -413,110 +433,62 @@ def generate_burst_train(
                 1.0,
                 mass,
                 radius,
-                direction=1
+                direction=1,
+                debug=debug
             )
 
+        if result2 is not None:
+            # we have a result from the next_burst call going backward, so add its properties to the arrays
+            t2 = result2.t2[0]
+            _alpha = result2.alpha[0]
+            _e_b = result2.e_b[0]
+            _mdot = result2.mdot[0]
+            if salpha == -1:
+                # create the arrays with which to accumulate the results
+                stime = [t2, sbt]
+                iref = 1    # index for reference burst
+                salpha = [_alpha]
+                se_b = [_e_b]
+                smdot = [_mdot]
+            else:
+                stime.insert(0, t2)
+                iref += 1
+                salpha.insert(0, _alpha)
+                se_b.insert(0, _e_b)
+                smdot.insert(0, _mdot)
+            earliest = t2
         else:
+            # if the earlier burst has failed, we don't need to pursue any further
+            backward = False
 
-            # Find the time for the *previous* burst in the train, t2
-            result2 = next_burst(
-                base,
-                z,
-                x_0,
-                stime[0],
-                tobs,
-                a,
-                b,
-                r1,
-                1.0,
-                mass,
-                radius,
-                direction=-1
-            )
-
-            # Also find the time for the *next* burst in the train, t3
-
-            result3 = next_burst(
-                base,
-                z,
-                x_0,
-                stime[len(stime) - 1],
-                tobs,
-                a,
-                b,
-                r1,
-                1.0,
-                mass,
-                radius,
-                direction=1
-            )
-
-        t2 = result2.t2
-        t2 = t2[0]
-        t3 = result3.t2
-        t3 = t3[0]
-        _alpha = result2.alpha
-        _alpha = _alpha[0]
-        _alpha2 = result3.alpha
-        _alpha2 = _alpha2[0]
-        _e_b = result2.e_b
-        _e_b = _e_b[0]
-        _e_b2 = result3.e_b
-        _e_b2 = _e_b2[0]
-        # _qnuc = result2.qnuc
-        # _qnuc = _qnuc[0]
-        # _qnuc2 = result3.qnuc
-        # _qnuc2 = _qnuc2[0]
-        # _xbar = result2.xbar
-        # _xbar = _xbar[0]
-        # _xbar2 = result3.xbar
-        # _xbar2 = _xbar2[0]
-        _mdot = result2.mdot
-        _mdot = _mdot[0]
-        _mdot2 = result3.mdot
-        _mdot2 = _mdot2[0]
+        if result3 is not None:
+            # we have a result from the next_burst call going forward, so add its properties to the arrays
+            t3 = result3.t2[0]
+            _alpha2 = result3.alpha[0]
+            _e_b2 = result3.e_b[0]
+            _mdot2 = result3.mdot[0]
+            if salpha == -1:
+                # This shouldn't happen, as we should be able to get at least one earlier burst
+                stime = [sbt, t3]
+                iref = 0
+                salpha = [_alpha2]
+                se_b = [_e_b2]
+                smdot = [_mdot2]
+            else:
+                salpha.append(_alpha2)
+                se_b.append(_e_b2)
+                smdot.append(_mdot2)
+                stime.append(t3)
+            latest = t3
 
         # Check the results here
 
-        if abs(t2) == 99.99 or abs(t3) == 99.99:
-            flag = 0
-            i = 3 * (1 + double)  # replace this with a break statement?
-        if t2 == 99.99 or t3 == 99.99:
-            mdot_max = 99.99
-        if t2 == -99.99 or t3 == -99.99:
-            mdot_max = -99.99
-        else:
+        # I don't think t2 or t3 are ever set to these "dummy" values anymore
+        # if abs(t2) == 99.99 or abs(t3) == 99.99:
+        if not (forward or backward):
+            break
 
-            # We have some good results, so append to the sbt array (and others)
-
-            if salpha == -1:
-                stime = [t2, sbt, t3]
-                salpha = [_alpha, _alpha2]
-                se_b = [_e_b, _e_b2]
-                smdot = [_mdot, _mdot2]
-                # sqnuc = [_qnuc,_qnuc2]
-                # sxbar = [_xbar,_xbar2]
-
-            else:
-                salpha.insert(0, _alpha)
-                salpha.append(_alpha2)
-
-                se_b.insert(0, _e_b)
-                se_b.append(_e_b2)
-
-                smdot.insert(0, _mdot)
-                smdot.append(_mdot2)
-                #
-                # sqnuc.insert(0,_qnuc)
-                # sqnuc.append(_qnuc2)
-                #
-                # sxbar.insert(0,_xbar)
-                # sxbar.append(_xbar2)
-
-                stime.insert(0, t2)
-                stime.append(t3)
-
-    if mdot_max == -1:
+    if (mdot_max == -1) & (len(stime) > 0):
 
         mdot_max = max(smdot)
 
@@ -528,17 +500,22 @@ def generate_burst_train(
     result["r1"] = [r1]
     result["r2"] = [r2]
     result["r3"] = [r3]
-    result["mdot"] = smdot
-    result["mdot_max"] = [mdot_max]
     result["time"] = stime
-    result["alpha"] = salpha
-    result["e_b"] = se_b
+    result["mdot_max"] = [mdot_max]
+    if len(stime) > 0:
+        # The simulation might fail to generate any bursts, so only add the arrays if they exist
+        result["mdot"] = smdot
+        result["iref"] = iref
+        result["alpha"] = salpha
+        result["e_b"] = se_b
+        print(f"In burstrain fluence is {se_b}")
+
     # result["qnuc"] = sqnuc
     # result["xbar"] = sxbar
     result["mass"] = [mass]
     result["radius"] =  [radius]
-
-    print(f"In burstrain fluence is {se_b}")
+    result["forward"] = forward     # to keep track of the outcome of each direction
+    result["backward"] = backward
 
     return result
 
