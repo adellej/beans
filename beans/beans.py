@@ -21,6 +21,11 @@ from multiprocessing import Pool
 import os
 import time
 
+try:
+    # Required for the distance_limit method
+    import concord as cd
+except:
+    pass
 
 # -------------------------------------------------------------------------#
 ## load local  modules
@@ -36,7 +41,11 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt',
+                 burstname='1808_bursts.txt', gtiname='1808_gti.txt',
+                 theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
+                 numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0,
+                 threads = 4, restart=False):
 
         from initialise import init
         from run_model import runmodel
@@ -58,18 +67,24 @@ class Beans:
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
 
-        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
+        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
 
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
         # # -------------------------------------------------------------------------#
-        test, valid = runmodel(self.theta, self.y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.numburstssim, self.ref_ind, self.gti_checking)
         print("# -------------------------------------------------------------------------#")
         print("Doing Initialisation..")
+
         print("Testing the model works..")
+        test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
+                               self.pflux, self.pfluxe, self.tobs, self.numburstssim, self.ref_ind,
+                               # self.gti_checking)
+                               0, # don't use GTI checking for the test run
+                               debug=False) # set debug to True for testing
         print("result: ", test, valid)
 
+        self.plot_model(test)
 
     def lnlike(self, theta_in, x, y, yerr):
 
@@ -218,6 +233,156 @@ class Beans:
         return lp + like, lp, model
 
 
+    def plot_model(self, model, mdot=True):
+        """
+        Display a plot of the model results, for a burst train calculated with generate_burst_train
+        Adapted from the example at https://matplotlib.org/gallery/api/two_scales.html
+        """
+        tobs = self.bstart
+        ebobs = self.fluen
+
+        full_model = False  # Flag to remember whether we're plotting the full model output of
+                            # generate burst train or the packed output array
+        if hasattr(model, "time"):
+            full_model = True
+            timepred = model["time"]
+            if len(timepred) == 0:
+                print ('** ERROR ** no predicted times to show')
+                return
+            ebpred = np.array(model["e_b"])*np.array(model["r3"])
+        else:
+            # The other way to return the model is as an array with the burst times, fluences
+            # and alphas all together. So unpack those here
+            timepred = model[:self.numburstssim+1]
+            # Don't have access to the r3 value to scale, as we did for ebpred above
+            ebpred = np.array(model[self.numburstssim+1:self.numburstssim*2+1])#*np.array(model["r3"])
+
+        fig, ax1 = plt.subplots()
+        # fig.figure(figsize=(10,7))
+
+        flux_color = 'tab:red'
+        bursts_color = 'tab:blue'
+        ax1.set_xlabel("Time (days after start of outburst)")
+        ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+        if mdot and full_model:
+            ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
+            ax1.errorbar(self.tobs, self.pflux*model['r1'], self.pfluxe*model['r1'], marker='.',
+                         color=flux_color, label='mdot')
+            ax2.axvline(timepred[model["iref"]], c='k')
+        else:
+            ax1.set_ylabel('Persistent flux', color=flux_color)
+            ax1.errorbar(self.tobs, self.pflux, self.pfluxe, marker = '.',color=flux_color,
+                         label = 'pflux')
+            ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+        ax1.tick_params(axis='y', labelcolor=flux_color)
+
+        # Plot the bursts here
+        ax2.set_ylabel("Fluence (1e-9 erg/cm$^2$)", color=bursts_color)
+        if tobs is not None:
+            # Plot the observed bursts, if available
+            ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+        ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+        # show the time of the "reference" burst
+        ax2.tick_params(axis='y', labelcolor=bursts_color)
+
+        fig.tight_layout()  # otherwise the right y-label is slightly clipped
+
+        # fig.title("Initial guess of parameters")
+        fig.legend(loc=2)
+        fig.show()
+
+    # -------------------------------------------------------------- #
+
+    def distance_limit(self, distrange=[1,10], Xmin= 0.01, gridsize=10, numtrains=100, skiplo=True):
+        """
+        Generate burst trains and test how many of them are consistent with the GTIs
+        """
+
+        assert len(distrange) == 2
+
+        X_0, Z, Q_b, f_a, f_E, r1_0, r2, r3, mass, radius = self.theta
+
+        # Loop over the distance values
+
+        distance = np.linspace(distrange[0], distrange[1], gridsize)
+        X = np.linspace(Xmin, 0.7, gridsize)
+        idist = cd.iso_dist(nsamp=gridsize)
+        xi_b, xi_p = cd.anisotropy(idist)
+
+        # initialise the array to keep to grid results
+
+        result = np.zeros((gridsize, gridsize))
+
+        for i, _distance in enumerate(distance):
+
+            # For each distance, loop over the h-fraction range
+            for j, _X in enumerate(X):
+
+                # initialise result array
+                valid_array = []
+
+                print('Drawing one of {} values for xi_p:'.format(len(xi_p.distribution)))
+                # For each distance and h-fraction, draw a bunch of inclination values and xi_p's:
+                for _xi_p in xi_p.distribution:
+
+                    r1 = _xi_p.value*(_distance/10)**2
+                    theta_1 = (_X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius)
+
+                    # Run for just one burst to get the initial interval
+                    # Set ref_ind to be zero, will subsequently distribute the start burst times
+                    # between up to the simulated interval
+                    test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
+                                           self.pflux, self.pfluxe, self.tobs, 1, 0.0,
+                                           0, debug=False)
+                    print("result: ", test, valid)
+                    # self.plot_model(test)
+
+                    # find the initial range of start times to distribute the bursts over
+
+                    if (test is not None) & (len(test['time']) > 1):
+                        # iref = np.argmin(abs(np.array(test['time'])-self.tref))
+                        iref = np.argmin(abs(np.array(test['time'])))
+                        intvl = test['time'][iref+1]
+                    else:
+                        # If we can't get an initial burst train, distribute the start times
+                        # over the entire outburst
+                        intvl = max(self.tobs)
+                    # This piece of code is probably redundant now that next_burst checks for
+                    # predicted burst times beyond tobs
+                    if (intvl > 2.*max(self.tobs)) and skiplo:
+                        print ('Skipping trials with d={:.4f} and X={:.4f} due to excessive tdel {} >> {}'.format(
+                            _distance, _X, intvl, max(self.tobs) ))
+                        valid_array.append(True)
+                    else:
+                        # intvl = min([test['time'][iref+1], max(self.tobs)])
+
+                        trials = np.linspace(0., intvl, numtrains)
+                        print ('Simulating {} trains with reference burst distributed within (0, {:.3f})'.format(numtrains, intvl))
+
+                        for trial in trials:
+
+                            print ('trial {:.4f}:'.format(trial))
+                            # Set nburstssim to 100 below, just need to make sure it's sufficient to cover
+                            # the whole outburst. Replace ref_ind with trial, as the starting burst time
+                            # (ref_ind is meaningless if there's no bursts)
+                            test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
+                                                   self.pflux, self.pfluxe, self.tobs, 100, trial,
+                                                   1, gti_start=self.st, gti_end=self.et, debug=False)
+
+                            # for debugging
+                            # self.plot_model(test)
+                            # breakpoint()
+
+                            valid_array.append(valid)
+                            print ('  valid={}'.format(valid))
+
+
+                result[i,j] = len(np.where(valid_array)[0])/len(valid_array)
+                print ('End of loop for d={}, X={}, % valid is {}'.format(
+                    _distance, _X, 100*result[i,j] ))
+
+        breakpoint()
 
     # -------------------------------------------------------------- #
 
@@ -266,6 +431,7 @@ class Beans:
         timepred = model["time"]
         ebpred = np.array(model["e_b"])*np.array(model["r3"])
 
+        # Display initial model
         tobs = self.bstart
         ebobs = self.fluen
         plt.figure(figsize=(10,7))
@@ -330,7 +496,7 @@ class Beans:
         # print("flat log prior shape: {0}".format(log_prior_samples.shape))
 
         # alternate method of checking if the chains are converged:
-        # This code is from https://dfm.io/posts/autocorr/ 
+        # This code is from https://dfm.io/posts/autocorr/
 
         # get autocorrelation time:
 
@@ -350,7 +516,7 @@ class Beans:
             f = np.fft.fft(x - np.mean(x), n=2*n)
             acf = np.fft.ifft(f * np.conjugate(f))[:len(x)].real
             acf /= 4*n
-            
+
             # Optionally normalize
             if norm:
                 acf /= acf[0]
@@ -405,12 +571,12 @@ class Beans:
             plt.loglog(N, new, "o-", label=f"{param[j]}")
             plt.loglog(N, gw2010, "o-", label=None, color='grey')
             ylim = plt.gca().get_ylim()
-            
+
             #plt.ylim(ylim)
         plt.xlabel("Number of samples, $N$", fontsize='xx-large')
         plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
 
-            
+
         plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
         plt.xticks(fontsize=14)
@@ -452,7 +618,7 @@ class Beans:
         print(np.min(r3))
         print(np.min(mass))
         print(np.min(X))
-        
+
         sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
         xip = np.power(sqrt, 0.5)
         xib = (0.74816*xip)/r2
@@ -562,4 +728,4 @@ class Beans:
         plt.tight_layout(h_pad=0.0)
         plt.savefig(self.run_id+'chain-plot.pdf')
         plt.show()
-           
+

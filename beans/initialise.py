@@ -49,19 +49,24 @@ def init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref
     # -------------------------------------------------------------------------#
 
     # get the data:
-    if gti_checking ==1:
-        bstart, fluen, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
+    if gti_checking == 1:
+        tref, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
     else:
-        bstart, fluen, obs, obs_err, pflux, pfluxe, tobs = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
+        tref, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
+        st, et = None, None
 
-    tref = bstart[ref_ind]
+    if burstname is not None:
+        # tref = bstart[ref_ind]
 
-    # this is for emcee:
-    y = obs
-    yerr = obs_err
-    x = 0 # in our case, we do not require x (independent variables), however for input into MCMC we need to define a x
+        # this is for emcee:
+        y = obs
+        yerr = obs_err
+        x = 0 # in our case, we do not require x (independent variables), however for input into MCMC we need to define a x
 
-    print("So the data that emcee will use is obs, obs_err:")
-    print(y, yerr)
+        print("So the data that emcee will use is obs, obs_err:")
+        print(y, yerr)
+    else:
+        # x, y, yerr, tref = None, None, None, 0.0
+        x, y, yerr = None, None, None
 
-    return x, y, yerr, tref, bstart, pflux, pfluxe, tobs, fluen
+    return x, y, yerr, tref, bstart, pflux, pfluxe, tobs, fluen, st, et
