@@ -41,6 +41,7 @@ class Settle(object):
         path_to_data_file = (
             pathlib.Path(__file__).resolve().parent.parent / "settle" / "libsettle.so"
         )
+
         self.libsettle = ct.cdll.LoadLibrary(path_to_data_file)
 
         self.mainer = self.libsettle.mainer
@@ -59,6 +60,7 @@ class Settle(object):
         self.C = ct.c_int(C)
 
     def run(self, M, X, Z, R, Ma):
+
         """
         Runs settle, you CANNOT specify F and C,
         because it uses the defaults you specified at creation.
@@ -152,6 +154,7 @@ class Settle(object):
             return numpy.array(resA), numpy.array(resR), numpy.array(resE)
 
         else:
+            #print(self.mainer(ct.c_double(F),ct.c_double(Z),ct.c_double(X),ct.c_double(M),ct.c_double(C),ct.c_double(T),ct.c_double(A),ct.c_double(E),ct.c_double(R),ct.c_double(Ma)))
             ret = self.mainer(
                 ct.byref(ct.c_double(F)),
                 ct.byref(ct.c_double(Z)),

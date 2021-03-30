@@ -66,6 +66,19 @@ For Linux type:
 
 This will create a file called libsettle.so which is a precompiled binary that is used by beans to run settle. The makefile may need to be edited if either of these methods do not compile the code.
 
+I also recommend that you add BEANS to your python path so that you can access it from any location, and so that the test suite will work. You can do this by opening your bashrc or bash_profile file and adding the following line:
+
+..code-block:: console
+
+export PYTHONPATH=[PATH TO BEANS]:${PYTHONPATH}
+
+where you replace [PATH TO BEANS] with the path to where you have placed the BEANS directory on your computer. For example, on my computer this becomes:
+
+..code-block:: console
+
+export PYTHONPATH=${HOME}/BEANS/beans:${PYTHONPATH}
+
+
 Now that you have compiled settle I recommend you run the test suite to check you have all the required dependencies and the code is operating as expected. To do this navigate to beans/ and type:
 
 .. code-block:: console

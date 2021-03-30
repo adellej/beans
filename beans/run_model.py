@@ -5,6 +5,8 @@ from burstrain import *
 def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking,
              gti_start=None, gti_end=None, debug=False):
 
+    print('Calling runmodel')
+
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
 
@@ -142,6 +144,8 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_i
     #       return model, valid
     #   else:
     #       valid = True
+
+    print(f'model = {model}')
 
     return model, valid
 

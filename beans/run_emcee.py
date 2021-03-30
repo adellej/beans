@@ -20,7 +20,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
 
     if restart == True:
-        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        #pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
         print('Restarting',run_id,'with',nwalkers,'walkers')
     else:
         # set the intial position of the walkers
@@ -42,29 +42,52 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
         # This will be useful to testing convergence
         old_tau = np.inf
-        for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
-            # Only check convergence every 100 steps
-            if sampler.iteration % 100:
-                continue
+        if restart == True:
+            for sample in sampler.sample(None, iterations=nsteps, progress=True, store=True):
+                # Only check convergence every 100 steps
+                if sampler.iteration % 100:
+                    continue
 
-            # Compute the autocorrelation time so far
-            # Using tol=0 means that we'll always get an estimate even
-            # if it isn't trustworthy
-            
-            tau = sampler.get_autocorr_time(tol=0)
-            autocorr[index] = np.mean(tau)
-            index += 1
+                # Compute the autocorrelation time so far
+                # Using tol=0 means that we'll always get an estimate even
+                # if it isn't trustworthy
+                
+                tau = sampler.get_autocorr_time(tol=0)
+                autocorr[index] = np.mean(tau)
+                index += 1
 
-            # Check convergence
-            converged = np.all(tau * 100 < sampler.iteration)
-            converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
-            if converged:
-                print('Complete! Chains are converged')
-                break
-            old_tau = tau
+                # Check convergence
+                converged = np.all(tau * 100 < sampler.iteration)
+                converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+                if converged:
+                    print('Complete! Chains are converged')
+                    break
+                old_tau = tau
+                print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
 
         #tau = sampler.get_autocorr_time()
-        print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
+        else:
+            for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
+                # Only check convergence every 100 steps
+                if sampler.iteration % 100:
+                    continue
+
+                # Compute the autocorrelation time so far
+                # Using tol=0 means that we'll always get an estimate even
+                # if it isn't trustworthy
+                
+                tau = sampler.get_autocorr_time(tol=0)
+                autocorr[index] = np.mean(tau)
+                index += 1
+
+                # Check convergence
+                converged = np.all(tau * 100 < sampler.iteration)
+                converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+                if converged:
+                    print('Complete! Chains are converged')
+                    break
+                old_tau = tau
+                print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
         
 
     #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))

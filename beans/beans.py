@@ -41,8 +41,8 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt',
-                 burstname='1808_bursts.txt', gtiname='1808_gti.txt',
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
+                 burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0,
                  threads = 4, restart=False):
@@ -68,7 +68,7 @@ class Beans:
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
 
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
-
+        print(self.st, self.et)
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -79,8 +79,7 @@ class Beans:
         print("Testing the model works..")
         test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
                                self.pflux, self.pfluxe, self.tobs, self.numburstssim, self.ref_ind,
-                               # self.gti_checking)
-                               0, # don't use GTI checking for the test run
+                               self.gti_checking, self.st, self.et,
                                debug=False) # set debug to True for testing
         print("result: ", test, valid)
 
@@ -118,7 +117,8 @@ class Beans:
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
         model, valid = runmodel(
-            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking
+            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking, \
+             self.st, self.et,
         )
 
         if not valid:

@@ -250,7 +250,7 @@ def next_burst(
         return None
 
         # create array
-    print(f'{fn}: mdot={mdot}, tdel={trial.tdel}')
+    #print(f'{fn}: mdot={mdot}, tdel={trial.tdel}')
     result = np.recarray(
         (1,), dtype=[("t2", np.float64), ("e_b", np.float64), ("alpha", np.float64)]
     )
@@ -508,7 +508,7 @@ def generate_burst_train(
         result["iref"] = iref
         result["alpha"] = salpha
         result["e_b"] = se_b
-        print(f"In burstrain fluence is {se_b}")
+        #print(f"In burstrain fluence is {se_b}")
 
     # result["qnuc"] = sqnuc
     # result["xbar"] = sxbar

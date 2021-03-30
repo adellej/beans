@@ -79,9 +79,14 @@ def lnlike(theta, x, y, yerr):
     s_t = 10.0 / 1440.0
 
     # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
-    model, valid = runmodel(
-        theta, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking
-    )
+    if gti_checking == 1:
+        model, valid = runmodel(
+        theta, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking,gti_start=st, gti_end=et
+        )
+    else:
+        model, valid = runmodel(
+            theta, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking
+        )
 
     if not valid:
         return -np.inf, model

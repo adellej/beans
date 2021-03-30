@@ -9,8 +9,8 @@ mac: settle.o
 	#objdump -T libsettle.so | grep main
 
 linux: settle.o 
-	g++ -Ofast -fPIC -c *.cc *.c
-	g++ -Ofast -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
+	g++ -fPIC -c *.cc *.c
+	g++ -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
 	#objdump -T libsettle.so | grep main
 
 clean:
