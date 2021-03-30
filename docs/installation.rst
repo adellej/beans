@@ -68,13 +68,13 @@ This will create a file called libsettle.so which is a precompiled binary that i
 
 I also recommend that you add BEANS to your python path so that you can access it from any location, and so that the test suite will work. You can do this by opening your bashrc or bash_profile file and adding the following line:
 
-..code-block:: console
+.. code-block:: console
 
 export PYTHONPATH=[PATH TO BEANS]:${PYTHONPATH}
 
 where you replace [PATH TO BEANS] with the path to where you have placed the BEANS directory on your computer. For example, on my computer this becomes:
 
-..code-block:: console
+.. code-block:: console
 
 export PYTHONPATH=${HOME}/BEANS/beans:${PYTHONPATH}
 
