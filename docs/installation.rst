@@ -70,13 +70,13 @@ I also recommend that you add BEANS to your python path so that you can access i
 
 .. code-block:: console
 
-export PYTHONPATH=[PATH TO BEANS]:${PYTHONPATH}
+    export PYTHONPATH=[PATH TO BEANS]:${PYTHONPATH}
 
 where you replace [PATH TO BEANS] with the path to where you have placed the BEANS directory on your computer. For example, on my computer this becomes:
 
 .. code-block:: console
 
-export PYTHONPATH=${HOME}/BEANS/beans:${PYTHONPATH}
+    export PYTHONPATH=${HOME}/BEANS/beans:${PYTHONPATH}
 
 
 Now that you have compiled settle I recommend you run the test suite to check you have all the required dependencies and the code is operating as expected. To do this navigate to beans/ and type:
