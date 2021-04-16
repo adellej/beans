@@ -39,10 +39,15 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_i
     #   E_B             FLOAT     Array[7]
     #   MASS            FLOAT     1.4
     #   RADIUS          FLOAT     11.2
+    if train == 1:
+        result = generate_burst_train(
+            base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
+        )
+    else:
+        result = burstensemble(
+            base, x, z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs,
+        )
 
-    result = generate_burst_train(
-        base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind,
-        debug=debug)
 
     tpred = result["time"]
 

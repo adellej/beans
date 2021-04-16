@@ -30,7 +30,7 @@ except:
 # -------------------------------------------------------------------------#
 ## load local  modules
 from settle import settle
-from burstrain import generate_burst_train, next_burst, get_a_b, mean_flux
+from burstrain import generate_burst_train, next_burst, get_a_b, mean_flux, burstensemble
 from run_model import runmodel
 from get_data import get_obs
 from mrprior import mr_prior
@@ -41,11 +41,7 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
-                 burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
-                 theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
-                 numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0,
-                 threads = 4, restart=False):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
 
         from initialise import init
         from run_model import runmodel
@@ -66,6 +62,8 @@ class Beans:
         self.gtiname = gtiname #set location of your gti data files
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
+
+        #self.train = train # 1 For whether you want to generate a burst train or 0 for work on non contigius bursts
 
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
         print(self.st, self.et)
@@ -117,8 +115,8 @@ class Beans:
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
         model, valid = runmodel(
-            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking, \
-             self.st, self.et,
+            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking,self., \
+             self.st, self.et
         )
 
         if not valid:
@@ -157,23 +155,12 @@ class Beans:
         mass = mass
         radius = radius
 
-        model2 = generate_burst_train(
-            base,
-            z,
-            x,
-            r1,
-            r2,
-            r3,
-            mass,
-            radius,
-            self.bstart,
-            self.pflux,
-            self.pfluxe,
-            self.tobs,
-            self.numburstssim,
-            self.ref_ind
-        )
-
+        if train == 1:
+            model2 = generate_burst_train(
+                base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
+            )
+        else:
+            model2 = burstensemble(base, x, z, r1, r2, r3, mass, radius, self.bstart, self.pflux,self.numburstsobs)
         #model2 =  np.string_(model2, dtype='S1000')
         model2 = str(model2).encode('ASCII')
 
@@ -412,22 +399,12 @@ class Beans:
         mass = mass
         radius = radius
 
-        model = generate_burst_train(
-            base,
-            z,
-            x,
-            r1,
-            r2,
-            r3,
-            mass,
-            radius,
-            self.bstart,
-            self.pflux,
-            self.pfluxe,
-            self.tobs,
-            self.numburstssim,
-            self.ref_ind
-        )
+        if train == 1:
+            model = generate_burst_train(
+                base,z,x,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
+            )
+        else:
+            model = burstensemble(base,x,z,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.numburstsobs)
         timepred = model["time"]
         ebpred = np.array(model["e_b"])*np.array(model["r3"])
 
@@ -436,7 +413,10 @@ class Beans:
         ebobs = self.fluen
         plt.figure(figsize=(10,7))
         plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
-        plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
+        if train == 1:
+            plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
+        else:
+            plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
         #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
         #plt.errorbar(tobs, ebobs, fmt='.',color='black')
         plt.xlabel("Time (days after start of outburst)")

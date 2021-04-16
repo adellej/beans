@@ -26,29 +26,37 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     print("Reading in observation data files ...")
 
     # Read in the observation data that contains initial conditions and burst observation parameters:
-    obsdata = ascii.read(obsname)
+
 
     # -------------------------------------------------------------------------#
     # Need len(tobs) to intialise emcee:
     # Get the observing times and peak flux arrays:
-    ta_1 = obsdata['col1']
-    ta_2 = obsdata['col2']
+    if obsname is not None:
+        obsdata = ascii.read(obsname)
+        ta_1 = obsdata['col1']
+        ta_2 = obsdata['col2']
 
-    ssa_1 = ta_1
-    ssa_2 = ta_2
+        ssa_1 = ta_1
+        ssa_2 = ta_2
 
-    tobs = 0.5*(ta_1 + ta_2) # get the average of the start and stop times
-    tobs = np.array(tobs)
-    tobs_err = 0.5*(ta_2-ta_1) #calculate an error
-    tobs_err = np.array(tobs_err)
+        tobs = 0.5*(ta_1 + ta_2) # get the average of the start and stop times
+        tobs = np.array(tobs)
+        tobs_err = 0.5*(ta_2-ta_1) #calculate an error
+        tobs_err = np.array(tobs_err)
 
-    iobs = np.arange(len(tobs))
-    good = iobs
+        iobs = np.arange(len(tobs))
+        good = iobs
 
-    pflux = obsdata['col3']
-    pflux = np.array(pflux)
-    pfluxe = obsdata['col4']
-    pfluxe = np.array(pfluxe)
+        pflux = obsdata['col3']
+        pflux = np.array(pflux)
+        pfluxe = obsdata['col4']
+        pfluxe = np.array(pfluxe)
+    else:
+        burstdata = ascii.read(burstname)
+        tobs = burstdata['col1']
+        tobs_err = np.ones(len(tobs)) * 0.5
+        pflux = np.array(burstdata['col6'])
+        pfluxe = np.array([burstdata['col7']])
 
     # Check the arrays are sorted here
     _i = np.argsort(tobs)
