@@ -516,7 +516,7 @@ def generate_burst_train(
     result["radius"] =  [radius]
     result["forward"] = forward     # to keep track of the outcome of each direction
     result["backward"] = backward
-
+    print('train')
     return result
 
 
@@ -588,7 +588,7 @@ def burstensemble(
     result["mass"] = [mass]
     result["radius"] = [radius]
 
-
+    print('ensemble')
     print(f"In burstrain fluence is {se_b}")
 
 

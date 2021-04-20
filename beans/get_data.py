@@ -31,7 +31,7 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     # -------------------------------------------------------------------------#
     # Need len(tobs) to intialise emcee:
     # Get the observing times and peak flux arrays:
-    if obsname is not None:
+    if obsname is not 'none':
         obsdata = ascii.read(obsname)
         ta_1 = obsdata['col1']
         ta_2 = obsdata['col2']
@@ -43,10 +43,6 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
         tobs = np.array(tobs)
         tobs_err = 0.5*(ta_2-ta_1) #calculate an error
         tobs_err = np.array(tobs_err)
-
-        iobs = np.arange(len(tobs))
-        good = iobs
-
         pflux = obsdata['col3']
         pflux = np.array(pflux)
         pfluxe = obsdata['col4']
@@ -56,8 +52,9 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
         tobs = burstdata['col1']
         tobs_err = np.ones(len(tobs)) * 0.5
         pflux = np.array(burstdata['col6'])
-        pfluxe = np.array([burstdata['col7']])
-
+        pfluxe = np.array(burstdata['col7'])
+    iobs = np.arange(len(tobs))
+    good = iobs
     # Check the arrays are sorted here
     _i = np.argsort(tobs)
     if not np.all(_i == iobs):

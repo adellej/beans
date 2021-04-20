@@ -41,7 +41,7 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False,train = None):
 
         from initialise import init
         from run_model import runmodel
@@ -62,11 +62,15 @@ class Beans:
         self.gtiname = gtiname #set location of your gti data files
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
-
-        #self.train = train # 1 For whether you want to generate a burst train or 0 for work on non contigius bursts
-
-        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
+        if train is None:
+            train = 1
+            self.train = train  # 1 For whether you want to generate a burst train or 0 for work on non contigius bursts
+        else:
+            train = 0
+            self.train = train
+        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart,train)
         print(self.st, self.et)
+
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -75,9 +79,10 @@ class Beans:
         print("Doing Initialisation..")
 
         print("Testing the model works..")
+
         test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
-                               self.pflux, self.pfluxe, self.tobs, self.numburstssim, self.ref_ind,
-                               self.gti_checking, self.st, self.et,
+                               self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
+                               self.gti_checking, self.train,self.st, self.et,
                                debug=False) # set debug to True for testing
         print("result: ", test, valid)
 
@@ -115,7 +120,7 @@ class Beans:
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
         model, valid = runmodel(
-            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking,self., \
+            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
              self.st, self.et
         )
 
@@ -155,7 +160,7 @@ class Beans:
         mass = mass
         radius = radius
 
-        if train == 1:
+        if self.train ==1:
             model2 = generate_burst_train(
                 base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
             )
@@ -320,8 +325,8 @@ class Beans:
                     # Set ref_ind to be zero, will subsequently distribute the start burst times
                     # between up to the simulated interval
                     test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
-                                           self.pflux, self.pfluxe, self.tobs, 1, 0.0,
-                                           0, debug=False)
+                                           self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
+                                           0, self.train, debug=False)
                     print("result: ", test, valid)
                     # self.plot_model(test)
 
@@ -354,8 +359,8 @@ class Beans:
                             # the whole outburst. Replace ref_ind with trial, as the starting burst time
                             # (ref_ind is meaningless if there's no bursts)
                             test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
-                                                   self.pflux, self.pfluxe, self.tobs, 100, trial,
-                                                   1, gti_start=self.st, gti_end=self.et, debug=False)
+                                                   self.pflux, self.pfluxe, self.tobs, 100,100, trial,
+                                                   1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
 
                             # for debugging
                             # self.plot_model(test)
@@ -398,8 +403,8 @@ class Beans:
         r3 = r3
         mass = mass
         radius = radius
-
-        if train == 1:
+        print(self.train)
+        if self.train ==1:
             model = generate_burst_train(
                 base,z,x,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
             )
@@ -413,7 +418,7 @@ class Beans:
         ebobs = self.fluen
         plt.figure(figsize=(10,7))
         plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
-        if train == 1:
+        if self.train ==1:
             plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
         else:
             plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')

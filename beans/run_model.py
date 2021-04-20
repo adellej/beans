@@ -2,7 +2,7 @@
 import numpy as np
 from burstrain import *
 
-def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, gti_checking,
+def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, ref_ind, gti_checking,train,
              gti_start=None, gti_end=None, debug=False):
 
     print('Calling runmodel')
@@ -39,7 +39,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, ref_i
     #   E_B             FLOAT     Array[7]
     #   MASS            FLOAT     1.4
     #   RADIUS          FLOAT     11.2
-    if train == 1:
+    if train ==1:
         result = generate_burst_train(
             base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
         )
