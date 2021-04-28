@@ -62,9 +62,6 @@ def init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref
         y = obs
         yerr = obs_err
         x = 0 # in our case, we do not require x (independent variables), however for input into MCMC we need to define a x
-
-        print("So the data that emcee will use is obs, obs_err:")
-        print(y, yerr)
     else:
         # x, y, yerr, tref = None, None, None, 0.0
         x, y, yerr = None, None, None
