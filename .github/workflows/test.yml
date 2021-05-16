@@ -1,0 +1,26 @@
+name: Tests
+
+on: [pull_request, push]
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: conda env update
+      run: |
+        source '/usr/share/miniconda/etc/profile.d/conda.sh'
+        conda env update -q --file environment.yml --name beans
+    - name: conda info
+      run: |
+        source '/usr/share/miniconda/etc/profile.d/conda.sh'
+        conda activate beans
+        conda info
+        conda list
+    - name: pytest
+      run: |
+        source '/usr/share/miniconda/etc/profile.d/conda.sh'
+        conda activate beans
+        pip install -e .
+        python -m pytest
