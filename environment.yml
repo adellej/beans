@@ -1,0 +1,22 @@
+# Conda environment for beans usage and development
+#
+# Install:    conda env create --file environment.yml
+# Update:     conda env update --file environment.yml
+# Activate:   conda activate beans
+# Deactivate: conda deactivate
+
+name: beans
+channels:
+  - conda-forge
+  - samreay # for chainconsumer
+dependencies:
+  # Core
+  - astropy
+  - chainconsumer
+  - emcee
+  - h5py
+  - matplotlib
+  - numpy
+  - scipy
+  # Development
+  - pytest
