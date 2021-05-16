@@ -1,10 +1,6 @@
 """ function to initiliase and run emcee. Please note this software uses the latest stable version of emcee (v2.2.1). """
 import numpy as np
 import emcee
-import sys
-import pickle
-from multiprocessing import Pool
-import time
 import h5py
 
 def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart):
@@ -26,8 +22,8 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
         # set the intial position of the walkers
         pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
         print('Ready to run',run_id,'with',nwalkers,'walkers')
-            
-    # with Pool() as pool: # for some reason the multi-threaded isn't working with the new emcee. Revert back to not using MPI. 
+
+    # with Pool() as pool: # for some reason the multi-threaded isn't working with the new emcee. Revert back to not using MPI.
 
     print("Beginning sampling..")
     # use emcee backend to save as a HD5 file
@@ -36,7 +32,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
         reader.reset(nwalkers, ndim)
         # sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype, moves=emcee.moves.StretchMove(a=1.5))
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader, blobs_dtype=dtype, moves=emcee.moves.StretchMove(a=1.5))
-    
+
 
 
     # We'll track how the average autocorrelation time estimate changes
@@ -56,7 +52,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
             # if it isn't trustworthy
             accept_frac = np.mean(sampler.acceptance_fraction)
             with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
-                np.savetxt(f, [[float(sampler.iteration)],[accept_frac]], delimiter=',', newline='\n') 
+                np.savetxt(f, [[float(sampler.iteration)],[accept_frac]], delimiter=',', newline='\n')
 
             tau = sampler.get_autocorr_time(tol=0)
             autocorr[index] = np.mean(tau)
@@ -93,7 +89,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
         #tau = sampler.get_autocorr_time()
         print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
-        
+
 
     #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
 
@@ -112,4 +108,3 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
 
     return sampler
-

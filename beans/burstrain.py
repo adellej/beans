@@ -1,9 +1,11 @@
 """ This module defines the functions that generate the burst train """
 
-import numpy as np
-from settle import settle
 import random
+
+import numpy as np
 import matplotlib.pyplot as plt
+
+from .settle import settle
 
 def mean_flux(t1, t2, tobs, a, b):
 

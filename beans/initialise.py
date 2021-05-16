@@ -2,37 +2,15 @@
 """Initialisation. This is the only place where you need to enter parameters."""
 
 ## Python packages required:
-import matplotlib.pyplot as plt
-import numpy as np
-import emcee
-import corner
-import random
-import math
-import subprocess
-from astropy.io import ascii
-import pickle
-from matplotlib.ticker import MaxNLocator
-import sys
-import idlsave
-from scipy.stats.kde import gaussian_kde
-import scipy.stats as stats
-import matplotlib.mlab as mlab
-import tables
-from scipy.interpolate import interp1d
-from chainconsumer import ChainConsumer
-from multiprocessing import Pool
-import os
-import time
 
 # -------------------------------------------------------------------------#
 ## load local  modules
-from settle import settle
-from burstrain import *
-from run_model import runmodel
-from get_data import get_obs
-from mrprior import mr_prior
-from get_data import *
-from run_emcee import runemcee
+from .burstrain import *
+from .run_model import runmodel
+from .get_data import get_obs
+from .mrprior import mr_prior
+from .get_data import *
+from .run_emcee import runemcee
 
 # -------------------------------------------------------------------------#
 # Begin the emcee initialisation:

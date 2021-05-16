@@ -1,14 +1,15 @@
 """ Runs settle based on the input parameters and extracts the recurrence
 time, fluence and alphas """
 
-import settler as se
 import numpy as np
+
+from .settler import Settle
 
 
 def settle(base, z, x_0, mdot, cfac, mass, radius):
 
     # initialize settle interface
-    settl = se.Settle()
+    settl = Settle()
 
     # run settle:
     res = settl.full(F=base, M=mdot, X=x_0, Z=z, C=0, R=radius, Ma=mass)

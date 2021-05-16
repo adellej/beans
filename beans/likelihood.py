@@ -1,34 +1,13 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import emcee
-import corner
-import random
-import math
-import subprocess
-from astropy.io import ascii
-import pickle
-from matplotlib.ticker import MaxNLocator
-import sys
-import idlsave
-from scipy.stats.kde import gaussian_kde
-import scipy.stats as stats
-import matplotlib.mlab as mlab
-import tables
-from scipy.interpolate import interp1d
-from chainconsumer import ChainConsumer
-from multiprocessing import Pool
-import os
-import time
 
 # -------------------------------------------------------------------------#
 ## load local  modules
-from settle import settle
-from burstrain import *
-from run_model import runmodel
-from get_data import get_obs
-from mrprior import mr_prior
-from get_data import *
-from initialise import init
+from .burstrain import *
+from .run_model import runmodel
+from .get_data import get_obs
+from .mrprior import mr_prior
+from .get_data import *
+from .initialise import init
 
 ## Now we define the functions that emcee requires
 # define likelihood as a function of theta, x, y and yerr as this is what emcee expects as the inputs
@@ -209,7 +188,7 @@ def lnprob(theta, x, y, yerr):
 
     # we return the logprobability as well as the theta parameters at this point so we can extract results later
     return lp + like, lp, model
-    
+
 
 
 # -------------------------------------------------------------- #

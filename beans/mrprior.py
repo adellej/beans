@@ -1,9 +1,6 @@
 import pathlib
 
 import numpy as np
-import tables
-import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
 from scipy import stats
 
 # read in file

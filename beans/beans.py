@@ -3,23 +3,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import emcee
-import corner
-import random
-import math
-import subprocess
-from astropy.io import ascii
-import pickle
 from matplotlib.ticker import MaxNLocator
-import sys
-from scipy.stats.kde import gaussian_kde
-import scipy.stats as stats
-import matplotlib.mlab as mlab
-import tables
-from scipy.interpolate import interp1d
 from chainconsumer import ChainConsumer
-from multiprocessing import Pool
-import os
-import time
 
 try:
     # Required for the distance_limit method
@@ -29,18 +14,17 @@ except:
 
 # -------------------------------------------------------------------------#
 ## load local  modules
-from settle import settle
-from burstrain import generate_burst_train, next_burst, get_a_b, mean_flux
-from run_model import runmodel
-from get_data import get_obs
-from mrprior import mr_prior
-from get_data import get_obs
-from run_emcee import runemcee
-from analyse import get_param_uncert_obs, get_param_uncert
-from initialise import init
+from .burstrain import generate_burst_train, next_burst, get_a_b, mean_flux
+from .run_model import runmodel
+from .get_data import get_obs
+from .mrprior import mr_prior
+from .get_data import get_obs
+from .run_emcee import runemcee
+from .analyse import get_param_uncert_obs, get_param_uncert
+from .initialise import init
 
 # -------------------------------------------------------------------------#
-# Some example prior functions, or you can write your own for input to the code. 
+# Some example prior functions, or you can write your own for input to the code.
 
 # Define priors for theta. mr prior function is located in mrprior.py
 
@@ -728,4 +712,3 @@ class Beans:
         plt.tight_layout(h_pad=0.0)
         plt.savefig(self.run_id+'chain-plot.pdf')
         plt.show()
-
