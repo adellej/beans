@@ -41,7 +41,7 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False,train = None):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False,train = 1):
 
         from initialise import init
         from run_model import runmodel
@@ -62,12 +62,7 @@ class Beans:
         self.gtiname = gtiname #set location of your gti data files
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
-        if train is None:
-            train = 1
-            self.train = train  # 1 For whether you want to generate a burst train or 0 for work on non contigius bursts
-        else:
-            train = 0
-            self.train = train
+        self.train=train #determines whether will run as a train of bursts or non-contiguous bursts, default is 1, which = burst train, set train = 0 for non-contiguous
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart,train)
         print(self.st, self.et)
 
@@ -200,7 +195,8 @@ class Beans:
 
         if 0.00001 < X < 0.76 and 0.00001 < Z < 0.056 and 0.000001 <= Q_b < 5.0 \
             and 0 < f_a < 100 and 0 < f_E < 100 and 0.005 < r1 < 1.0 and 0.005 < r2 < 3.0 and 0 < r3 * 1e3 < 1000 and 1.15 < mass < 2.5 and 9 < radius < 17:  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
-            return 0.0 + self.lnZprior(Z) + mr_prior(mass, radius)
+            #return 0.0 + self.lnZprior(Z) + mr_prior(mass, radius)
+            return 0.0 + mr_prior(mass, radius)
         else:
             return -np.inf
 
@@ -455,7 +451,8 @@ class Beans:
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
         #tau = 20
         tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        burnin = int(2 * np.max(tau))
+        #burnin = int(2 * np.max(tau))
+        burnin = 2000
         thin = int(0.5 * np.min(tau))
         samples=reader.get_chain(flat=True, discard=burnin)
         sampler=reader.get_chain(flat=False)
@@ -562,6 +559,7 @@ class Beans:
         plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
 
 
+
         plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
         plt.xticks(fontsize=14)
@@ -616,18 +614,25 @@ class Beans:
 
         #t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
         #times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
-        times = get_param_uncert_obs(time, self.numburstssim*2+1)
+        if self.train == 1:
+            times = get_param_uncert_obs(time, self.numburstssim*2+1)
+        else:
+            times = get_param_uncert_obs(time, self.numburstsobs)
         timepred = [x[0] for x in times]
         timepred_errup = [x[1] for x in times]
         timepred_errlow = [x[2] for x in times]
 
-        ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
+        if self.train ==1:
+            ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
+        else:
+            ebs = get_param_uncert_obs(e_b, self.numburstsobs)
         ebpred = [x[0] for x in ebs]
         ebpred_errup = [x[1] for x in ebs]
         ebpred_errlow = [x[2] for x in ebs]
-
-        alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
-
+        if self.train == 1:
+            alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
+        else:
+            alphas = get_param_uncert_obs(alpha, self.numburstssim)
         Xpred = np.array(list(get_param_uncert(X))[0])
         Zpred = np.array(list(get_param_uncert(Z))[0])
         basepred = np.array(list(get_param_uncert(base))[0])
@@ -683,11 +688,14 @@ class Beans:
 
         plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
         #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
-        plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
-        #plt.scatter(time_pred_18, e_b_pred_18, marker = '*',color='orange',s = 200, label = '1.4 M$_{\odot}$, R = 10 km')
-
-        plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
-        plt.errorbar(tobs, ebobs, fmt='.',color='black')
+        if self.train == 1:
+            plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup[1:], timepred_errlow[1:]], fmt='.', color='darkgrey')
+            plt.errorbar(tobs, ebobs, fmt='.', color='black')
+        else:
+            plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
+            plt.errorbar(tobs, ebobs, fmt='.', color='black')
 
         plt.xlabel("Time (days after start of outburst)")
         plt.ylabel("Fluence (1e-9 erg/cm$^2$)")

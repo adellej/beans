@@ -5,7 +5,7 @@ from burstrain import *
 def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, ref_ind, gti_checking,train,
              gti_start=None, gti_end=None, debug=False):
 
-    print('Calling runmodel')
+    #print('Calling runmodel')
 
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta

@@ -67,7 +67,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
         #tau = sampler.get_autocorr_time()
         else:
-            for sample in sampler.sample(None, iterations=nsteps, progress=True, store=True):
+            for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
                 # Only check convergence every 100 steps
                 if sampler.iteration % 100:
                     continue
