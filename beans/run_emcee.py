@@ -35,7 +35,8 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
     if restart == False:
         reader.reset(nwalkers, ndim)
         # sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype, moves=emcee.moves.StretchMove(a=1.5))
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader, blobs_dtype=dtype, moves=emcee.moves.StretchMove(a=1.5))
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader, blobs_dtype=dtype)
+    #moves=emcee.moves.StretchMove(a=1.5))
     
 
 
