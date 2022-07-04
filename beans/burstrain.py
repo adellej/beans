@@ -533,6 +533,12 @@ def burstensemble(
     pflux,
     numburstsobs,
 ):
+    """
+    This routine generates as many burst predictions as there are burst
+    measurements.
+    Written initially by Luke Waterson, 2021
+    """
+
     minmdot = 0.0
     maxmdot = 1.0
     mdot_res = 1e-6
@@ -588,8 +594,9 @@ def burstensemble(
     result["mass"] = [mass]
     result["radius"] = [radius]
 
-    print('ensemble')
-    print(f"In burstrain fluence is {se_b}")
+    # omit the printing for now, as it prevents assessing the progress
+    # print('ensemble')
+    # print(f"In burstrain fluence is {se_b}")
 
 
     return result
