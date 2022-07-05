@@ -41,7 +41,12 @@ from initialise import init
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, threads = 4, restart=False,train = 1):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100,
+	run_id="1808/test1", obsname='1808_obs.txt',
+	burstname='1808_bursts.txt', gtiname='1808_gti.txt',
+        theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
+        numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0,
+        threads = 4, restart=False, test_model=True):
 
         from initialise import init
         from run_model import runmodel
@@ -62,8 +67,13 @@ class Beans:
         self.gtiname = gtiname #set location of your gti data files
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
-        self.train=train #determines whether will run as a train of bursts or non-contiguous bursts, default is 1, which = burst train, set train = 0 for non-contiguous
-        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart,train)
+        self.train = (obsname is not None)
+            # determines whether will run as a train of bursts or
+            # non-contiguous bursts ("ensemble" mode); previously
+            # numerical, default is 1 (True), which means a burst train
+            # will be generated; set obsname=None for non-contiguous
+            # (ensemble mode)
+        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
         print(self.st, self.et)
 
 
@@ -73,15 +83,17 @@ class Beans:
         print("# -------------------------------------------------------------------------#")
         print("Doing Initialisation..")
 
-        print("Testing the model works..")
+        if test_model:
 
-        test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
-                               self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
-                               self.gti_checking, self.train,self.st, self.et,
-                               debug=False) # set debug to True for testing
-        print("result: ", test, valid)
+            print("Testing the model works..")
 
-        self.plot_model(test)
+            test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
+                                   self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
+                                   self.gti_checking, self.train,self.st, self.et,
+                                   debug=False) # set debug to True for testing
+            print("result: ", test, valid)
+
+            self.plot_model(test)
 
     def lnlike(self, theta_in, x, y, yerr):
 
@@ -155,7 +167,7 @@ class Beans:
         mass = mass
         radius = radius
 
-        if self.train ==1:
+        if self.train:
             model2 = generate_burst_train(
                 base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
             )
@@ -400,7 +412,7 @@ class Beans:
         mass = mass
         radius = radius
         print(self.train)
-        if self.train ==1:
+        if self.train:
             model = generate_burst_train(
                 base,z,x,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
             )
@@ -414,7 +426,7 @@ class Beans:
         ebobs = self.fluen
         plt.figure(figsize=(10,7))
         plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
-        if self.train ==1:
+        if self.train:
             plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
         else:
             plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
@@ -614,7 +626,7 @@ class Beans:
 
         #t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
         #times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
-        if self.train == 1:
+        if self.train:
             times = get_param_uncert_obs(time, self.numburstssim*2+1)
         else:
             times = get_param_uncert_obs(time, self.numburstsobs)
@@ -622,14 +634,14 @@ class Beans:
         timepred_errup = [x[1] for x in times]
         timepred_errlow = [x[2] for x in times]
 
-        if self.train ==1:
+        if self.train:
             ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
         else:
             ebs = get_param_uncert_obs(e_b, self.numburstsobs)
         ebpred = [x[0] for x in ebs]
         ebpred_errup = [x[1] for x in ebs]
         ebpred_errlow = [x[2] for x in ebs]
-        if self.train == 1:
+        if self.train:
             alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
         else:
             alphas = get_param_uncert_obs(alpha, self.numburstssim)
@@ -688,7 +700,7 @@ class Beans:
 
         plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
         #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
-        if self.train == 1:
+        if self.train:
             plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
             plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup[1:], timepred_errlow[1:]], fmt='.', color='darkgrey')
             plt.errorbar(tobs, ebobs, fmt='.', color='black')

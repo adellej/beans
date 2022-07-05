@@ -31,7 +31,7 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
     # -------------------------------------------------------------------------#
     # Need len(tobs) to intialise emcee:
     # Get the observing times and peak flux arrays:
-    if obsname is not 'none':
+    if obsname is not None:
         obsdata = ascii.read(obsname)
         ta_1 = obsdata['col1']
         ta_2 = obsdata['col2']
