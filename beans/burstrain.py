@@ -574,7 +574,8 @@ def burstensemble(
         _mdot = _mdot[0]
         salpha.append(alpha)
         smdot.append(_mdot)
-        stime.append(bstart[i])
+        # stime.append(bstart[i])
+        stime.append(tmp.tdel[0])
         mdot_max = max(smdot)
 
     result = dict()

@@ -135,21 +135,33 @@ class Beans:
             return -np.inf, model
 
         # multiplying by scaling factors to match with the data
-        model[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1] *= r3
-        model[len(self.fluen)+len(self.bstart)-1:len(self.y)] *= r2
+        # indices for the fluence and the alphas are shifted by one
+        # if we're doing a "train" run, hence the int(self.train) (=1 if
+        # self.train == True
 
-    # To simplify final likelihood expression we define inv_sigma2 for each data parameter that describe the error.
-    # The variance (eg sEb0) is underestimated by some fractional amount, f, for each set of parameters.
+        ato = int(self.train) # array "train" offset
+        model[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato] *= r3
+        model[len(self.fluen)+len(self.bstart)-ato:] *= r2
 
-        sEb = yerr[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1]
-        sa = yerr[len(self.fluen)+len(self.bstart)-1:len(self.yerr)]
+	# To simplify final likelihood expression we define inv_sigma2 for each
+	# data parameter that describe the error.  The variance (eg sEb0) is
+	# underestimated by some fractional amount, f, for each set of
+	# parameters.
+        # TODO: assembling inv_sigma2 can probably all be done in one line
+
+        sEb = yerr[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato]
+        sa = yerr[len(self.fluen)+len(self.bstart)-ato:]
 
         inv_sigma2 = []
-        for i in range (0,len(self.bstart)-1):
-            inv_sigma2.append(1.0/(s_t**2))
+        if self.train:
+            for i in range (0,len(self.bstart)-1):
+                inv_sigma2.append(1.0/(s_t**2))
+        else:
+            for i in range (0,len(self.bstart)):
+                inv_sigma2.append(1.0/(yerr[i]**2))
         for i in range(0,len(self.bstart)):
             inv_sigma2.append(1.0/((sEb[i]*f_E)**2))
-        for i in range(0,len(self.bstart)-1):
+        for i in range(0,len(self.bstart)-ato):
             inv_sigma2.append(1.0/((sa[i]*f_a)**2))
 
         # Final likelihood expression
