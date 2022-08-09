@@ -267,14 +267,13 @@ class Beans:
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
             # Don't have access to the r3 value to scale, as we did for ebpred above
-            ebpred = np.array(model[self.numburstssim+1:self.numburstssim*2+1])#*np.array(model["r3"])
+            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])#*np.array(model["r3"])
 
         fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
 
         flux_color = 'tab:red'
         bursts_color = 'tab:blue'
-        ax1.set_xlabel("Time (days after start of outburst)")
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
         if mdot and full_model:
@@ -284,17 +283,30 @@ class Beans:
             ax2.axvline(timepred[model["iref"]], c='k')
         else:
             ax1.set_ylabel('Persistent flux', color=flux_color)
-            ax1.errorbar(self.tobs, self.pflux, self.pfluxe, marker = '.',color=flux_color,
+            if self.train:
+                ax1.errorbar(self.tobs, self.pflux, self.pfluxe, marker = '.',color=flux_color,
                          label = 'pflux')
-            ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+                ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+                ax1.set_xlabel("Time (days after start of outburst)")
+            else:
+                # "ensemble" mode plot vs. epoch, rather than observation time
+                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_color,
+                         label='pflux')
+                ax1.set_xlabel("Epoch (MJD)")
+
         ax1.tick_params(axis='y', labelcolor=flux_color)
 
         # Plot the bursts here
         ax2.set_ylabel("Fluence (1e-9 erg/cm$^2$)", color=bursts_color)
-        if tobs is not None:
-            # Plot the observed bursts, if available
-            ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
-        ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+        if self.train:
+            if tobs is not None:
+                # Plot the observed bursts, if available
+                ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+            ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+        else:
+            ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+            ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+
         # show the time of the "reference" burst
         ax2.tick_params(axis='y', labelcolor=bursts_color)
 
@@ -443,7 +455,7 @@ class Beans:
         if self.train:
             plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
         else:
-            # No predicted time in "ensemble" mode so we just plot the 
+            # No predicted time in "ensemble" mode so we just plot the
             # fluences, predicted and observed, as a function of epoch
             plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
         #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
