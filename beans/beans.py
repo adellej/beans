@@ -413,6 +413,8 @@ class Beans:
         print("# -------------------------------------------------------------------------#")
         print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
         # make plot of observed burst comparison with predicted bursts:
+        # TODO: this section can presumably be replaced by the plot_model
+        # method, which also produces a plot at this point
         # get the observed bursts for comparison:
         X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
         base = Q_b
@@ -441,7 +443,9 @@ class Beans:
         if self.train:
             plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
         else:
-            plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            # No predicted time in "ensemble" mode so we just plot the 
+            # fluences, predicted and observed, as a function of epoch
+            plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
         #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
         #plt.errorbar(tobs, ebobs, fmt='.',color='black')
         plt.xlabel("Time (days after start of outburst)")
