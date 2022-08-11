@@ -17,12 +17,18 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
     #dtype = [("lnprob", float), ("model", "S1000")]
     dtype = [("lnprob", float), ("model", h5py.string_dtype(encoding='ascii'))]
 
-
+    # use emcee backend to save as a HD5 file
+    # see https://emcee.readthedocs.io/en/stable/user/backends
+    reader = emcee.backends.HDFBackend(filename=run_id + ".h5")
 
     if restart == True:
+        # don't know why the pos are identical to the restart=False case below;
+        # perhaps they're ignored
         pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
-        print('Restarting',run_id,'with',nwalkers,'walkers')
+        steps_so_far = np.shape(reader.get_chain())[0]
+        print('Restarting',run_id,'with',nwalkers,'walkers after',steps_so_far,'steps done')
     else:
+        reader.reset(nwalkers, ndim)
         # set the intial position of the walkers
         pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
         print('Ready to run',run_id,'with',nwalkers,'walkers')
@@ -30,10 +36,6 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
     with Pool() as pool:
         print("Beginning sampling..")
-        # use emcee backend to save as a HD5 file
-        reader = emcee.backends.HDFBackend(filename=run_id+".h5")
-        if restart == False:
-            reader.reset(nwalkers, ndim)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype)
 
         # We'll track how the average autocorrelation time estimate changes
