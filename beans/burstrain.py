@@ -525,4 +525,84 @@ def generate_burst_train(
     return result
 
 
-# ------------------------------------------------------------------------- #
+def burstensemble(
+    base,
+    x_0,
+    z,
+    r1,
+    r2,
+    r3,
+    mass,
+    radius,
+    bstart,
+    pflux,
+    numburstsobs,
+):
+    """
+    This routine generates as many burst predictions as there are burst
+    measurements.
+    Written initially by Luke Waterson, 2021
+    """
+
+    minmdot = 0.0
+    maxmdot = 1.0
+    mdot_res = 1e-6
+    sbt = bstart
+    salpha = []
+    stime = []
+    smdot = []
+    se_b = []
+    for i in range(0, numburstsobs):
+
+        mdot = (0.67 / 8.8) * pflux[i] * r1
+        tmp = settle(base, z, x_0, mdot, 1.0, mass, radius)
+
+        mdot_hist = [mdot]
+        while abs(mdot - mdot_hist[len(mdot_hist) - 1]) > mdot_res / 2.0 and (
+            mdot > minmdot and mdot < maxmdot
+        ):
+            mdot_hist.append(mdot)
+
+        res = np.recarray(
+            (1,), dtype=[("tdel", np.float64), ("e_b", np.float64), ("alpha", np.float64), ("mdot", np.float64)]
+        )
+        # assign elements
+        res.tdel = tmp.tdel / 24.0
+        res.e_b = tmp.E_b*0.8  # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
+        alpha = tmp.alpha
+        alpha = alpha[0]
+        res.mdot = mdot
+        _e_b = res.e_b
+        _e_b = _e_b[0]
+        se_b.append(_e_b)
+        _mdot = res.mdot
+        _mdot = _mdot[0]
+        salpha.append(alpha)
+        smdot.append(_mdot)
+        # stime.append(bstart[i])
+        stime.append(tmp.tdel[0])
+        mdot_max = max(smdot)
+
+    result = dict()
+
+    result["base"] = [base]
+    result["z"] = [z]
+    result["x_0"] = [x_0]
+    result["r1"] = [r1]
+    result["r2"] = [r2]
+    result["r3"] = [r3]
+    result["mdot"] = smdot
+    result["mdot_max"] = [mdot_max]
+    result["time"] = stime
+    result["alpha"] = salpha
+    result["e_b"] = se_b
+
+    result["mass"] = [mass]
+    result["radius"] = [radius]
+
+    # omit the printing for now, as it prevents assessing the progress
+    # print('ensemble')
+    # print(f"In burstrain fluence is {se_b}")
+
+
+    return result

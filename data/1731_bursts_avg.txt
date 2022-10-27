@@ -1,0 +1,13 @@
+# File 1731_bursts_avg.txt
+#
+# The data in this file is intended for use with the beans code, available
+# from https://github.com/outs1der/beans 
+# and assembled from analysis of bursts included in the Multi-INstrument
+# Burst ARchive initially by Luke Waterson
+#
+# "Burst epoch [MJD]" "Bolometric fluence [1e-6 erg/cm^2]" "Error on bolometric fluence" "alpha value" "Error on alpha value" "Bolometric persistant Flux [1e-9 erg/cm^2/s^-1]" "Error on bol. per flux" "Inferred recurrence time [hr]" "Error on recurrence time" "Likely source origin"
+51627.33749	0.5100	0.1104	66.3234	29.4876	2.9129	0.6041	2.7851	0.0085	"KS 1731-26"
+51779.72991	0.6225	0.2141	48.9530	30.0112	3.2899	0.3920	2.3921	0.0045	"KS 1731-26"
+51763.45362	0.7739	0.0167	41.6288	1.4663	3.5201	0.0494	2.5772	0.0110	"KS 1731-26"
+# excluding 2/8 SW bursts
+51816.52089	0.8104	0.0090	43.7683	0.7270	3.7238	0.0451	2.6364	0.0027	"KS 1731-26"
