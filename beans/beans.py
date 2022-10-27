@@ -39,14 +39,45 @@ from run_emcee import runemcee
 from analyse import get_param_uncert_obs, get_param_uncert
 from initialise import init
 
+# -------------------------------------------------------------------------#
+# Some example prior functions, or you can write your own for input to the code. 
+
+# Define priors for theta. mr prior function is located in mrprior.py
+
+
+def lnZprior(z):
+    # This beta function for the metallicity prior is from Andy Casey and is an approximation of the metallicity of a mock galaxy
+    # at 2.5-4.5 kpc for the location of 1808. Assuming ZCNO = 0.01 is average value.
+    from scipy import stats
+    import numpy as np
+
+    beta = stats.beta
+    ZCNO = 0.01
+
+    return np.log(
+        beta(10, 3).pdf((np.log10(z / ZCNO) + 3) / 3.75) / (3.75 * np.log(10) * z)
+    )
+
+
+def prior_func(theta_in):
+    import numpy as np
+
+    X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
+
+    if 0.00001 < X < 0.76 and 0.00001 < Z < 0.056 and 0.000001 <= Q_b < 5.0 \
+        and 0 < f_a < 100 and 0 < f_E < 100 and 0.005 < r1 < 1.0 and 0.005 < r2 < 3.0 and 0 < r3 * 1e3 < 1000 and 1.15 < mass < 2.5 and 9 < radius < 17:  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
+        #return 0.0 + lnZprior(Z) + mr_prior(mass, radius) #use this option for 1808 prior
+        return 0.0 + mr_prior(mass, radius)
+    else:
+        return -np.inf
+
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100,
-	run_id="1808/test1", obsname='1808_obs.txt',
-	burstname='1808_bursts.txt', gtiname='1808_gti.txt',
-        theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
-        numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0,
-        threads = 4, restart=False, test_model=True):
+    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
+                 burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
+                 theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
+                 numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
+                 threads = 4, test_model=True, restart=False):
 
         from initialise import init
         from run_model import runmodel
@@ -66,6 +97,7 @@ class Beans:
         self.burstname = burstname #set location of your burst data files
         self.gtiname = gtiname #set location of your gti data files
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
+        self.lnprior = prior
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
         self.train = (obsname is not None)
             # determines whether will run as a train of bursts or
@@ -86,6 +118,7 @@ class Beans:
         if test_model:
 
             print("Testing the model works..")
+
 
             test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
                                    self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
@@ -190,39 +223,6 @@ class Beans:
 
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
-
-
-    # -------------------------------------------------------------------------#
-    # This is the expression for the prior on the model parameters.
-
-    # Define priors for theta. mr prior function is located in mrprior.py
-
-
-    def lnZprior(self, z):
-        # This beta function for the metallicity prior is from Andy Casey and is an approximation of the metallicity of a mock galaxy
-        # at 2.5-4.5 kpc for the location of 1808. Assuming ZCNO = 0.01 is average value.
-        from scipy import stats
-        import numpy as np
-
-        beta = stats.beta
-        ZCNO = 0.01
-
-        return np.log(
-            beta(10, 3).pdf((np.log10(z / ZCNO) + 3) / 3.75) / (3.75 * np.log(10) * z)
-        )
-
-
-    def lnprior(self, theta_in):
-        import numpy as np
-
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
-
-        if 0.00001 < X < 0.76 and 0.00001 < Z < 0.056 and 0.000001 <= Q_b < 5.0 \
-            and 0 < f_a < 100 and 0 < f_E < 100 and 0.005 < r1 < 1.0 and 0.005 < r2 < 3.0 and 0 < r3 * 1e3 < 1000 and 1.15 < mass < 2.5 and 9 < radius < 17:  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
-            #return 0.0 + self.lnZprior(Z) + mr_prior(mass, radius)
-            return 0.0 + mr_prior(mass, radius)
-        else:
-            return -np.inf
 
 
     # -------------------------------------------------------------------------#

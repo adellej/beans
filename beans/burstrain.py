@@ -187,11 +187,11 @@ def next_burst(
         mdot = (0.67 / 8.8) * mean_flux(t1 - trial.tdel / 24.0, t1, tobs, a, b) * r1
 
     # Now retain the entire history of this iteration, so we can check for loops
-
     mdot_hist = [mdot0]
     tdel_hist = [trial.tdel[0]/24.]
 
     nreturn = 0
+    nreturn_total = 0
     while (abs(mdot - mdot_hist[-1]) > mdot_res / 2.0) \
         and (((t1 + trial.tdel / 24.0 < 2.*max(tobs)) & (direction == 1)) \
             or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
@@ -199,6 +199,7 @@ def next_burst(
 
         trial = settle(base, z, x_0, mdot[0], cfac, mass, radius)
         nreturn = nreturn + 1
+        nreturn_total = nreturn_total + 1
 
         mdot_hist.append(mdot[0])
         tdel_hist.append(trial.tdel[0]/24.)
@@ -216,6 +217,11 @@ def next_burst(
             # Perhaps you should try to reset this randomly every 10 steps? - dkg
             # Yes, otherwise every trial above 10 steps will be random
             nreturn = 0
+
+        if nreturn_total > 30:
+            e = random.random()
+            mdot = mdot_hist[-1] * (1.0 - e)+ mdot * e
+
 
     # save the final versions to the history arrays
     mdot_hist.append(mdot[0])
@@ -420,7 +426,6 @@ def generate_burst_train(
 
         if forward:
             # Also find the time for the *next* burst in the train
-
             result3 = next_burst(
                 base,
                 z,
