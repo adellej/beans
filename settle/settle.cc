@@ -272,6 +272,8 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
   ODE.tidy();
   EOS.tidy();
 
+
+  return 0;
   } // loop through flux
 
 
