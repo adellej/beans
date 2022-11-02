@@ -30,7 +30,7 @@ except:
 # -------------------------------------------------------------------------#
 ## load local  modules
 from settle import settle
-from burstrain import generate_burst_train, next_burst, get_a_b, mean_flux
+from burstrain import generate_burst_train, next_burst, get_a_b, mean_flux, burstensemble
 from run_model import runmodel
 from get_data import get_obs
 from mrprior import mr_prior
@@ -77,7 +77,7 @@ class Beans:
                  burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
-                 threads = 4, restart=False):
+                 threads = 4, test_model=True, restart=False):
 
         from initialise import init
         from run_model import runmodel
@@ -99,9 +99,15 @@ class Beans:
         self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
         self.lnprior = prior
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
-
+        self.train = (obsname is not None)
+            # determines whether will run as a train of bursts or
+            # non-contiguous bursts ("ensemble" mode); previously
+            # numerical, default is 1 (True), which means a burst train
+            # will be generated; set obsname=None for non-contiguous
+            # (ensemble mode)
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
         print(self.st, self.et)
+
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -109,13 +115,18 @@ class Beans:
         print("# -------------------------------------------------------------------------#")
         print("Doing Initialisation..")
 
-        print("Testing the model works..")
-        test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
-                               self.pflux, self.pfluxe, self.tobs, self.numburstssim, self.ref_ind,
-                               self.gti_checking, self.st, self.et,
-                               debug=False) # set debug to True for testing
+        if test_model:
 
-        self.plot_model(test)
+            print("Testing the model works..")
+
+
+            test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
+                                   self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
+                                   self.gti_checking, self.train,self.st, self.et,
+                                   debug=False) # set debug to True for testing
+            print("result: ", test, valid)
+
+            self.plot_model(test)
 
     def lnlike(self, theta_in, x, y, yerr):
 
@@ -149,29 +160,41 @@ class Beans:
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
         model, valid = runmodel(
-            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self. numburstssim, self.ref_ind, self.gti_checking, \
-             self.st, self.et,
+            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
+             self.st, self.et
         )
 
         if not valid:
             return -np.inf, model
 
         # multiplying by scaling factors to match with the data
-        model[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1] *= r3
-        model[len(self.fluen)+len(self.bstart)-1:len(self.y)] *= r2
+        # indices for the fluence and the alphas are shifted by one
+        # if we're doing a "train" run, hence the int(self.train) (=1 if
+        # self.train == True
 
-    # To simplify final likelihood expression we define inv_sigma2 for each data parameter that describe the error.
-    # The variance (eg sEb0) is underestimated by some fractional amount, f, for each set of parameters.
+        ato = int(self.train) # array "train" offset
+        model[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato] *= r3
+        model[len(self.fluen)+len(self.bstart)-ato:] *= r2
 
-        sEb = yerr[len(self.bstart)-1:len(self.fluen)+len(self.bstart)-1]
-        sa = yerr[len(self.fluen)+len(self.bstart)-1:len(self.yerr)]
+	# To simplify final likelihood expression we define inv_sigma2 for each
+	# data parameter that describe the error.  The variance (eg sEb0) is
+	# underestimated by some fractional amount, f, for each set of
+	# parameters.
+        # TODO: assembling inv_sigma2 can probably all be done in one line
+
+        sEb = yerr[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato]
+        sa = yerr[len(self.fluen)+len(self.bstart)-ato:]
 
         inv_sigma2 = []
-        for i in range (0,len(self.bstart)-1):
-            inv_sigma2.append(1.0/(s_t**2))
+        if self.train:
+            for i in range (0,len(self.bstart)-1):
+                inv_sigma2.append(1.0/(s_t**2))
+        else:
+            for i in range (0,len(self.bstart)):
+                inv_sigma2.append(1.0/(yerr[i]**2))
         for i in range(0,len(self.bstart)):
             inv_sigma2.append(1.0/((sEb[i]*f_E)**2))
-        for i in range(0,len(self.bstart)-1):
+        for i in range(0,len(self.bstart)-ato):
             inv_sigma2.append(1.0/((sa[i]*f_a)**2))
 
         # Final likelihood expression
@@ -189,23 +212,12 @@ class Beans:
         mass = mass
         radius = radius
 
-        model2 = generate_burst_train(
-            base,
-            z,
-            x,
-            r1,
-            r2,
-            r3,
-            mass,
-            radius,
-            self.bstart,
-            self.pflux,
-            self.pfluxe,
-            self.tobs,
-            self.numburstssim,
-            self.ref_ind
-        )
-
+        if self.train:
+            model2 = generate_burst_train(
+                base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
+            )
+        else:
+            model2 = burstensemble(base, x, z, r1, r2, r3, mass, radius, self.bstart, self.pflux,self.numburstsobs)
         #model2 =  np.string_(model2, dtype='S1000')
         model2 = str(model2).encode('ASCII')
 
@@ -255,14 +267,13 @@ class Beans:
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
             # Don't have access to the r3 value to scale, as we did for ebpred above
-            ebpred = np.array(model[self.numburstssim+1:self.numburstssim*2+1])#*np.array(model["r3"])
+            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])#*np.array(model["r3"])
 
         fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
 
         flux_color = 'tab:red'
         bursts_color = 'tab:blue'
-        ax1.set_xlabel("Time (days after start of outburst)")
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
         if mdot and full_model:
@@ -272,17 +283,30 @@ class Beans:
             ax2.axvline(timepred[model["iref"]], c='k')
         else:
             ax1.set_ylabel('Persistent flux', color=flux_color)
-            ax1.errorbar(self.tobs, self.pflux, self.pfluxe, marker = '.',color=flux_color,
+            if self.train:
+                ax1.errorbar(self.tobs, self.pflux, self.pfluxe, marker = '.',color=flux_color,
                          label = 'pflux')
-            ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+                ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+                ax1.set_xlabel("Time (days after start of outburst)")
+            else:
+                # "ensemble" mode plot vs. epoch, rather than observation time
+                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_color,
+                         label='pflux')
+                ax1.set_xlabel("Epoch (MJD)")
+
         ax1.tick_params(axis='y', labelcolor=flux_color)
 
         # Plot the bursts here
         ax2.set_ylabel("Fluence (1e-9 erg/cm$^2$)", color=bursts_color)
-        if tobs is not None:
-            # Plot the observed bursts, if available
-            ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
-        ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+        if self.train:
+            if tobs is not None:
+                # Plot the observed bursts, if available
+                ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+            ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+        else:
+            ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+            ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+
         # show the time of the "reference" burst
         ax2.tick_params(axis='y', labelcolor=bursts_color)
 
@@ -333,8 +357,8 @@ class Beans:
                     # Set ref_ind to be zero, will subsequently distribute the start burst times
                     # between up to the simulated interval
                     test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
-                                           self.pflux, self.pfluxe, self.tobs, 1, 0.0,
-                                           0, debug=False)
+                                           self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
+                                           0, self.train, debug=False)
                     print("result: ", test, valid)
                     # self.plot_model(test)
 
@@ -367,8 +391,8 @@ class Beans:
                             # the whole outburst. Replace ref_ind with trial, as the starting burst time
                             # (ref_ind is meaningless if there's no bursts)
                             test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
-                                                   self.pflux, self.pfluxe, self.tobs, 100, trial,
-                                                   1, gti_start=self.st, gti_end=self.et, debug=False)
+                                                   self.pflux, self.pfluxe, self.tobs, 100,100, trial,
+                                                   1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
 
                             # for debugging
                             # self.plot_model(test)
@@ -401,6 +425,8 @@ class Beans:
         print("# -------------------------------------------------------------------------#")
         print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
         # make plot of observed burst comparison with predicted bursts:
+        # TODO: this section can presumably be replaced by the plot_model
+        # method, which also produces a plot at this point
         # get the observed bursts for comparison:
         X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
         base = Q_b
@@ -411,23 +437,13 @@ class Beans:
         r3 = r3
         mass = mass
         radius = radius
-
-        model = generate_burst_train(
-            base,
-            z,
-            x,
-            r1,
-            r2,
-            r3,
-            mass,
-            radius,
-            self.bstart,
-            self.pflux,
-            self.pfluxe,
-            self.tobs,
-            self.numburstssim,
-            self.ref_ind
-        )
+        print(self.train)
+        if self.train:
+            model = generate_burst_train(
+                base,z,x,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
+            )
+        else:
+            model = burstensemble(base,x,z,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.numburstsobs)
         timepred = model["time"]
         ebpred = np.array(model["e_b"])*np.array(model["r3"])
 
@@ -436,7 +452,12 @@ class Beans:
         ebobs = self.fluen
         plt.figure(figsize=(10,7))
         plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
-        plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
+        if self.train:
+            plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
+        else:
+            # No predicted time in "ensemble" mode so we just plot the
+            # fluences, predicted and observed, as a function of epoch
+            plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
         #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
         #plt.errorbar(tobs, ebobs, fmt='.',color='black')
         plt.xlabel("Time (days after start of outburst)")
@@ -470,7 +491,8 @@ class Beans:
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
         #tau = 20
         tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        burnin = int(2 * np.max(tau))
+        #burnin = int(2 * np.max(tau))
+        burnin = 2000
         thin = int(0.5 * np.min(tau))
         samples=reader.get_chain(flat=True, discard=burnin)
         sampler=reader.get_chain(flat=False)
@@ -577,6 +599,7 @@ class Beans:
         plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
 
 
+
         plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
         plt.xticks(fontsize=14)
@@ -631,18 +654,25 @@ class Beans:
 
         #t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
         #times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
-        times = get_param_uncert_obs(time, self.numburstssim*2+1)
+        if self.train:
+            times = get_param_uncert_obs(time, self.numburstssim*2+1)
+        else:
+            times = get_param_uncert_obs(time, self.numburstsobs)
         timepred = [x[0] for x in times]
         timepred_errup = [x[1] for x in times]
         timepred_errlow = [x[2] for x in times]
 
-        ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
+        if self.train:
+            ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
+        else:
+            ebs = get_param_uncert_obs(e_b, self.numburstsobs)
         ebpred = [x[0] for x in ebs]
         ebpred_errup = [x[1] for x in ebs]
         ebpred_errlow = [x[2] for x in ebs]
-
-        alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
-
+        if self.train:
+            alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
+        else:
+            alphas = get_param_uncert_obs(alpha, self.numburstssim)
         Xpred = np.array(list(get_param_uncert(X))[0])
         Zpred = np.array(list(get_param_uncert(Z))[0])
         basepred = np.array(list(get_param_uncert(base))[0])
@@ -698,11 +728,14 @@ class Beans:
 
         plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
         #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
-        plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
-        #plt.scatter(time_pred_18, e_b_pred_18, marker = '*',color='orange',s = 200, label = '1.4 M$_{\odot}$, R = 10 km')
-
-        plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
-        plt.errorbar(tobs, ebobs, fmt='.',color='black')
+        if self.train:
+            plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup[1:], timepred_errlow[1:]], fmt='.', color='darkgrey')
+            plt.errorbar(tobs, ebobs, fmt='.', color='black')
+        else:
+            plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
+            plt.errorbar(tobs, ebobs, fmt='.', color='black')
 
         plt.xlabel("Time (days after start of outburst)")
         plt.ylabel("Fluence (1e-9 erg/cm$^2$)")

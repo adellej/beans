@@ -17,12 +17,18 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
     #dtype = [("lnprob", float), ("model", "S1000")]
     dtype = [("lnprob", float), ("model", h5py.string_dtype(encoding='ascii'))]
 
-
+    # use emcee backend to save as a HD5 file
+    # see https://emcee.readthedocs.io/en/stable/user/backends
+    reader = emcee.backends.HDFBackend(filename=run_id + ".h5")
 
     if restart == True:
-        #pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
-        print('Restarting',run_id,'with',nwalkers,'walkers')
+        # don't know why the pos are identical to the restart=False case below;
+        # perhaps they're ignored
+        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        steps_so_far = np.shape(reader.get_chain())[0]
+        print('Restarting',run_id,'with',nwalkers,'walkers after',steps_so_far,'steps done')
     else:
+        reader.reset(nwalkers, ndim)
         # set the intial position of the walkers
         pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
         print('Ready to run',run_id,'with',nwalkers,'walkers')
@@ -95,7 +101,6 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
         #tau = sampler.get_autocorr_time()
         print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
         
-
     #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
 
     # with Pool() as pool:
