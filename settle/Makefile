@@ -11,7 +11,8 @@ mac: settle.o
 	#objdump -T libsettle.so | grep main
 
 linux: settle.o 
-	g++ -Ofast -fPIC -c *.cc *.c
+	gcc -Ofast -fPIC -c *.c
+	g++ -Ofast -fPIC -c *.cc
 	g++ -Ofast -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
 	#objdump -T libsettle.so | grep main
 
