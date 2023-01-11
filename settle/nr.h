@@ -166,7 +166,8 @@ float ellf(float phi, float ak);
 float ellpi(float phi, float en, float ak);
 void elmhes(float **a, int n);
 float erfcc(float x);
-float erff(float x);
+/* use matlib's double erf( double arg ) instead"
+/*float erff(float x);*/
 float erffc(float x);
 void eulsum(float *sum, float term, int jterm, float wksp[]);
 float evlmem(float fdt, float d[], int m, float xms);
@@ -192,7 +193,7 @@ void fitexy(float x[], float y[], int ndat, float sigx[], float sigy[],
 void fixrts(float d[], int m);
 void fleg(float x, float pl[], int nl);
 void flmoon(int n, int nph, long *jd, float *frac);
-float fmin(float x[]);
+float nr_fmin(float x[]);
 void four1(float data[], unsigned long nn, int isign);
 void fourew(FILE *file[5], int *na, int *nb, int *nc, int *nd);
 void fourfs(FILE *file[5], unsigned long nn[], int ndim, int isign);

@@ -95,7 +95,7 @@ void newt(float x[], int n, int *check,
 {
 	void fdjac(int n, float x[], float fvec[], float **df,
 		void (*vecfunc)(int, float [], float []));
-	float fmin(float x[]);
+	float nr_fmin(float x[]);
 	void lnsrch(int n, float xold[], float fold, float g[], float p[], float x[],
 		 float *f, float stpmax, int *check, float (*func)(float []));
 	void lubksb(float **a, int n, int *indx, float b[]);
@@ -111,7 +111,7 @@ void newt(float x[], int n, int *check,
 	fvec=vector(1,n);
 	nn=n;
 	nrfuncv=vecfunc;
-	f=fmin(x);
+	f=nr_fmin(x);
 	test=0.0;
 	for (i=1;i<=n;i++)
 		if (fabs(fvec[i]) > test) test=fabs(fvec[i]);
@@ -129,7 +129,7 @@ void newt(float x[], int n, int *check,
 		for (i=1;i<=n;i++) p[i] = -fvec[i];
 		ludcmp(fjac,n,indx,&d);
 		lubksb(fjac,n,indx,p);
-		lnsrch(n,xold,fold,g,p,x,&f,stpmax,check,fmin);
+		lnsrch(n,xold,fold,g,p,x,&f,stpmax,check,nr_fmin);
 		test=0.0;
 		for (i=1;i<=n;i++)
 			if (fabs(fvec[i]) > test) test=fabs(fvec[i]);
@@ -197,7 +197,7 @@ extern int nn;
 extern float *fvec;
 extern void (*nrfuncv)(int n, float v[], float f[]);
 
-float fmin(float x[])
+float nr_fmin(float x[])
 {
 	int i;
 	float sum;
