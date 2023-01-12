@@ -24,7 +24,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
     if restart == True:
         # don't know why the pos are identical to the restart=False case below;
         # perhaps they're ignored
-        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        #pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
         steps_so_far = np.shape(reader.get_chain())[0]
         print('Restarting',run_id,'with',nwalkers,'walkers after',steps_so_far,'steps done')
     else:
@@ -37,9 +37,9 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
 
     print("Beginning sampling..")
     # use emcee backend to save as a HD5 file
-    reader = emcee.backends.HDFBackend(filename=run_id+".h5")
-    if restart == False:
-        reader.reset(nwalkers, ndim)
+    #reader = emcee.backends.HDFBackend(filename=run_id+".h5")
+    #if restart == False:
+    #    reader.reset(nwalkers, ndim)
         # sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype, moves=emcee.moves.StretchMove(a=1.5))
     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader, blobs_dtype=dtype)
     #moves=emcee.moves.StretchMove(a=1.5))
@@ -94,7 +94,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
             converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
             if converged:
                 print('Complete! Chains are converged')
-            break
+                break
             old_tau = tau
 
 
