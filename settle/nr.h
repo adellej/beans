@@ -36,6 +36,7 @@ typedef struct {
 
 #include <stdio.h>
 
+void nrerror(const char error_text[]);
 void addint(double **uf, double **uc, double **res, int nf);
 void airy(float x, float *ai, float *bi, float *aip, float *bip);
 void amebsa(float **p, float y[], int ndim, float pb[],	float *yb,
