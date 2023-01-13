@@ -281,6 +281,8 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
   //  fclose(fp.out);
   //fclose(fp.ign);
 
+  /// added by MC - to eliminate warning about missing retval
+  return 1;
 }
 
 
