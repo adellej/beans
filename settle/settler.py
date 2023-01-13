@@ -36,7 +36,7 @@ class settle(object):
               Returns alpha, trec
         '''
 
-        self.libsettle = ct.cdll.LoadLibrary("/home/adelleg/BEANS/beans/settle/libsettle.so")
+        self.libsettle = ct.cdll.LoadLibrary("/usr/local/lib/libsettle.so")
 
         self.mainer = self.libsettle.mainer
 
