@@ -166,7 +166,7 @@ float ellf(float phi, float ak);
 float ellpi(float phi, float en, float ak);
 void elmhes(float **a, int n);
 float erfcc(float x);
-/* use matlib's double erf( double arg ) instead"
+/* use matlib's double erf( double arg ) instead" */
 /*float erff(float x);*/
 float erffc(float x);
 void eulsum(float *sum, float term, int jterm, float wksp[]);
