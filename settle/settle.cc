@@ -14,6 +14,8 @@
 
 #include "nr.h"
 #include "nrutil.h"
+#include "root.h"
+
 #include "odeint.h"
 #include "eos.h"
 #include "spline.h"

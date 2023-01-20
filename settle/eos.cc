@@ -3,8 +3,10 @@
 #include "math.h"
 #include <stdarg.h>
 #include <stdlib.h>
+
 #include "nr.h"
 #include "nrutil.h"
+#include "root.h"
 //#include "/u/cumming/h/odeint.h"
 
 #define me 510.999

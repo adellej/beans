@@ -2,6 +2,8 @@
 #include "nrutil.h"
 #include "math.h"
 
+#include "root.h"
+
 #define ITMAX 100
 #define EPS 3.0e-8
 
@@ -89,9 +91,11 @@ void (*nrfuncv)(int n, float v[], float f[]);
 	free_vector(p,1,n);free_vector(g,1,n);free_matrix(fjac,1,n,1,n);\
 	free_ivector(indx,1,n);return;}
 
+/* MCU note: is following function a dead code? never called */
 void newt(float x[], int n, int *check,
-	void (*vecfunc)(int, float [], float []))
+	  void (*vecfunc)(int, float [], float []))
 {
+  /* MCU note: a few locally declared functions, implemented in this modula */
 	void fdjac(int n, float x[], float fvec[], float **df,
 		void (*vecfunc)(int, float [], float []));
 	float nr_fmin(float x[]);
@@ -99,6 +103,7 @@ void newt(float x[], int n, int *check,
 		 float *f, float stpmax, int *check, float (*func)(float []));
 	void lubksb(float **a, int n, int *indx, float b[]);
 	void ludcmp(float **a, int n, int *indx, float *d);
+
 	int i,its,j,*indx;
 	float d,den,f,fold,stpmax,sum,temp,test,**fjac,*g,*p,*xold;
 

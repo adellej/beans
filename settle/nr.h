@@ -332,8 +332,9 @@ void mrqcof(float x[], float y[], float sig[], int ndata, float a[],
 void mrqmin(float x[], float y[], float sig[], int ndata, float a[],
 	int ia[], int ma, float **covar, float **alpha, float *chisq,
 	void (*funcs)(float, float [], float *, float [], int), float *alamda);
-void newt(float x[], int n, int *check,
-	void (*vecfunc)(int, float [], float []));
+/* MCu node: declared in root.h */
+/* void newt(float x[], int n, int *check,
+   void (*vecfunc)(int, float [], float []));*/
 void odeint(float ystart[], int nvar, float x1, float x2,
 	float eps, float h1, float hmin, int *nok, int *nbad,
 	void (*derivs)(float, float [], float []),
@@ -538,7 +539,8 @@ void wwghts(float wghts[], int n, float h,
 int zbrac(float (*func)(float), float *x1, float *x2);
 void zbrak(float (*fx)(float), float x1, float x2, int n, float xb1[],
 	float xb2[], int *nb);
-float zbrent(float (*func)(float), float x1, float x2, float tol);
+/* MCu node: declared in root.h */
+/* float zbrent(float (*func)(float), float x1, float x2, float tol); */
 void zrhqr(float a[], int m, float rtr[], float rti[]);
 float zriddr(float (*func)(float), float x1, float x2, float xacc);
 void zroots(fcomplex a[], int m, fcomplex roots[], int polish);
