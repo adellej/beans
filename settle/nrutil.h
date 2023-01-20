@@ -8,8 +8,8 @@
 
 #define float double
 
-#ifndef _NR_UTILS_H_
-#define _NR_UTILS_H_
+#ifndef __NRUTIL_H__
+#define __NRUTIL_H__
 
 static float sqrarg;
 #define SQR(a) ((sqrarg=(a)) == 0.0 ? 0.0 : sqrarg*sqrarg)
@@ -82,4 +82,4 @@ void free_f3tensor(float ***t, long nrl, long nrh, long ncl, long nch,
 float **matrixf(long nrl, long nrh, long ncl, long nch);
 void free_matrixf(float **m, long nrl, long nrh, long ncl, long nch);
 
-#endif /* _NR_UTILS_H_ */
+#endif /* __NRUTILS_H__ */

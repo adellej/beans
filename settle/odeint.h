@@ -1,5 +1,5 @@
-#ifndef ODEINT_H
-#define ODEINT_H
+#ifndef __ODEINT_H__
+#define __ODEINT_H__
 
 class Ode_Int {
 public:
@@ -60,4 +60,4 @@ private:
 #undef float
 };
 
-#endif // ODEINT_H
+#endif // __ODEINT_H__

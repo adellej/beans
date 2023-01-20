@@ -1,5 +1,5 @@
-#ifndef EOS_H
-#define EOS_H
+#ifndef __EOS_H__
+#define __EOS_H__
 
 class Eos {
 public:
@@ -91,4 +91,4 @@ public:
   double Fermi_n, Fermi_alpha;
 };
 
-#endif // EOS_H
+#endif // __EOS_H__

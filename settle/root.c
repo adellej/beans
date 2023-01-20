@@ -7,7 +7,6 @@
 
 #define float double
 
-
 float zbrent(float (*func)(float), float x1, float x2, float tol)
 {
   int iter;
