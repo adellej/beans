@@ -1,3 +1,6 @@
+#ifndef ODEINT_H
+#define ODEINT_H
+
 class Ode_Int {
 public:
   int ignore, kount, stiff, verbose, tri;
@@ -53,7 +56,8 @@ private:
   void lubksb(float **a, int n, int *indx, float b[]);
   void ludcmp(float **a, int n, int *indx, float *d);
   void tridag(float a[], float b[], float c[], float r[], float u[],
-		     unsigned long n);  
+	      unsigned long n);  
 #undef float
-
 };
+
+#endif // ODEINT_H
