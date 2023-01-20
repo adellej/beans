@@ -1,3 +1,6 @@
+#ifndef EOS_H
+#define EOS_H
+
 class Eos {
 public:
   // density, temperature and composition
@@ -87,3 +90,5 @@ public:
   int ns;  // number of species
   double Fermi_n, Fermi_alpha;
 };
+
+#endif // EOS_H
