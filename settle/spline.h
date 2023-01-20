@@ -1,5 +1,5 @@
-#ifndef ODEINT_H
-#define ODEINT_H
+#ifndef SPLINE_H
+#define SPLINE_H
 
 // definitions for fread & fwrite
 #define DSIZE sizeof(double)
@@ -27,4 +27,4 @@ private:
   void splint(double xa[], double ya[], double y2a[], int n, double x, double *y);
 };
 
-#endif // ODEINT_H
+#endif // SPLINE_H
