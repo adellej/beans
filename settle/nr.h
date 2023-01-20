@@ -5,15 +5,12 @@
    traditional K&R versions, along with #ifdef macros to select the
    correct version.  *This* file contains only ANSI C.               */
 
+#ifndef __NR_H__
+#define __NR_H__
 
 #define PI 3.14159265358979323846
 
-
 #define float double
-
-
-#ifndef __NR_H__
-#define __NR_H__
 
 #ifndef _FCOMPLEX_DECLARE_T_
 typedef struct FCOMPLEX {float r,i;} fcomplex;
@@ -546,6 +543,7 @@ void zrhqr(float a[], int m, float rtr[], float rti[]);
 float zriddr(float (*func)(float), float x1, float x2, float xacc);
 void zroots(fcomplex a[], int m, fcomplex roots[], int polish);
 
+#undef float
+
 #endif /* __NR_H__ */
 
-#undef float
