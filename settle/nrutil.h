@@ -8,6 +8,10 @@
 #ifndef __NRUTIL_H__
 #define __NRUTIL_H__
 
+#define PI 3.14159265358979323846
+
+void nrerror(const char error_text[]);
+
 #define float double
 
 static float sqrarg;
