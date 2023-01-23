@@ -1,4 +1,5 @@
-#include "nr.h"
+#include <stdio.h>
+//#include "nr.h"
 #include "nrutil.h"
 #include "math.h"
 

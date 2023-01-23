@@ -4,7 +4,7 @@
 //                  to use set "stiff" to 1
 //
 
-#include "nr.h"
+//#include "nr.h"
 #include "nrutil.h"
 #include <stdio.h>
 #include "math.h"
