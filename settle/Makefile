@@ -11,8 +11,8 @@ mac: settle.o
 	#objdump -T libsettle.so | grep main
 
 linux: settle.o
-	gcc -g -Wall -O0 -fPIC -c *.c
-	g++ -g -Wall -O0 -fPIC -c *.cc
+	gcc -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -O0 -fPIC -c *.c
+	g++ -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -O0 -fPIC -c *.cc
 	g++ -Wall -O0 -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
 	#objdump -T libsettle.so | grep main
 	# -Ofast
