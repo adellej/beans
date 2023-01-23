@@ -212,7 +212,9 @@ float gammp(float a, float x);
 float gammq(float a, float x);
 
 #undef float
-float gasdev(long *idum);
+/* MCU: moved to a separate module gasdev.h.c
+   was not part of the original NR book code
+float gasdev(long *idum); */
 #define float double
 
 void gaucof(int n, float a[], float b[], float amu0, float x[], float w[]);
