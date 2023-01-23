@@ -6,6 +6,8 @@
 float zbrent(float (*func)(float), float x1, float x2, float tol);
 
 /* MCU note: is the following function a dead code? never called */
+/* There are a few more local functions called from this one, 
+   declared nicely inside newt(), see root.c */
 void newt(float x[], int n, int *check,
 	  void (*vecfunc)(int, float [], float []));
 
