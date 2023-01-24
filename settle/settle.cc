@@ -5,7 +5,6 @@
 // to find ignition conditions
 //
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +12,6 @@
 #include <math.h>
 
 extern "C" {
-  //#include "nr.h"
 #include "nrutil.h"
 #include "root.h"
 }

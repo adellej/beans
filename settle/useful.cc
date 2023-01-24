@@ -5,7 +5,6 @@
 #include <math.h>
 
 extern "C" {
-//#include "nr.h"
 #include "nrutil.h"
 }
 

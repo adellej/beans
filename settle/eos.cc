@@ -5,11 +5,9 @@
 #include <stdlib.h>
 
 extern "C" {
-  //#include "nr.h"
 #include "nrutil.h"
 #include "root.h"
 }
-//#include "/u/cumming/h/odeint.h"
 
 #define me 510.999
 #define F14 0.352
