@@ -34,9 +34,11 @@
 //
 
 #include <stdio.h>
-
-#include "nrutil.h"
 #include "math.h"
+
+extern "C" {
+#include "nrutil.h"
+}
 
 #include "spline.h"
 

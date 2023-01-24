@@ -9,11 +9,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "math.h"
 #include <stdarg.h>
+#include "math.h"
 
-#include "nr.h"
+extern "C" {
+  //#include "nr.h"
 #include "nrutil.h"
+#include "root.h"
+}
+
 #include "odeint.h"
 #include "eos.h"
 #include "spline.h"
@@ -84,7 +88,7 @@ void jacobn(double, double *, double *, double **, int) {};
 
 int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
 	   double* trec, double* alpha, double* fluen, double* radius, double*mass)
-
+{
   int flag, n, i;
   double yb, y, dummy, Xbar;
 

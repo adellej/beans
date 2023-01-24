@@ -4,10 +4,13 @@
 //                  to use set "stiff" to 1
 //
 
-//#include "nr.h"
-#include "nrutil.h"
 #include <stdio.h>
 #include "math.h"
+
+extern "C" {
+  //#include "nr.h"
+#include "nrutil.h"
+}
 
 #include "odeint.h"
 
