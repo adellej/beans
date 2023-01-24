@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-
 #include "math.h"
-//#include "nr.h"
+#include "nr.h"
 #include "nrutil.h"
 
 #include "useful.h"

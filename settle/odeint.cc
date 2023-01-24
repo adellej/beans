@@ -26,8 +26,8 @@ void Ode_Int::tidy(void)
   free_vector(this->ystart,1,this->nvar);
   free_vector(this->hstr,1,this->kmax);
   free_vector(this->xp,1,this->kmax);
-  free_matrix(this->yp,1,this->nvar,1,this->kmax);
-  free_matrix(this->dydxp,1,this->nvar,1,this->kmax);
+  free_dmatrix(this->yp,1,this->nvar,1,this->kmax);
+  free_dmatrix(this->dydxp,1,this->nvar,1,this->kmax);
 }
 
 void Ode_Int::init(int n)
@@ -39,8 +39,8 @@ void Ode_Int::init(int n)
   this->minstep=0.0;
 
   this->xp=vector(1,this->kmax);
-  this->yp=matrix(1,this->nvar,1,this->kmax);
-  this->dydxp=matrix(1,this->nvar,1,this->kmax);
+  this->yp=dmatrix(1,this->nvar,1,this->kmax);
+  this->dydxp=dmatrix(1,this->nvar,1,this->kmax);
   this->hstr=vector(1,this->kmax);
   this->ystart=vector(1,this->nvar);
 
@@ -398,7 +398,7 @@ void Ode_Int::simpr(float y[], float dydx[], float dfdx[], float **dfdy, int n,
 	float d,h,x,**a,*del,*ytemp;
 
 	indx=ivector(1,n);
-	a=matrix(1,n,1,n);
+	a=dmatrix(1,n,1,n);
 	del=vector(1,n);
 	ytemp=vector(1,n);
 	h=htot/nstep;
@@ -430,7 +430,7 @@ void Ode_Int::simpr(float y[], float dydx[], float dfdx[], float **dfdy, int n,
 		yout[i] += ytemp[i];
 	free_vector(ytemp,1,n);
 	free_vector(del,1,n);
-	free_matrix(a,1,n,1,n);
+	free_dmatrix(a,1,n,1,n);
 	free_ivector(indx,1,n);
 }
 
@@ -508,9 +508,9 @@ void Ode_Int::stifbs(float y[], float dydx[], int nv, float *xx, float htry, flo
 	static int nseq[IMAXX+1]={0,2,6,10,14,22,34,50,70};
 	int reduct,exitflag=0;
 
-	d=matrix(1,nv,1,KMAXX);
+	d=dmatrix(1,nv,1,KMAXX);
 	dfdx=vector(1,nv);
-	dfdy=matrix(1,nv,1,nv);
+	dfdy=dmatrix(1,nv,1,nv);
 	err=vector(1,KMAXX);
 	x=vector(1,KMAXX);
 	yerr=vector(1,nv);
@@ -618,9 +618,9 @@ void Ode_Int::stifbs(float y[], float dydx[], int nv, float *xx, float htry, flo
 	free_vector(yerr,1,nv);
 	free_vector(x,1,KMAXX);
 	free_vector(err,1,KMAXX);
-	free_matrix(dfdy,1,nv,1,nv);
+	free_dmatrix(dfdy,1,nv,1,nv);
 	free_vector(dfdx,1,nv);
-	free_matrix(d,1,nv,1,KMAXX);
+	free_dmatrix(d,1,nv,1,KMAXX);
 }
 
 #undef KMAXX

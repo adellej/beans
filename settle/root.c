@@ -89,7 +89,7 @@ int nn;
 float *fvec;
 void (*nrfuncv)(int n, float v[], float f[]);
 #define FREERETURN {free_vector(fvec,1,n);free_vector(xold,1,n);\
-	free_vector(p,1,n);free_vector(g,1,n);free_matrix(fjac,1,n,1,n);\
+	free_vector(p,1,n);free_vector(g,1,n);free_dmatrix(fjac,1,n,1,n);\
 	free_ivector(indx,1,n);return;}
 
 /* MCU note: is following function a dead code? never called */
@@ -109,7 +109,7 @@ void newt(float x[], int n, int *check,
 	float d,den,f,fold,stpmax,sum,temp,test,**fjac,*g,*p,*xold;
 
 	indx=ivector(1,n);
-	fjac=matrix(1,n,1,n);
+	fjac=dmatrix(1,n,1,n);
 	g=vector(1,n);
 	p=vector(1,n);
 	xold=vector(1,n);
