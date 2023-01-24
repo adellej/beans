@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include "math.h"
+#include <math.h>
 
 extern "C" {
   //#include "nr.h"
