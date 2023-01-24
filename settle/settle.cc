@@ -38,7 +38,6 @@ extern "C" {
 	     double* trec, double* alpha, double* fluen, double* radius, double*mass);
 }
 
-
 // -------- Global variables ----------
 
 Eos EOS;

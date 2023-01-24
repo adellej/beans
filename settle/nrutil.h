@@ -12,8 +12,6 @@
 
 void nrerror(const char error_text[]);
 
-#define float double
-
 static float sqrarg;
 #define SQR(a) ((sqrarg=(a)) == 0.0 ? 0.0 : sqrarg*sqrarg)
 
@@ -78,10 +76,5 @@ void free_submatrix(float **b, long nrl, long nrh, long ncl, long nch);
 void free_convert_matrix(float **b, long nrl, long nrh, long ncl, long nch);
 void free_f3tensor(float ***t, long nrl, long nrh, long ncl, long nch,
 	long ndl, long ndh);
-
-#undef float
-
-float **matrixf(long nrl, long nrh, long ncl, long nch);
-void free_matrixf(float **m, long nrl, long nrh, long ncl, long nch);
 
 #endif /* __NRUTILS_H__ */

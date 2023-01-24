@@ -24,18 +24,18 @@ void* pt2Object;
 
 void Eos::tidy(void)
 {
-    free_vector(this->A,1,this->ns);
-    free_vector(this->Z,1,this->ns);
-    free_vector(this->X,1,this->ns);
+    free_dvector(this->A,1,this->ns);
+    free_dvector(this->Z,1,this->ns);
+    free_dvector(this->X,1,this->ns);
 }
 
 void Eos::init(int n)
 {
   this->ns=n;
 
-  this->A=vector(1,this->ns);
-  this->Z=vector(1,this->ns);
-  this->X=vector(1,this->ns);
+  this->A=dvector(1,this->ns);
+  this->Z=dvector(1,this->ns);
+  this->X=dvector(1,this->ns);
   this->Z2=0.0;
   this->set_Ye=0.0;
   this->set_Yi=0.0;
@@ -538,7 +538,6 @@ double Eos::Uex(void)
 
   return u;
 }
-
 
 double Eos::Fep(int flag)
   // "Coulomb log" for electron-phonon scattering 
