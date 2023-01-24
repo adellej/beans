@@ -25,3 +25,7 @@ cleaner: clean
 
 install: linux
 	sudo cp -arv --preserve=mode,timestamps libsettle.so /usr/local/lib
+
+test:	cleaner
+	make install
+	time python try.py
