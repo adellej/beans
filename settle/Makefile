@@ -11,9 +11,9 @@ mac: settle.o
 	#objdump -T libsettle.so | grep main
 
 linux: settle.o
-	gcc -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -O0 -fPIC -c *.c
-	g++ -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -O0 -fPIC -c *.cc
-	g++ -Wall -O0 -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
+	gcc -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Ofast -fPIC -c *.c
+	g++ -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Ofast -fPIC -c *.cc
+	g++ -Wall -Ofast -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
 	#objdump -T libsettle.so | grep main
 	# -Ofast
 
