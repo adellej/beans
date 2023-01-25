@@ -8,49 +8,53 @@
 #ifndef __NRUTIL_H__
 #define __NRUTIL_H__
 
-#define PI 3.14159265358979323846
+#include <math.h>
 
 void nrerror(const char error_text[]);
 
-static float sqrarg;
-#define SQR(a) ((sqrarg=(a)) == 0.0 ? 0.0 : sqrarg*sqrarg)
+inline float SQR(float a) {
+  return(a == 0.0 ? 0.0 : a*a);
+}
 
-static double dsqrarg;
-#define DSQR(a) ((dsqrarg=(a)) == 0.0 ? 0.0 : dsqrarg*dsqrarg)
+inline double DSQR(double a) {
+  return(a == 0.0 ? 0.0 : a*a);
+}
 
-static double dmaxarg1,dmaxarg2;
-#define DMAX(a,b) (dmaxarg1=(a),dmaxarg2=(b),(dmaxarg1) > (dmaxarg2) ?\
-        (dmaxarg1) : (dmaxarg2))
+inline float FMAX(float a, float b) {
+  return(a > b ? a : b);
+}
 
-static double dminarg1,dminarg2;
-#define DMIN(a,b) (dminarg1=(a),dminarg2=(b),(dminarg1) < (dminarg2) ?\
-        (dminarg1) : (dminarg2))
+inline float FMIN(float a, float b) {
+  return(a < b ? a : b);
+}
 
-static float maxarg1,maxarg2;
-#define FMAX(a,b) (maxarg1=(a),maxarg2=(b),(maxarg1) > (maxarg2) ?\
-        (maxarg1) : (maxarg2))
+inline double DMAX(double a, double b) {
+  return(a > b ? a : b);
+}
 
-static float minarg1,minarg2;
-#define FMIN(a,b) (minarg1=(a),minarg2=(b),(minarg1) < (minarg2) ?\
-        (minarg1) : (minarg2))
+inline double DMIN(double a, double b) {
+  return(a < b ? a : b);
+}
 
-static long lmaxarg1,lmaxarg2;
-#define LMAX(a,b) (lmaxarg1=(a),lmaxarg2=(b),(lmaxarg1) > (lmaxarg2) ?\
-        (lmaxarg1) : (lmaxarg2))
+inline long LMAX(long a, long b) {
+  return(a > b ? a : b);
+}
 
-static long lminarg1,lminarg2;
-#define LMIN(a,b) (lminarg1=(a),lminarg2=(b),(lminarg1) < (lminarg2) ?\
-        (lminarg1) : (lminarg2))
+inline long LMIN(long a, long b) {
+  return(a < b ? a : b);
+}
 
-static int imaxarg1,imaxarg2;
-#define IMAX(a,b) (imaxarg1=(a),imaxarg2=(b),(imaxarg1) > (imaxarg2) ?\
-        (imaxarg1) : (imaxarg2))
+inline int IMAX(int a, int b) {
+  return(a > b ? a : b);
+}
 
-static int iminarg1,iminarg2;
-#define IMIN(a,b) (iminarg1=(a),iminarg2=(b),(iminarg1) < (iminarg2) ?\
-        (iminarg1) : (iminarg2))
+inline int IMIN(int a, int b) {
+  return(a < b ? a : b);
+}
 
-#define SIGN(a,b) ((b) >= 0.0 ? fabs(a) : -fabs(a))
+inline double SIGN(double a, double b) {
+  return((b) >= 0.0 ? fabs(a) : -fabs(a));
+}
 
 float *vector(long nl, long nh);
 int *ivector(long nl, long nh);

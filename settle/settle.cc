@@ -227,7 +227,7 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
 
   *alpha = 290. / (1.35 + 6.05 * Xbar);
 
-  *fluen = (4*PI*G.R*G.R*y*9.64e17*(1.35+6.05*Xbar)/G.ZZ)/1e39; //units of 1e39 erg/g
+  *fluen = (4*M_PI*G.R*G.R*y*9.64e17*(1.35+6.05*Xbar)/G.ZZ)/1e39; //units of 1e39 erg/g
 
   //printf("eps (14C+alpha) is %lg\n", EOS.C14AG());
   //printf("eps (3a) is %lg\n", EOS.triple_alpha());

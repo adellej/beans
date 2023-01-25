@@ -119,8 +119,8 @@ void newt(double x[], int n, int *check,
 	for (i=1;i<=n;i++)
 		if (fabs(fvec[i]) > test) test=fabs(fvec[i]);
 	if (test<0.01*TOLF) FREERETURN
-	for (sum=0.0,i=1;i<=n;i++) sum += SQR(x[i]);
-	stpmax=STPMX*FMAX(sqrt(sum),(double)n);
+	for (sum=0.0,i=1;i<=n;i++) sum += DSQR(x[i]);
+	stpmax=STPMX*DMAX(sqrt(sum),(double)n);
 	for (its=1;its<=MAXITS;its++) {
 		fdjac(n,x,fvec,fjac,vecfunc);
 		for (i=1;i<=n;i++) {
@@ -142,9 +142,9 @@ void newt(double x[], int n, int *check,
 		}
 		if (*check) {
 			test=0.0;
-			den=FMAX(f,0.5*n);
+			den=DMAX(f,0.5*n);
 			for (i=1;i<=n;i++) {
-				temp=fabs(g[i])*FMAX(fabs(x[i]),1.0)/den;
+				temp=fabs(g[i])*DMAX(fabs(x[i]),1.0)/den;
 				if (temp > test) test=temp;
 			}
 			*check=(test < TOLMIN ? 1 : 0);
@@ -152,7 +152,7 @@ void newt(double x[], int n, int *check,
 		}
 		test=0.0;
 		for (i=1;i<=n;i++) {
-			temp=(fabs(x[i]-xold[i]))/FMAX(fabs(x[i]),1.0);
+			temp=(fabs(x[i]-xold[i]))/DMAX(fabs(x[i]),1.0);
 			if (temp > test) test=temp;
 		}
 		if (test < TOLX) FREERETURN
@@ -206,7 +206,7 @@ double nr_fmin(double x[])
 	double sum;
 
 	(*nrfuncv)(nn,x,fvec);
-	for (sum=0.0,i=1;i<=nn;i++) sum += SQR(fvec[i]);
+	for (sum=0.0,i=1;i<=nn;i++) sum += DSQR(fvec[i]);
 	return 0.5*sum;
 }
 #undef NRANSI
@@ -233,7 +233,7 @@ void lnsrch(int n, double xold[], double fold, double g[], double p[], double x[
 		slope += g[i]*p[i];
 	test=0.0;
 	for (i=1;i<=n;i++) {
-		temp=fabs(p[i])/FMAX(fabs(xold[i]),1.0);
+		temp=fabs(p[i])/DMAX(fabs(xold[i]),1.0);
 		if (temp > test) test=temp;
 	}
 	alamin=TOLX/test;
@@ -267,7 +267,7 @@ void lnsrch(int n, double xold[], double fold, double g[], double p[], double x[
 		alam2=alam;
 		f2 = *f;
 		fold2=fold;
-		alam=FMAX(tmplam,0.1*alam);
+		alam=DMAX(tmplam,0.1*alam);
 	}
 }
 #undef ALF

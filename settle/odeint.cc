@@ -186,12 +186,12 @@ void Ode_Int::rkqs(double y[], double dydx[], int n, double *x,
       rkck(y,dydx,n,*x,h,ytemp,yerr,derivs);
       errmax =0.0;
       for (i=1;i<=(n-this->ignore);i++) 
-	errmax=FMAX(errmax,fabs(yerr[i]/yscal[i]));
-      /*    for (i=1;i<=n;i++) errmax=FMAX(errmax,fabs(yerr[i]/yscal[i]));*/
+	errmax=DMAX(errmax,fabs(yerr[i]/yscal[i]));
+      /*    for (i=1;i<=n;i++) errmax=DMAX(errmax,fabs(yerr[i]/yscal[i]));*/
       errmax /= eps;
       if (errmax <= 1.0) break;
       htemp=SAFETY*h*pow(errmax,PSHRNK);
-      h=(h >= 0.0 ? FMAX(htemp,0.1*h) : FMIN(htemp,0.1*h));
+      h=(h >= 0.0 ? DMAX(htemp,0.1*h) : DMIN(htemp,0.1*h));
       xnew=(*x)+h;
       //if (xnew == *x) printf("stepsize underflow in rkqs!!!");
    }
@@ -543,11 +543,11 @@ void Ode_Int::stifbs(double y[], double dydx[], int nv, double *xx, double htry,
 			if (xnew == (*xx)) nrerror("step size underflow in stifbs");
 			if (this->tri) trisimpr(ysav,dydx,dfdx,dfdy,nv,*xx,h,nseq[k],yseq,derivs);
 			else simpr(ysav,dydx,dfdx,dfdy,nv,*xx,h,nseq[k],yseq,derivs);
-			xest=SQR(h/nseq[k]);
+			xest=DSQR(h/nseq[k]);
 			pzextr(k,xest,yseq,y,yerr,nv);
 			if (k != 1) {
 				errmax=TINY;
-				for (i=1;i<=nv;i++) errmax=FMAX(errmax,fabs(yerr[i]/yscal[i]));
+				for (i=1;i<=nv;i++) errmax=DMAX(errmax,fabs(yerr[i]/yscal[i]));
 				errmax /= eps;
 				km=k-1;
 				err[km]=pow(errmax/SAFE1,1.0/(2*km+1));
@@ -576,8 +576,8 @@ void Ode_Int::stifbs(double y[], double dydx[], int nv, double *xx, double htry,
 			}
 		}
 		if (exitflag) break;
-		red=FMIN(red,REDMIN);
-		red=FMAX(red,REDMAX);
+		red=DMIN(red,REDMIN);
+		red=DMAX(red,REDMAX);
 		h *= red;
 		reduct=1;
 	}
@@ -586,7 +586,7 @@ void Ode_Int::stifbs(double y[], double dydx[], int nv, double *xx, double htry,
 	first=0;
 	wrkmin=1.0e35;
 	for (kk=1;kk<=km;kk++) {
-		fact=FMAX(err[kk],SCALMX);
+		fact=DMAX(err[kk],SCALMX);
 		work=fact*a[kk+1];
 		if (work < wrkmin) {
 			scale=fact;
@@ -596,7 +596,7 @@ void Ode_Int::stifbs(double y[], double dydx[], int nv, double *xx, double htry,
 	}
 	*hnext=h/scale;
 	if (kopt >= k && kopt != kmax && !reduct) {
-		fact=FMAX(scale/alf[kopt-1][kopt],SCALMX);
+		fact=DMAX(scale/alf[kopt-1][kopt],SCALMX);
 		if (a[kopt+1]*fact <= wrkmin) {
 			*hnext=h/fact;
 			kopt++;
