@@ -14,7 +14,7 @@ This is just a simple end-to-end positive test which compares one specific settl
 
 Here is how to run short functional settle test on a linux box (tested on Ubuntu 20.04LTS):
   
-1. Create/activate conda environment for beans:
+#. Create/activate conda environment for beans:
 
    .. sourcecode::
    
@@ -25,40 +25,40 @@ Here is how to run short functional settle test on a linux box (tested on Ubuntu
    
    \... or only the "activate" line if such an envirinment already does exist.
 
-2. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
+#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
 
-.. code::
+   .. code::
 
-   cd settle
-   make test
+      cd settle
+      make test
 
-This prints a bunch of lines with numbers that are the settle solver results plus binary result of one settle run (comparing with expected values) - either "PASSED" or "FAILED".
+   This prints a bunch of lines with numbers that are the settle solver results plus binary result of one settle run (comparing with expected values) - either "PASSED" or "FAILED".
 
-
+   
 Performance test (mecnhmark) for settle
 =======================================
 
 Jupyter notebook test runs settle on 60 lines of input data from a file, It prints duration of the solever run for each step, overall and average. Reference times are TBD.
 *Note: execution times depend on overall system load.*
 
-1. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions)
+#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions)
 
-.. code::
+   .. code::
 
-   cd settle
-   make install
+      cd settle
+      make install
    
-2. use the same conda environment as for beans, just add jupyter
+#. use the same conda environment as for beans, just add jupyter
 
-.. sourcecode::
+   .. sourcecode::
 
-   conda activate beans
-   pip install jupyter
+      conda activate beans
+      pip install jupyter
 
-3. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
+#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
 
-.. code::
+   .. code::
 
-   cd ../tests/benchmark
-   jupyter notebook beans_benchmark.ipynb
+      cd ../tests/benchmark
+      jupyter notebook beans_benchmark.ipynb
 
