@@ -16,13 +16,15 @@ Here is how to run short functional settle test on a linux box. (tested on Ubunt
 
 1. compile and install settle lib (goes to /usr/local/lib).
 
-.. code:: bash
+.. code::
+
    cd beans/settle
    make install
    
 2. Create/activate conda environment for beans:
 
-.. sourcecode:: 
+.. sourcecode::
+   
    # create conda env if does not exist
    conda create --name beans python==3.8
    conda activate beans
