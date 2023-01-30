@@ -35,10 +35,10 @@ Here is how to run short functional settle test on a linux box (tested on Ubuntu
    This prints a bunch of lines with numbers that are the settle solver results plus binary result of one settle run (comparing with expected values) - either "PASSED" or "FAILED".
 
    
-Performance test (mecnhmark) for settle
+Performance test (becnhmark) for settle
 =======================================
 
-Jupyter notebook test runs settle on 60 lines of input data from a file, It prints duration of the solever run for each step, overall and average. Reference times are TBD.
+Jupyter notebook test runs settle on 60 lines of input data from a file. Repeats the run a number of times in a loop. It prints duration of the solver run for each step, overall and average. The "settle sum time" means accumulated time spent calling settle solver, stripped of the main loop python code overhead, but including the overhead of the python wrapper around the settle C/C++ library interface function. Reference times are TBD, nothing to compare with at the moment.
 
 *Note: execution times depend on overall system load.*
 
