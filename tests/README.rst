@@ -22,7 +22,7 @@ Here is how to run short functional settle test on a linux box. (tested on Ubunt
    
 2. Create/activate conda environment for beans:
 
-.. code:: bash
+.. sourcecode:: 
    # create conda env if does not exist
    conda create --name beans python==3.8
    conda activate beans
