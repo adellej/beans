@@ -42,21 +42,21 @@ Jupyter notebook test runs settle on 60 lines of input data from a file. Repeats
 
 *Note: execution times depend on overall system load.*
 
-#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions)
+#. Compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions)
 
    .. code::
 
       cd settle
       make install
    
-#. use the same conda environment as for beans, just add jupyter
+#. Use the same conda environment as for beans, just add jupyter
 
    .. sourcecode::
 
       conda activate beans
       pip install jupyter
 
-#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
+#. Open and run the jupyter motebook
 
    .. code::
 
