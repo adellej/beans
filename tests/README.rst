@@ -25,7 +25,7 @@ Here is how to run short functional settle test on a linux box (tested on Ubuntu
    
    \... or only the "activate" line if such an envirinment already does exist.
 
-#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT, all in one command!
+#. Compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT, all in one command!
 
    .. code::
 
