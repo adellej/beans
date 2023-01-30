@@ -4,17 +4,17 @@ beans tests
 
 Bayesian Estimation of Accreting Neutron Star parameters (BEANSp)
 
-Test suite
-----------
+Settle test suite
+-----------------
 
 Short functional test (SFT) for settle
 ======================================
 
-*Note: this is only end-to-end positive test which compares one specific settle solver run with expected results and prints Passed/Failed.*
+This is just a simple end-to-end positive test which compares one specific settle solver run with expected results and prints Passed/Failed.
 
-Here is how to run short functional settle test on a linux box. (tested on Ubuntu 20.04LTS)
+Here is how to run short functional settle test on a linux box (tested on Ubuntu 20.04LTS):
   
-1. Create/activate conda environment for beans:
+#. Create/activate conda environment for beans:
 
 .. sourcecode::
    
@@ -25,7 +25,7 @@ Here is how to run short functional settle test on a linux box. (tested on Ubunt
    
 \... or only the "activate" line if such an envirinment already does exist.
 
-2. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
+#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
 
 .. code::
 
@@ -35,7 +35,30 @@ Here is how to run short functional settle test on a linux box. (tested on Ubunt
 This prints a bunch of lines with numbers that are the settle solver results plus binary result of one settle run (comparing with expected values) - either "PASSED" or "FAILED".
 
 
-Performance test (mecnhmark)
-============================
+Performance test (mecnhmark) for settle
+=======================================
 
+Jupyter notebook test runs settle on 60 lines of input data from a file, It prints duration of the solever run for each step, overall and average. Reference times are TBD.
+*Note: execution times depend on overall system load.*
+
+#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions)
+
+.. code::
+
+   cd settle
+   make install
+   
+#. use the same conda environment as for beans, just add jupyter
+
+.. sourcecode::
+
+   conda activate beans
+   pip install jupyter
+
+#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
+
+.. code::
+
+   cd ../tests/benchmark
+   jupyter notebook beans_benchmark.ipynb
 
