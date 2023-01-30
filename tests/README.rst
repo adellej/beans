@@ -23,7 +23,7 @@ Here is how to run short functional settle test on a linux box (tested on Ubuntu
    conda activate beans
    pip install -r requirements.txt # assuming we are in the beans git repo checkout folder
    
-\... or only the "activate" line if such an envirinment already does exist.
+   \... or only the "activate" line if such an envirinment already does exist.
 
 #. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
 
