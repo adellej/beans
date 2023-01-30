@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <string.h>
-#include "math.h"
+#include <math.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include "nr.h"
+
+extern "C" {
 #include "nrutil.h"
-//#include "/u/cumming/h/odeint.h"
+#include "root.h"
+}
 
 #define me 510.999
 #define F14 0.352
@@ -20,18 +22,18 @@ void* pt2Object;
 
 void Eos::tidy(void)
 {
-    free_vector(this->A,1,this->ns);
-    free_vector(this->Z,1,this->ns);
-    free_vector(this->X,1,this->ns);
+    free_dvector(this->A,1,this->ns);
+    free_dvector(this->Z,1,this->ns);
+    free_dvector(this->X,1,this->ns);
 }
 
 void Eos::init(int n)
 {
   this->ns=n;
 
-  this->A=vector(1,this->ns);
-  this->Z=vector(1,this->ns);
-  this->X=vector(1,this->ns);
+  this->A=dvector(1,this->ns);
+  this->Z=dvector(1,this->ns);
+  this->X=dvector(1,this->ns);
   this->Z2=0.0;
   this->set_Ye=0.0;
   this->set_Yi=0.0;
@@ -188,7 +190,7 @@ double Eos::FermiI(int k, double T8, double EF)
     }
   }
   if (chi >= 14.0) {
-    I=F+(PI*PI/6.0)*pow(chi, 1.0*k)*(1.0*k+0.5+0.5*(k+1)*chi*tau)/R;
+    I=F+(M_PI*M_PI/6.0)*pow(chi, 1.0*k)*(1.0*k+0.5+0.5*(k+1)*chi*tau)/R;
   }
 
   return I;
@@ -510,7 +512,7 @@ double Eos::gff(double Z1, double eta)
   gam=sqrt(1.58e-3/this->T8)*Z1;
 
   // Elwert factor
-  gaunt*=(1.0-exp(-2*PI*gam/sqrt(x+10.0)))/(1.0-exp(-2*PI*gam/sqrt(x)));
+  gaunt*=(1.0-exp(-2*M_PI*gam/sqrt(x+10.0)))/(1.0-exp(-2*M_PI*gam/sqrt(x)));
 
   // relativistic piece
   gaunt*=1.0+pow(this->T8/7.7, 1.5);
@@ -534,7 +536,6 @@ double Eos::Uex(void)
 
   return u;
 }
-
 
 double Eos::Fep(int flag)
   // "Coulomb log" for electron-phonon scattering 
@@ -568,17 +569,17 @@ double Eos::Fep(int flag)
   //  g=0.0;  switch off finite size effects
   P0=4.787-0.0346*ZZ;
   R2=(exp(-alpha*s)*(alpha*alpha*s*s+2*alpha*s+2)-exp(-alpha)*(alpha*alpha+2*alpha+2))/(alpha*alpha*alpha);
-  c1=pow(1.0+pow(18.0*ZZ*PI,2.0/3.0)*g*g*(0.5*R1-beta*beta*R2)/(2.5*K0*P0),-P0);
+  c1=pow(1.0+pow(18.0*ZZ*M_PI,2.0/3.0)*g*g*(0.5*R1-beta*beta*R2)/(2.5*K0*P0),-P0);
   
   F=G0*K0*c1;
   
   if (flag > 0) { // thermal conductivity so add an extra piece
     P2=2.729-0.0204*ZZ;
     R2=this->Eep(alpha*s)-this->Eep(alpha);
-    G2=t/(PI*PI*pow(t*t+a2,1.5));
+    G2=t/(M_PI*M_PI*pow(t*t+a2,1.5));
     K2=0.5*R2-0.5*beta*beta*R0;
     // correction for finite nuclear size
-    c2=pow(1.0+pow(18.0*PI*ZZ,2.0/3.0)*g*g*0.5*K0/(10.0*K2*P2),-P2);
+    c2=pow(1.0+pow(18.0*M_PI*ZZ,2.0/3.0)*g*g*0.5*K0/(10.0*K2*P2),-P2);
     F+=G2*(3*K2-0.5*K0)*c2;
   }
   return F;
@@ -628,7 +629,7 @@ double Eos::tmdrift(double dTdy)
     double x, lam, beta;
 
     x=this->x(); beta=x/sqrt(1+x*x);  
-    lam=log(pow(2*PI*this->Ye()/(3*this->Yi()),1.0/3.0)*
+    lam=log(pow(2*M_PI*this->Ye()/(3*this->Yi()),1.0/3.0)*
 	    sqrt(1.5+3.0/this->gamma()));
     lam-=0.5*beta*beta;
     
@@ -807,7 +808,7 @@ double Eos::K_cond(double ef)
 
   gam=this->gamma();
 
-  lam=log(pow(2*PI*Ye()/(3*Yi()),1.0/3.0)*sqrt(1.5+3.0/gam));
+  lam=log(pow(2*M_PI*Ye()/(3*Yi()),1.0/3.0)*sqrt(1.5+3.0/gam));
   lam-=0.5*beta*beta;
   this->lambda2=lam;
 
@@ -864,7 +865,7 @@ double Eos::J(double x,double y)
   double y4=y3*y;
   return (1.+0.4*(3.+1./x2)/x2)*(y3*pow(1.+0.07414*y,-3.)*
                                  log((2.810-0.810*b2+y)/y)/3.+
-                                 pow(PI,5)*y4*pow(13.91+y,-4.)/6);
+                                 pow(M_PI,5)*y4*pow(13.91+y,-4.)/6);
 }
 
 

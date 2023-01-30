@@ -1,0 +1,25 @@
+#-----------------------------------------
+# beans python packages requirements
+#
+# based on https://github.com/adellej/beans/blob/master/docs/installation.rst
+# works with miniconda python 3.8
+#-----------------------------------------
+# emcee v3.0 or above
+emcee >= 3.0
+matplotlib
+numpy
+corner
+###MC random is part of standard libraries for python >= 3.8
+###MC math is part of standard libraries for python >= 3.8
+astropy
+scipy
+tables
+chainconsumer 
+###MC multiprocessing is part of standard libraries for python 3
+###MC os is part of standard libraries for python 3
+###MC time is part of standard libraries for python 3
+# h5py==v2.10.0 or above. To install h5py v2.10.0 on Ubuntu
+#   you will need to use pip wheels, e.g. $ pip install h5py==2.10.0
+h5py >= 2.10.0
+pytest
+###MC pickle is part of standard libraries for python 3

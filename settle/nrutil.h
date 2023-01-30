@@ -5,54 +5,57 @@
    traditional K&R versions, along with #ifdef macros to select the
    correct version.  *This* file contains only ANSI C.               */
 
+#ifndef __NRUTIL_H__
+#define __NRUTIL_H__
 
-#define float double
+#include <math.h>
 
+void nrerror(const char error_text[]);
 
-#ifndef _NR_UTILS_H_
-#define _NR_UTILS_H_
+inline float SQR(float a) {
+  return(a == 0.0 ? 0.0 : a*a);
+}
 
-static float sqrarg;
-#define SQR(a) ((sqrarg=(a)) == 0.0 ? 0.0 : sqrarg*sqrarg)
+inline double DSQR(double a) {
+  return(a == 0.0 ? 0.0 : a*a);
+}
 
-static double dsqrarg;
-#define DSQR(a) ((dsqrarg=(a)) == 0.0 ? 0.0 : dsqrarg*dsqrarg)
+inline float FMAX(float a, float b) {
+  return(a > b ? a : b);
+}
 
-static double dmaxarg1,dmaxarg2;
-#define DMAX(a,b) (dmaxarg1=(a),dmaxarg2=(b),(dmaxarg1) > (dmaxarg2) ?\
-        (dmaxarg1) : (dmaxarg2))
+inline float FMIN(float a, float b) {
+  return(a < b ? a : b);
+}
 
-static double dminarg1,dminarg2;
-#define DMIN(a,b) (dminarg1=(a),dminarg2=(b),(dminarg1) < (dminarg2) ?\
-        (dminarg1) : (dminarg2))
+inline double DMAX(double a, double b) {
+  return(a > b ? a : b);
+}
 
-static float maxarg1,maxarg2;
-#define FMAX(a,b) (maxarg1=(a),maxarg2=(b),(maxarg1) > (maxarg2) ?\
-        (maxarg1) : (maxarg2))
+inline double DMIN(double a, double b) {
+  return(a < b ? a : b);
+}
 
-static float minarg1,minarg2;
-#define FMIN(a,b) (minarg1=(a),minarg2=(b),(minarg1) < (minarg2) ?\
-        (minarg1) : (minarg2))
+inline long LMAX(long a, long b) {
+  return(a > b ? a : b);
+}
 
-static long lmaxarg1,lmaxarg2;
-#define LMAX(a,b) (lmaxarg1=(a),lmaxarg2=(b),(lmaxarg1) > (lmaxarg2) ?\
-        (lmaxarg1) : (lmaxarg2))
+inline long LMIN(long a, long b) {
+  return(a < b ? a : b);
+}
 
-static long lminarg1,lminarg2;
-#define LMIN(a,b) (lminarg1=(a),lminarg2=(b),(lminarg1) < (lminarg2) ?\
-        (lminarg1) : (lminarg2))
+inline int IMAX(int a, int b) {
+  return(a > b ? a : b);
+}
 
-static int imaxarg1,imaxarg2;
-#define IMAX(a,b) (imaxarg1=(a),imaxarg2=(b),(imaxarg1) > (imaxarg2) ?\
-        (imaxarg1) : (imaxarg2))
+inline int IMIN(int a, int b) {
+  return(a < b ? a : b);
+}
 
-static int iminarg1,iminarg2;
-#define IMIN(a,b) (iminarg1=(a),iminarg2=(b),(iminarg1) < (iminarg2) ?\
-        (iminarg1) : (iminarg2))
+inline double SIGN(double a, double b) {
+  return((b) >= 0.0 ? fabs(a) : -fabs(a));
+}
 
-#define SIGN(a,b) ((b) >= 0.0 ? fabs(a) : -fabs(a))
-
-void nrerror(char error_text[]);
 float *vector(long nl, long nh);
 int *ivector(long nl, long nh);
 unsigned char *cvector(long nl, long nh);
@@ -78,10 +81,4 @@ void free_convert_matrix(float **b, long nrl, long nrh, long ncl, long nch);
 void free_f3tensor(float ***t, long nrl, long nrh, long ncl, long nch,
 	long ndl, long ndh);
 
-
-#undef float
-
-float **matrixf(long nrl, long nrh, long ncl, long nch);
-void free_matrixf(float **m, long nrl, long nrh, long ncl, long nch);
-
-#endif /* _NR_UTILS_H_ */
+#endif /* __NRUTILS_H__ */

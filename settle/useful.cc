@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <string.h>
-#include "math.h"
-#include "useful.h"
-#include "nr.h"
-#include "nrutil.h"
 #include <stdarg.h>
 
+#include <math.h>
 
+extern "C" {
+#include "nrutil.h"
+}
+
+#include "useful.h"
 
 double askd(char *text)
 {
@@ -26,8 +28,6 @@ int aski(char *text)
   return var;
 }
 
-
-
 int flines(char *filename)
   // Counts the number of lines in the file 'filename'
 {
@@ -44,7 +44,6 @@ int flines(char *filename)
  
   return i-1;
 }
-
 
 void mprintf(char *format, int n, ...)
 {
@@ -103,18 +102,16 @@ void mfprintf(FILE *fp, char *format, int n, ...)
 
 // ---------  sort routine from NR -----------------------------------
 
-#define float double
-
 #define NRANSI
 #define SWAP(a,b) temp=(a);(a)=(b);(b)=temp;
 #define M 7
 #define NSTACK 50
 
-void sort(unsigned long n, float arr[])
+void sort(unsigned long n, double arr[])
 {
 	unsigned long i,ir=n,j,k,l=1;
 	int jstack=0,*istack;
-	float a,temp;
+	double a,temp;
 
 	istack=ivector(1,NSTACK);
 	for (;;) {
@@ -173,7 +170,4 @@ void sort(unsigned long n, float arr[])
 #undef SWAP
 #undef NRANSI
 
-
-
-#undef float
 

@@ -1,18 +1,18 @@
-#include "nr.h"
+#include <stdio.h>
+#include <math.h>
+
 #include "nrutil.h"
-#include "math.h"
+
+#include "root.h"
 
 #define ITMAX 100
 #define EPS 3.0e-8
 
-#define float double
-
-
-float zbrent(float (*func)(float), float x1, float x2, float tol)
+double zbrent(double (*func)(double), double x1, double x2, double tol)
 {
   int iter;
-  float a=x1,b=x2,c=x2,d,e,min1,min2;
-  float fa=(*func)(a),fb=(*func)(b),fc,p,q,r,s,tol1,xm;
+  double a=x1,b=x2,c=x2,d,e,min1,min2;
+  double fa=(*func)(a),fb=(*func)(b),fc,p,q,r,s,tol1,xm;
 
   if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0));
     //    printf("Root must be bracketed in zbrent! (x1=%lg x2=%lg)\n",
@@ -84,40 +84,43 @@ float zbrent(float (*func)(float), float x1, float x2, float tol)
 #define STPMX 100.0
 
 int nn;
-float *fvec;
-void (*nrfuncv)(int n, float v[], float f[]);
-#define FREERETURN {free_vector(fvec,1,n);free_vector(xold,1,n);\
-	free_vector(p,1,n);free_vector(g,1,n);free_matrix(fjac,1,n,1,n);\
+double *fvec;
+void (*nrfuncv)(int n, double v[], double f[]);
+#define FREERETURN {free_dvector(fvec,1,n);free_dvector(xold,1,n);\
+	free_dvector(p,1,n);free_dvector(g,1,n);free_dmatrix(fjac,1,n,1,n);\
 	free_ivector(indx,1,n);return;}
 
-void newt(float x[], int n, int *check,
-	void (*vecfunc)(int, float [], float []))
+/* MCU note: is following function a dead code? never called */
+void newt(double x[], int n, int *check,
+	  void (*vecfunc)(int, double [], double []))
 {
-	void fdjac(int n, float x[], float fvec[], float **df,
-		void (*vecfunc)(int, float [], float []));
-	float fmin(float x[]);
-	void lnsrch(int n, float xold[], float fold, float g[], float p[], float x[],
-		 float *f, float stpmax, int *check, float (*func)(float []));
-	void lubksb(float **a, int n, int *indx, float b[]);
-	void ludcmp(float **a, int n, int *indx, float *d);
+  /* MCU note: a few locally declared functions, implemented in this modula */
+	void fdjac(int n, double x[], double fvec[], double **df,
+		void (*vecfunc)(int, double [], double []));
+	double nr_fmin(double x[]);
+	void lnsrch(int n, double xold[], double fold, double g[], double p[], double x[],
+		 double *f, double stpmax, int *check, double (*func)(double []));
+	void lubksb(double **a, int n, int *indx, double b[]);
+	void ludcmp(double **a, int n, int *indx, double *d);
+
 	int i,its,j,*indx;
-	float d,den,f,fold,stpmax,sum,temp,test,**fjac,*g,*p,*xold;
+	double d,den,f,fold,stpmax,sum,temp,test,**fjac,*g,*p,*xold;
 
 	indx=ivector(1,n);
-	fjac=matrix(1,n,1,n);
-	g=vector(1,n);
-	p=vector(1,n);
-	xold=vector(1,n);
-	fvec=vector(1,n);
+	fjac=dmatrix(1,n,1,n);
+	g=dvector(1,n);
+	p=dvector(1,n);
+	xold=dvector(1,n);
+	fvec=dvector(1,n);
 	nn=n;
 	nrfuncv=vecfunc;
-	f=fmin(x);
+	f=nr_fmin(x);
 	test=0.0;
 	for (i=1;i<=n;i++)
 		if (fabs(fvec[i]) > test) test=fabs(fvec[i]);
 	if (test<0.01*TOLF) FREERETURN
-	for (sum=0.0,i=1;i<=n;i++) sum += SQR(x[i]);
-	stpmax=STPMX*FMAX(sqrt(sum),(float)n);
+	for (sum=0.0,i=1;i<=n;i++) sum += DSQR(x[i]);
+	stpmax=STPMX*DMAX(sqrt(sum),(double)n);
 	for (its=1;its<=MAXITS;its++) {
 		fdjac(n,x,fvec,fjac,vecfunc);
 		for (i=1;i<=n;i++) {
@@ -129,7 +132,7 @@ void newt(float x[], int n, int *check,
 		for (i=1;i<=n;i++) p[i] = -fvec[i];
 		ludcmp(fjac,n,indx,&d);
 		lubksb(fjac,n,indx,p);
-		lnsrch(n,xold,fold,g,p,x,&f,stpmax,check,fmin);
+		lnsrch(n,xold,fold,g,p,x,&f,stpmax,check,nr_fmin);
 		test=0.0;
 		for (i=1;i<=n;i++)
 			if (fabs(fvec[i]) > test) test=fabs(fvec[i]);
@@ -139,9 +142,9 @@ void newt(float x[], int n, int *check,
 		}
 		if (*check) {
 			test=0.0;
-			den=FMAX(f,0.5*n);
+			den=DMAX(f,0.5*n);
 			for (i=1;i<=n;i++) {
-				temp=fabs(g[i])*FMAX(fabs(x[i]),1.0)/den;
+				temp=fabs(g[i])*DMAX(fabs(x[i]),1.0)/den;
 				if (temp > test) test=temp;
 			}
 			*check=(test < TOLMIN ? 1 : 0);
@@ -149,7 +152,7 @@ void newt(float x[], int n, int *check,
 		}
 		test=0.0;
 		for (i=1;i<=n;i++) {
-			temp=(fabs(x[i]-xold[i]))/FMAX(fabs(x[i]),1.0);
+			temp=(fabs(x[i]-xold[i]))/DMAX(fabs(x[i]),1.0);
 			if (temp > test) test=temp;
 		}
 		if (test < TOLX) FREERETURN
@@ -168,13 +171,13 @@ void newt(float x[], int n, int *check,
 #define NRANSI
 #define EPS 1.0e-4
 
-void fdjac(int n, float x[], float fvec[], float **df,
-	void (*vecfunc)(int, float [], float []))
+void fdjac(int n, double x[], double fvec[], double **df,
+	void (*vecfunc)(int, double [], double []))
 {
 	int i,j;
-	float h,temp,*f;
+	double h,temp,*f;
 
-	f=vector(1,n);
+	f=dvector(1,n);
 	for (j=1;j<=n;j++) {
 		temp=x[j];
 		h=EPS*fabs(temp);
@@ -185,7 +188,7 @@ void fdjac(int n, float x[], float fvec[], float **df,
 		x[j]=temp;
 		for (i=1;i<=n;i++) df[i][j]=(f[i]-fvec[i])/h;
 	}
-	free_vector(f,1,n);
+	free_dvector(f,1,n);
 }
 #undef EPS
 #undef NRANSI
@@ -194,16 +197,16 @@ void fdjac(int n, float x[], float fvec[], float **df,
 #define NRANSI
 
 extern int nn;
-extern float *fvec;
-extern void (*nrfuncv)(int n, float v[], float f[]);
+extern double *fvec;
+extern void (*nrfuncv)(int n, double v[], double f[]);
 
-float fmin(float x[])
+double nr_fmin(double x[])
 {
 	int i;
-	float sum;
+	double sum;
 
 	(*nrfuncv)(nn,x,fvec);
-	for (sum=0.0,i=1;i<=nn;i++) sum += SQR(fvec[i]);
+	for (sum=0.0,i=1;i<=nn;i++) sum += DSQR(fvec[i]);
 	return 0.5*sum;
 }
 #undef NRANSI
@@ -214,11 +217,11 @@ float fmin(float x[])
 #define ALF 1.0e-4
 #define TOLX 1.0e-7
 
-void lnsrch(int n, float xold[], float fold, float g[], float p[], float x[],
-	float *f, float stpmax, int *check, float (*func)(float []))
+void lnsrch(int n, double xold[], double fold, double g[], double p[], double x[],
+	double *f, double stpmax, int *check, double (*func)(double []))
 {
 	int i;
-	float a,alam,alam2,alamin,b,disc,f2,fold2,rhs1,rhs2,slope,sum,temp,
+	double a,alam,alam2,alamin,b,disc,f2,fold2,rhs1,rhs2,slope,sum,temp,
 		test,tmplam;
 
 	*check=0;
@@ -230,7 +233,7 @@ void lnsrch(int n, float xold[], float fold, float g[], float p[], float x[],
 		slope += g[i]*p[i];
 	test=0.0;
 	for (i=1;i<=n;i++) {
-		temp=fabs(p[i])/FMAX(fabs(xold[i]),1.0);
+		temp=fabs(p[i])/DMAX(fabs(xold[i]),1.0);
 		if (temp > test) test=temp;
 	}
 	alamin=TOLX/test;
@@ -264,17 +267,17 @@ void lnsrch(int n, float xold[], float fold, float g[], float p[], float x[],
 		alam2=alam;
 		f2 = *f;
 		fold2=fold;
-		alam=FMAX(tmplam,0.1*alam);
+		alam=DMAX(tmplam,0.1*alam);
 	}
 }
 #undef ALF
 #undef TOLX
 #undef NRANSI
 
-void lubksb(float **a, int n, int *indx, float b[])
+void lubksb(double **a, int n, int *indx, double b[])
 {
 	int i,ii=0,ip,j;
-	float sum;
+	double sum;
 
 	for (i=1;i<=n;i++) {
 		ip=indx[i];
@@ -296,13 +299,13 @@ void lubksb(float **a, int n, int *indx, float b[])
 #define NRANSI
 #define TINY 1.0e-20;
 
-void ludcmp(float **a, int n, int *indx, float *d)
+void ludcmp(double **a, int n, int *indx, double *d)
 {
 	int i,imax,j,k;
-	float big,dum,sum,temp;
-	float *vv;
+	double big,dum,sum,temp;
+	double *vv;
 
-	vv=vector(1,n);
+	vv=dvector(1,n);
 	*d=1.0;
 	for (i=1;i<=n;i++) {
 		big=0.0;
@@ -344,9 +347,8 @@ void ludcmp(float **a, int n, int *indx, float *d)
 			for (i=j+1;i<=n;i++) a[i][j] *= dum;
 		}
 	}
-	free_vector(vv,1,n);
+	free_dvector(vv,1,n);
 }
 #undef TINY
 #undef NRANSI
 
-#undef float

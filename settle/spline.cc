@@ -34,36 +34,13 @@
 //
 
 #include <stdio.h>
-#include "nr.h"
+#include <math.h>
+
+extern "C" {
 #include "nrutil.h"
-#include "math.h"
+}
 
-// definitions for fread & fwrite
-#define DSIZE sizeof(double)
-#define ISIZE sizeof(int)
-
-class Spline {
-public:
-  double get(double x);
-  double getlin(double x);
-  double get_x(int i);
-  double get_y(int i);
-  double startx;
-  void init(FILE *fp, int ycol, int ncol, int n);
-  void minit(double *x, double *y, int n);
-  void tidy();
-  int out_of_bounds_flag;
-  int log_flag;
-  int size(void);
-private:
-  double *ytab;
-  double *derivs;
-  double *xtab;
-  int num;
-  void spline(double x[], double y[], int n, double yp1, double ypn, double y2[]);
-  void splint(double xa[], double ya[], double y2a[], int n, double x, double *y);
-};
-
+#include "spline.h"
 
 double Spline::get_x(int i)
 {
@@ -74,7 +51,6 @@ double Spline::get_y(int i)
 {
   return this->ytab[i];
 }
-
 
 int Spline::size(void)
 {
@@ -152,9 +128,9 @@ void Spline::minit(double *x, double *y, int n)
   int i;
   
   this->num=n;
-  this->xtab=vector(1,n);
-  this->ytab=vector(1,n); 
-  this->derivs=vector(1,n); 
+  this->xtab=dvector(1,n);
+  this->ytab=dvector(1,n); 
+  this->derivs=dvector(1,n); 
 
   for(i=1; i<=n; i++) {  // copy x and y arrays
     this->xtab[i]=x[i];
@@ -183,9 +159,9 @@ void Spline::init(FILE *fp, int ycol, int ncol, int n)
   int i,col;
 
   this->num=n;
-  this->xtab=vector(1,n);
-  this->ytab=vector(1,n); 
-  this->derivs=vector(1,n); 
+  this->xtab=dvector(1,n);
+  this->ytab=dvector(1,n); 
+  this->derivs=dvector(1,n); 
 
   // reset to beginning of file
   fseek(fp,ISIZE,0);
@@ -217,8 +193,8 @@ void Spline::init(FILE *fp, int ycol, int ncol, int n)
 
 void Spline::tidy()
 {
-  free_vector(this->ytab,1,this->num);
-  free_vector(this->derivs,1,this->num);
+  free_dvector(this->ytab,1,this->num);
+  free_dvector(this->derivs,1,this->num);
 }
 
 void Spline::spline(double x[], double y[], int n, double yp1, double ypn, double y2[])
@@ -226,7 +202,7 @@ void Spline::spline(double x[], double y[], int n, double yp1, double ypn, doubl
   int i,k;
   double p,qn,sig,un,*u;
   
-  u=vector(1,n-1);
+  u=dvector(1,n-1);
   if (yp1 > 0.99e30)
     y2[1]=u[1]=0.0;
   else {
@@ -249,12 +225,11 @@ void Spline::spline(double x[], double y[], int n, double yp1, double ypn, doubl
   y2[n]=(un-qn*u[n-1])/(qn*y2[n-1]+1.0);
   for (k=n-1;k>=1;k--)
     y2[k]=y2[k]*y2[k+1]+u[k];
-  free_vector(u,1,n-1);
+  free_dvector(u,1,n-1);
 }
 
 void Spline::splint(double xa[], double ya[], double y2a[], int n, double x, double *y)
 {
-  void nrerror(char error_text[]);
   int klo,khi,k;
   double h,b,a;
   
