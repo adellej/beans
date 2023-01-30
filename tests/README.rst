@@ -25,7 +25,7 @@ Here is how to run short functional settle test on a linux box (tested on Ubuntu
    
    \... or only the "activate" line if such an envirinment already does exist.
 
-#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT in one command
+#. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions) and run the SFT, all in one command!
 
    .. code::
 
@@ -39,6 +39,7 @@ Performance test (mecnhmark) for settle
 =======================================
 
 Jupyter notebook test runs settle on 60 lines of input data from a file, It prints duration of the solever run for each step, overall and average. Reference times are TBD.
+
 *Note: execution times depend on overall system load.*
 
 #. compile & install settle lib (goes to ``/usr/local/lib``, requires sudo pernissions)
