@@ -1,30 +1,57 @@
-# settle:  settle.o
-# 	g++ -fPIC -c *.cc *.c
-# 	g++ -shared -fPIC -Wl,-install_name,libsettle.so  -o libsettle.so *.o
-# 	#objdump -T libsettle.so | grep main
+# detect OS (Linux or OSX)
+UNAME := $(shell uname)
 
-mac: settle.o
-#	g++ -Ofast -fPIC -c *.cc *.c
-#	g++ -Ofast -shared -fPIC -Wl,-install_name,libsettle.so  -o libsettle.so *.o
-	g++ -fPIC -c *.cc *.c
-	g++ -shared -fPIC -Wl,-install_name,libsettle.so  -o libsettle.so *.o
-	#objdump -T libsettle.so | grep main
+LIBRARY = libsettle.so
 
-linux: settle.o
-	gcc -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Ofast -fPIC -c *.c
-	g++ -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Ofast -fPIC -c *.cc
-	g++ -Wall -Ofast -shared -fPIC -Wl,-soname,libsettle.so  -o libsettle.so *.o
-	#objdump -T libsettle.so | grep main
-	# -Ofast
+CSRCS	:= $(shell find . -maxdepth 1 -name '*.c')
+CPPSRCS := $(shell find . -maxdepth 2 -name '*.cc')
+COBJS	:= $(CSRCS:.c=.o)
+CPPOBJS := $(CPPSRCS:.cc=.o)
+OBJS	:= $(COBJS) $(CPPOBJS)
 
+CFLAGS		:= -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Ofast -fPIC -c
+CPPFLAGS 	:= $(CFLAGS)
+LDFLAGS		:= -Wall -Ofast -shared -fPIC
+
+CC 	= gcc
+CPPC 	= g++
+LD 	= g++
+
+ifeq ($(UNAME), Linux)
+	LDFLAGS := ${LDFLAGS} -Wl,-soname,${LIBRARY}
+	INSTALL_DIR=/usr/local/bin
+else
+ifeq ($(UNAME), Darwin)
+	LDFLAGS := ${LDFLAGS} -Wl,-install_name,${LIBRARY}
+# add suitable install dir for OSX here
+	INSTALL_DIR=.
+else
+	@echo "ERROR: unsupported platform, this ${LIBRARY} library can be build only on Linux or Mac!"
+	exit 1
+endif
+endif
+
+settle:	${OBJS}
+	@echo "Linking $(LIBRARY) ..."
+	$(LD) ${LDFLAGS} -o ${LIBRARY} ${OBJS}
+
+.PHONY: clean
 clean:
 	rm -fv *.o
 
 cleaner: clean
 	rm -fv *.so *.pyc
 
-install: linux
-	sudo cp -arv --preserve=mode,timestamps libsettle.so /usr/local/lib
+install: settle
+	sudo cp -arv --preserve=mode,timestamps ${LIBRARY} ${INSTALL_DIR}
 
 test:	install
 	time python try.py
+
+.cc.o: 
+	@echo Compiling ...
+	$(CPPC) -c $(CPPFLAGS) $<
+
+.c.o:
+	@echo Compiling ...
+	$(CC) -c $(CFLAGS) $<
