@@ -4,6 +4,7 @@ from __future__ import print_function
 import ctypes as ct
 import numpy
 
+
 class settle(object):
     '''
     Super basic interface to settle code
@@ -72,7 +73,7 @@ class settle(object):
             print( "M=", M )
             print( "len(M)=", len(M) )
             print( "range(len(M))=", range(len(M)) )
-           
+
             for i in range(len(M)):
 
                 ret = self.mainer(ct.byref(self.F),
