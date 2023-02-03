@@ -64,15 +64,12 @@ class settle(object):
         A = ct.c_double()
         E = ct.c_double()
 
+        # check if scalar or array
         if hasattr(M, '__iter__'):
 
             resA = []
             resR = []
             resE = []
-
-            print( "M=", M )
-            print( "len(M)=", len(M) )
-            print( "range(len(M))=", range(len(M)) )
 
             for i in range(len(M)):
 
