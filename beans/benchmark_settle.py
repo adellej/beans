@@ -79,17 +79,26 @@ M_NS, R_NS, Q_b = 1.4, 10., 0.1
 
 tdel, E_b, alpha = [], [], []
 
-num_runs = 4
+num_runs = 1
 
 print("======== parallel run ==========")
 
 print("Detected CPUs: ", mp.cpu_count())
 
 t_start = time.process_time()
+
+pool = mp.Pool(mp.cpu_count())
+# pool = mp.Pool(1)
+
 t2_sum = 0.0
+
+# ----- parallel settle run loop ------
 
 for j in range(num_runs):
     t2_start = time.process_time()
+    # add input parameters into the array
+    # yes, there is a ridiculous redundancy,
+    # but multiprocessing.Pool.map() takes only one parameter
     ft['Q_b'] = Q_b
     ft['M_NS'] = M_NS
     ft['R_NS'] = R_NS
@@ -97,21 +106,28 @@ for j in range(num_runs):
     # because table is not iterable in Python >:-(
     ft_list = [dict(zip(ft.colnames, row)) for row in ft]
     # print(ft_list)
-    pool = mp.Pool(mp.cpu_count())
-    # pool = mp.Pool(1)
     multi_res = pool.map(settle_multiprocessing_wrapper,
                          ft_list, chunksize=8)
-    # close the process pool
+    # free up the resources used by process pool
+    # WTF dunno why I have to call this before being
+    # able to wait for processes to join!
+    # (makes very little logical sense...)
     pool.close()
-    # wait for all tasks to complete
+    # wait for all parallel processes to finish
+    # they are identical, just with different
+    # numerical (float) parameters, so shall take about same
+    # time to execute, providing the selected chunk size make sense
     pool.join()
     t2_end = time.process_time()
     t2_sum += (t2_end-t2_start)
     print("Cycle #", j, " time = ", (t2_end-t2_start))
 
-
 # err print(multi_res['tdel'])
 
+# ----- unwrapp the typeless blob .......
+# this is more complicated than the parallelisation!
+
+# just debug prints
 print("len(ft)=", len(ft))
 print(type(multi_res))
 print(type(multi_res[0]))
@@ -144,6 +160,7 @@ tdel_float64_vector = np.array([tdel_float64[0] for tdel_float64 in tdel_wrap1_v
 E_b_float64_vector = np.array([E_b_float64[0] for E_b_float64 in E_b_wrap1_vector])
 alpha_float64_vector = np.array([alpha_float64[0] for alpha_float64 in alpha_wrap1_vector])
 
+# does not work :-(
 # for i in range(len(ft)):
 #    tdel_float_vector[i]=float(tdel_string_vector[i])
 
@@ -158,11 +175,12 @@ t = astropy.table.Table([ft['run'],
                          alpha_float64_vector])
 
 print(type(t))
+# dump results produced by serial form of settle run
 t.write('se1.ecsv', format='ascii.ecsv', overwrite=True)
 
 print("======== end of parallel run ==========")
 
-# ========= clear lists ===========
+# ------ clear lists ----------
 
 tdel.clear()
 E_b.clear()
@@ -175,6 +193,10 @@ ts1_sum = 0.0
 ts2_sum = 0.0
 
 serial_count_settle_runs = 0
+
+# ----- serial settle run loop ------
+# the inner cycle is replaced by parallelisation
+# in the parallel version
 
 for j in range(num_runs):
     ts2_start = time.process_time()
@@ -215,6 +237,7 @@ ts = astropy.table.Table([ft['run'],
                          alpha[: len(ft)]])
 print(type(t))
 # ts.write('se.txt', format='ascii', overwrite=True)
+# dump results produced by serial form of settle run
 ts.write('se.ecsv', format='ascii.ecsv', overwrite=True)
 
 print("======== end of serial run ==========")
