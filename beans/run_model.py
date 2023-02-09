@@ -129,7 +129,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         # if "st" not in globals():
         if (gti_start is None) or (gti_end is None):
             print ('** WARNING ** can''t access GTI information')
-            return model, valid
+            return result, valid
         else:
             st, et = gti_start, gti_end
 
@@ -141,7 +141,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
                     if rt >= st[i] and rt <= et[i] - 10.0 / 86400.0:
 
                         valid = False
-                        return model, valid
+                        return result, valid
 
     # Check here if anisoptropy estimates are consistent with Fujimoto model
     #   sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
@@ -157,7 +157,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     if debug:
         print(f'model = {model}')
 
-    return model, valid
+    return result, valid,
 
 
 # -------------------------------------------------------------------------#

@@ -40,7 +40,7 @@ from analyse import get_param_uncert_obs, get_param_uncert
 from initialise import init
 
 # -------------------------------------------------------------------------#
-# Some example prior functions, or you can write your own for input to the code. 
+# Some example prior functions, or you can write your own for input to the code.
 
 # Define priors for theta. mr prior function is located in mrprior.py
 
@@ -124,6 +124,7 @@ class Beans:
                                    self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
                                    self.gti_checking, self.train,self.st, self.et,
                                    debug=False) # set debug to True for testing
+            test = np.concatenate((test['time'], test['e_b'], test['alpha']))
             print("result: ", test, valid)
 
             self.plot_model(test)
@@ -159,11 +160,11 @@ class Beans:
         s_t = 10.0 / 1440.0
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
-        model, valid = runmodel(
+        model2, valid = runmodel(
             theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
              self.st, self.et
         )
-
+        model = np.concatenate((model2['time'], model2['e_b'], model2['alpha']))
         if not valid:
             return -np.inf, model
 
@@ -203,23 +204,8 @@ class Beans:
         # Test if the result string is defined here. It is, so we return the selected elements of result
         # instead of the downselection in model
 
-        base = Q_b
-        z = Z
-        x = X
-        r1 = r1
-        r2 = r2
-        r3 = r3
-        mass = mass
-        radius = radius
-
-        if self.train:
-            model2 = generate_burst_train(
-                base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
-            )
-        else:
-            model2 = burstensemble(base, x, z, r1, r2, r3, mass, radius, self.bstart, self.pflux,self.numburstsobs)
-        #model2 =  np.string_(model2, dtype='S1000')
         model2 = str(model2).encode('ASCII')
+
 
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
@@ -359,6 +345,7 @@ class Beans:
                     test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
                                            self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
                                            0, self.train, debug=False)
+                    test = np.concatenate((test['time'], test['e_b'], test['alpha']))
                     print("result: ", test, valid)
                     # self.plot_model(test)
 
@@ -393,7 +380,7 @@ class Beans:
                             test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
                                                    self.pflux, self.pfluxe, self.tobs, 100,100, trial,
                                                    1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
-
+                            test = np.concatenate((test['time'], test['e_b'], test['alpha']))
                             # for debugging
                             # self.plot_model(test)
                             # breakpoint()
