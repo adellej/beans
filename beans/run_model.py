@@ -3,7 +3,7 @@ import numpy as np
 from burstrain import *
 
 def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, ref_ind, gti_checking,train,
-             gti_start=None, gti_end=None, debug=False):
+             gti_start=None, gti_end=None, debug=False,**kwargs):
 
     if debug:
         print('Calling runmodel')
@@ -42,7 +42,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     #   RADIUS          FLOAT     11.2
     if train:
         result = generate_burst_train(
-            base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
+            base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind,**kwargs
         )
 
         tpred = result["time"]
@@ -116,7 +116,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         # If we're not generating a burst train, just run the ensemble
 
         result = burstensemble(
-            base, x, z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs)
+            base, x, z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs,**kwargs)
 
         model = np.concatenate((result['time'], result['e_b'], result['alpha']))
 
@@ -129,7 +129,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         # if "st" not in globals():
         if (gti_start is None) or (gti_end is None):
             print ('** WARNING ** can''t access GTI information')
-            return result, valid
+            return model, valid
         else:
             st, et = gti_start, gti_end
 
@@ -141,7 +141,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
                     if rt >= st[i] and rt <= et[i] - 10.0 / 86400.0:
 
                         valid = False
-                        return result, valid
+                        return model, valid
 
     # Check here if anisoptropy estimates are consistent with Fujimoto model
     #   sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
@@ -157,7 +157,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     if debug:
         print(f'model = {model}')
 
-    return result, valid,
+    return model, valid
 
 
 # -------------------------------------------------------------------------#
