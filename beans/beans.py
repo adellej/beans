@@ -73,11 +73,11 @@ def prior_func(theta_in):
 
 class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
+    def __init__(self, ndim=10, nwalkers=200, nsteps=300, run_id="1808/test1", obsname='../data/1808_obs.txt',
                  burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
-                 threads = 4, test_model=True, restart=False):
+                 threads = 4, test_model=True, restart=False,scaling=False):
 
         from initialise import init
         from run_model import runmodel
@@ -100,6 +100,7 @@ class Beans:
         self.lnprior = prior
         self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
         self.train = (obsname is not None)
+        self.scaling = scaling
             # determines whether will run as a train of bursts or
             # non-contiguous bursts ("ensemble" mode); previously
             # numerical, default is 1 (True), which means a burst train
@@ -123,8 +124,7 @@ class Beans:
             test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
                                    self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
                                    self.gti_checking, self.train,self.st, self.et,
-                                   debug=False) # set debug to True for testing
-            test = np.concatenate((test['time'], test['e_b'], test['alpha']))
+                                   debug=False,scaling=self.scaling) # set debug to True for testing
             print("result: ", test, valid)
 
             self.plot_model(test)
@@ -160,11 +160,11 @@ class Beans:
         s_t = 10.0 / 1440.0
 
         # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
-        model2, valid = runmodel(
+        model, valid = runmodel(
             theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
-             self.st, self.et
+             self.st, self.et,scaling=self.scaling
         )
-        model = np.concatenate((model2['time'], model2['e_b'], model2['alpha']))
+
         if not valid:
             return -np.inf, model
 
@@ -204,8 +204,23 @@ class Beans:
         # Test if the result string is defined here. It is, so we return the selected elements of result
         # instead of the downselection in model
 
-        model2 = str(model2).encode('ASCII')
+        base = Q_b
+        z = Z
+        x = X
+        r1 = r1
+        r2 = r2
+        r3 = r3
+        mass = mass
+        radius = radius
 
+        if self.train:
+            model2 = generate_burst_train(
+                base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind,
+            scaling=self.scaling)
+        else:
+            model2 = burstensemble(base, x, z, r1, r2, r3, mass, radius, self.bstart, self.pflux,self.numburstsobs,scaling=self.scaling)
+        #model2 =  np.string_(model2, dtype='S1000')
+        model2 = str(model2).encode('ASCII')
 
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
@@ -344,8 +359,7 @@ class Beans:
                     # between up to the simulated interval
                     test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
                                            self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
-                                           0, self.train, debug=False)
-                    test = np.concatenate((test['time'], test['e_b'], test['alpha']))
+                                           0, self.train,self.scaling, debug=False,scaling=self.scaling)
                     print("result: ", test, valid)
                     # self.plot_model(test)
 
@@ -379,8 +393,8 @@ class Beans:
                             # (ref_ind is meaningless if there's no bursts)
                             test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
                                                    self.pflux, self.pfluxe, self.tobs, 100,100, trial,
-                                                   1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
-                            test = np.concatenate((test['time'], test['e_b'], test['alpha']))
+                                                   1,self.train, gti_start=self.st, gti_end=self.et, debug=False,scaling=self.scaling)
+
                             # for debugging
                             # self.plot_model(test)
                             # breakpoint()
@@ -427,10 +441,10 @@ class Beans:
         print(self.train)
         if self.train:
             model = generate_burst_train(
-                base,z,x,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
+                base,z,x,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind,scaling=self.scaling
             )
         else:
-            model = burstensemble(base,x,z,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.numburstsobs)
+            model = burstensemble(base,x,z,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.numburstsobs,scaling=self.scaling)
         timepred = model["time"]
         ebpred = np.array(model["e_b"])*np.array(model["r3"])
 
@@ -720,8 +734,8 @@ class Beans:
             plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup[1:], timepred_errlow[1:]], fmt='.', color='darkgrey')
             plt.errorbar(tobs, ebobs, fmt='.', color='black')
         else:
-            plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-            plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
+            plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            plt.errorbar(tobs, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
             plt.errorbar(tobs, ebobs, fmt='.', color='black')
 
         plt.xlabel("Time (days after start of outburst)")

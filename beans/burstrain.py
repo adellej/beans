@@ -141,7 +141,7 @@ def next_burst(
     mass,
     radius,
     direction=1,
-    debug=False ):
+    debug=False, **kwargs):
     """
     Routine to find the next burst in the series and return its properties
     Adapted from sim_burst.pro
@@ -176,7 +176,7 @@ def next_burst(
         print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
 
     # Calculate the burst properties for the trial mdot value
-    trial = settle(base, z, x_0, mdot0, cfac, mass, radius)
+    trial = settle(base, z, x_0, mdot0, cfac, mass, radius,**kwargs)
     if debug:
         print ('{}: initial guess mdot0={} @ t1={}, tdel={}, direction={}'.format(fn,mdot0,t1,trial.tdel,direction))
 
@@ -197,7 +197,7 @@ def next_burst(
             or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
         and (mdot > minmdot and mdot < maxmdot):
 
-        trial = settle(base, z, x_0, mdot[0], cfac, mass, radius)
+        trial = settle(base, z, x_0, mdot[0], cfac, mass, radius, **kwargs)
         nreturn = nreturn + 1
         nreturn_total = nreturn_total + 1
 
@@ -239,7 +239,7 @@ def next_burst(
         t_arr2 = [t1]
         for t in t_arr[1:]:
             _mdot = (0.67 / 8.8) * mean_flux(t1, t, tobs, a, b) * r1
-            _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius)
+            _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius, **kwargs)
             t_arr2.append(t1+_tmp.tdel[0]/24.)
             m_arr.append(_mdot)
         plt.plot(t_arr, np.array(t_arr2), '-', label='tdel')
@@ -292,7 +292,7 @@ def generate_burst_train(
     tobs,
     numburstssim,
     ref_ind,
-    debug=False
+    debug=False, **kwargs
 ):
 
     # This routine generates a simulated burst train. The output is a
@@ -421,7 +421,7 @@ def generate_burst_train(
                 mass,
                 radius,
                 direction=-1,
-                debug=debug
+                debug=debug, **kwargs
             )
 
         if forward:
@@ -439,7 +439,7 @@ def generate_burst_train(
                 mass,
                 radius,
                 direction=1,
-                debug=debug
+                debug=debug, **kwargs
             )
 
         if result2 is not None:
@@ -537,6 +537,7 @@ def burstensemble(
     bstart,
     pflux,
     numburstsobs,
+    **kwargs
 ):
     """
     This routine generates as many burst predictions as there are burst
@@ -555,7 +556,7 @@ def burstensemble(
     for i in range(0, numburstsobs):
 
         mdot = (0.67 / 8.8) * pflux[i] * r1
-        tmp = settle(base, z, x_0, mdot, 1.0, mass, radius)
+        tmp = settle(base, z, x_0, mdot, 1.0, mass, radius,**kwargs)
 
         mdot_hist = [mdot]
         while abs(mdot - mdot_hist[len(mdot_hist) - 1]) > mdot_res / 2.0 and (
