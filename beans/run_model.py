@@ -157,7 +157,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     if debug:
         print(f'model = {model}')
 
-    return model, valid
+    return model, valid, result
 
 
 # -------------------------------------------------------------------------#
