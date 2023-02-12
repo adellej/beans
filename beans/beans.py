@@ -124,7 +124,6 @@ class Beans:
                                    self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
                                    self.gti_checking, self.train,self.st, self.et,
                                    debug=False) # set debug to True for testing
-            test = np.concatenate((test['time'], test['e_b'], test['alpha']))
             print("result: ", test, valid)
 
             self.plot_model(test)
@@ -344,7 +343,6 @@ class Beans:
                     test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
                                            self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
                                            0, self.train, debug=False)
-                    test = np.concatenate((test['time'], test['e_b'], test['alpha']))
                     print("result: ", test, valid)
                     # self.plot_model(test)
 
@@ -379,7 +377,6 @@ class Beans:
                             test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
                                                    self.pflux, self.pfluxe, self.tobs, 100,100, trial,
                                                    1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
-                            test = np.concatenate((test['time'], test['e_b'], test['alpha']))
                             # for debugging
                             # self.plot_model(test)
                             # breakpoint()
