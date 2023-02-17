@@ -72,39 +72,90 @@ def prior_func(theta_in):
         return -np.inf
 
 class Beans:
+    """
+    The main object class that includes the basic functionality required for
+    beans. The code will read in burst (and observation) data and attempt to
+    simulate bursts to match the observed burst properties. There are two
+    principle modes; the original function generates a "train" of individual
+    bursts, observed (for example) during a transient outburst, as for the 
+    original application to the 2002 outburst of SAX J1808.4-3658, observed
+    with RXTE/PCA. The alternative is to match to a set of non-contiguous
+    bursts ("ensemble" mode)
+    """
 
     def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
                  burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
                  threads = 4, test_model=True, restart=False):
+        """
+        Initialise a Beans object
+
+        :param ndim: number of dimensions for the parameter array (redundant)
+        :param nwalkers: number of walkers for the emcee run
+        :param nsteps: number of MCMC steps to run
+        :param run_id: string identifier for the run, used to label all the
+          result files, and where you want output to be saved
+        :param obsname: name of observation file, which includes the flux
+          history, from which the mdot is estimated to generate to generate
+          the burst train (set obsname=None for a non-contiguous, or "ensemble"
+          mode run)
+        :param burstname: name of the burst data file, listing the bursts
+        :param gtiname: name of the GTI file, only used if gti_checking is 1
+        :param theta: initial centroid values for walker model parameters, with
+          X, Z, Q_b, f_a, f_E, r1, r2, r3, mass & radius
+        :param numburstssim: number of bursts to simulate, for the "train" mode,
+          both earlier and later than the reference burst; i.e. set to half
+          the total number of bursts you want to simulate. Don't forget to
+          account for missed bursts!
+        :param numburstsobs: number of bursts observed (redundant)
+        :param bc: bolometric correction to adopt for the flux history (set
+          to 1.0 if the fluxes are already bolometric):
+        :param ref_ind: rank of "index" burst, against which the other burst
+          times are relative to. For the "train" mode, should be around the
+          middle of the predicted burst train. This burst will not be
+          simulated but will be used as a reference to predict the other bursts.
+        :param gti_checking: flag to turn on GTI checking (1 for on, 0 for off;
+          redundant)
+        :param prior: prior function to use
+        :param threads: number of threads for emcee to use (e.g. number of
+          cores your computer has)
+        :param test_model: flag to test the model during the setup process
+        :param restart: set to True to continue a previously interrupted run
+        :result: Beans object including all the required data
+        """
 
         from initialise import init
         from run_model import runmodel
+
         # Set up initial conditions:
 
         self.ndim = ndim
-        self.nwalkers = nwalkers # nwalkers and nsteps are the number of walkers and number of steps for emcee to do
+        self.nwalkers = nwalkers
         self.nsteps = nsteps
-        self.run_id = run_id # Where you want output to be saved and under what name
-        self.theta = theta # Set starting value for each theta parameter, Recall odering, theta: X, Z, Q_b, f_a, f_E, r1, r2, r3
-        self.threads = threads # Number of threads for emcee to use (e.g. number of cores your computer has)
-        self.numburstssim = numburstssim # this needs to be an integer value of half the number of bursts you want to simulate. I.e. simulate this many from the reference burst in either direction. Don't forget to account for missed bursts!
-        self.numburstsobs = numburstsobs # number of observed bursts in your dataset
-        self.ref_ind = ref_ind # Define index of reference burst (should be middle of predicted burst train). This burst will not be simulated but will be used as a reference to predict the other bursts.
-        self.gti_checking = gti_checking #Option to turn on gti time checking (1 for on, 0 for off):
-        self.obsname = obsname #set location of your observation data files
-        self.burstname = burstname #set location of your burst data files
-        self.gtiname = gtiname #set location of your gti data files
-        self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
+        self.run_id = run_id
+        self.theta = theta
+        self.threads = threads
+        self.numburstssim = numburstssim
+        self.numburstsobs = numburstsobs
+        self.ref_ind = ref_ind
+        self.gti_checking = gti_checking
+        self.obsname = obsname
+        self.burstname = burstname
+        self.gtiname = gtiname
+        self.bc = bc
         self.lnprior = prior
-        self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
+        self.restart = restart
+
+	# determines whether will run as a train of bursts or non-contiguous
+	# bursts ("ensemble" mode); previously numerical, default is 1 (True),
+	# which means a burst train will be generated; set obsname=None for
+	# non-contiguous (ensemble mode) run
+
         self.train = (obsname is not None)
-            # determines whether will run as a train of bursts or
-            # non-contiguous bursts ("ensemble" mode); previously
-            # numerical, default is 1 (True), which means a burst train
-            # will be generated; set obsname=None for non-contiguous
-            # (ensemble mode)
+
+        # Read in all the measurements and set up all the parameters
+
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
         print(self.st, self.et)
 
@@ -129,8 +180,27 @@ class Beans:
             self.plot_model(test)
 
     def lnlike(self, theta_in, x, y, yerr):
+        """
+        Calculate the "model" likelihood for the current walker position
+        Calls runmodel which actually runs the model, either generating a 
+        burst train, or a set of runs for "ensemble" mode. Then extracts the
+        relevant model outputs and calculates the likelihood.
+        Includes an *additional* call to generate_burst_train/burstensemble
+        to get the model, so as to be able to return it to the calling function;
+        this step is totally redundant
+
+        :param theta_in: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1,
+          r2, r3, mass & radius
+        :param x: the "independent" variable, passed to lnlike
+        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+        :param yerr: erorr estimates on y
+        :return: likelihood, model result array
+        """
 
         # define y = "data" parameters
+        # I think these "globals" are not used; the only other reference I 
+        # can see is in run_model, which is commented out. So I think
+        # TODO these siz for loops can be deleted - dkg
 
         for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
             globals()['t%s' % i] = self.y[x]
@@ -158,7 +228,11 @@ class Beans:
 
         s_t = 10.0 / 1440.0
 
-        # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
+	      # call model (function runmodel, in run_model.py) to generate the burst
+	      # train, or the set of bursts (for "ensemble" mode. In earlier versions
+	      # the corresponding IDL function was defined as
+        # modeldata(base, z, x, r1, r2 ,r3)
+
         model, valid, model2 = runmodel(
             theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
              self.st, self.et
@@ -209,13 +283,20 @@ class Beans:
         return -0.5 * np.sum(cpts), model2
 
 
-    # -------------------------------------------------------------------------#
-    # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
-
-    # define lnprob, which is the full log-probability function
     def lnprob(self, theta_in, x, y, yerr):
-        import numpy as np
+        """
+        The full log-probability function incorporating the priors (via 
+        lnprior), and and model likelihood (via lnlike), that is passed to
+        runemcee when creating the sampler (in the do_run method).
 
+        :param theta_in:
+        :param x: the "independent" variable, passed to lnlike
+        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+        :param yerr: erorr estimates on y
+        :return: total (prior+model) likelihood, prior likelihood, model array
+          (from lnlike)
+        """
+   
         lp = self.lnprior(theta_in)
 
         # Now also returns the model, to accumulate along with the likelihoods
