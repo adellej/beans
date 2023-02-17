@@ -40,7 +40,7 @@ from analyse import get_param_uncert_obs, get_param_uncert
 from initialise import init
 
 # -------------------------------------------------------------------------#
-# Some example prior functions, or you can write your own for input to the code. 
+# Some example prior functions, or you can write your own for input to the code.
 
 # Define priors for theta. mr prior function is located in mrprior.py
 
@@ -171,7 +171,7 @@ class Beans:
             print("Testing the model works..")
 
 
-            test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
+            test, valid, test2 = runmodel(self.theta, self.y, self.tref, self.bstart,
                                    self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
                                    self.gti_checking, self.train,self.st, self.et,
                                    debug=False) # set debug to True for testing
@@ -228,16 +228,15 @@ class Beans:
 
         s_t = 10.0 / 1440.0
 
-	# call model (function runmodel, in run_model.py) to generate the burst
-	# train, or the set of bursts (for "ensemble" mode. In earlier versions
-	# the corresponding IDL function was defined as
+	      # call model (function runmodel, in run_model.py) to generate the burst
+	      # train, or the set of bursts (for "ensemble" mode. In earlier versions
+	      # the corresponding IDL function was defined as
         # modeldata(base, z, x, r1, r2 ,r3)
 
-        model, valid = runmodel(
+        model, valid, model2 = runmodel(
             theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
              self.st, self.et
         )
-
         if not valid:
             return -np.inf, model
 
@@ -277,23 +276,8 @@ class Beans:
         # Test if the result string is defined here. It is, so we return the selected elements of result
         # instead of the downselection in model
 
-        base = Q_b
-        z = Z
-        x = X
-        r1 = r1
-        r2 = r2
-        r3 = r3
-        mass = mass
-        radius = radius
-
-        if self.train:
-            model2 = generate_burst_train(
-                base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
-            )
-        else:
-            model2 = burstensemble(base, x, z, r1, r2, r3, mass, radius, self.bstart, self.pflux,self.numburstsobs)
-        #model2 =  np.string_(model2, dtype='S1000')
         model2 = str(model2).encode('ASCII')
+
 
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
@@ -437,7 +421,7 @@ class Beans:
                     # Run for just one burst to get the initial interval
                     # Set ref_ind to be zero, will subsequently distribute the start burst times
                     # between up to the simulated interval
-                    test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
+                    test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
                                            self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
                                            0, self.train, debug=False)
                     print("result: ", test, valid)
@@ -471,10 +455,9 @@ class Beans:
                             # Set nburstssim to 100 below, just need to make sure it's sufficient to cover
                             # the whole outburst. Replace ref_ind with trial, as the starting burst time
                             # (ref_ind is meaningless if there's no bursts)
-                            test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
+                            test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
                                                    self.pflux, self.pfluxe, self.tobs, 100,100, trial,
                                                    1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
-
                             # for debugging
                             # self.plot_model(test)
                             # breakpoint()
