@@ -4,6 +4,31 @@ from burstrain import *
 
 def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, ref_ind, gti_checking,train,
              gti_start=None, gti_end=None, debug=False):
+    """
+    This routine calls one of two functions that generate the burst model
+    predictions, either generate_burst_train or burstensemble, depending on
+    which mode the analysis is in
+
+    :param theta_in: parameter tuple: X, Z, Q_b, f_a, f_E, r1, r2, r3,
+      mass & radius
+    :param y:
+    :param tref:
+    :param bstart:
+    :param pflux:
+    :param pfluxe:
+    :param tobs:
+    :param numburstssim:
+    :param numburstsobs:
+    :param ref_ind:
+    :param gti_checking:
+    :param rain:
+    :param gti_start:
+    :param gti_end:
+    :param debug: set to True to display more diagnostic information
+    :return: model array with predicted burst parameters, Boolean giving
+      the validity of the solution (i.e. consistent with the GTI information),
+      and the full result dict from generate_burst_train/burstensemble
+    """
 
     if debug:
         print('Calling runmodel')
@@ -11,38 +36,15 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
 
-    # Set the imput parameters to generate_burst_train
-    # These variables need to be passed to idl, hence the "idl." in the definition
-    # statement
-
-    base = Q_b
-    z = Z
-    x = X
-    r1 = r1
-    r2 = r2
-    r3 = r3
-    mass = mass
-    radius = radius
-
-    # Now call the function. From the code:
-    # This routine generates a simulated burst train. The output is a
-    # structure with the following elements:
-    #   BASE            FLOAT          0.175000
-    #   Z               FLOAT         0.0100000
-    #   X_0             FLOAT          0.440000
-    #   R1              FLOAT          0.108533
-    #   R2              FLOAT           1.00000
-    #   R3              FLOAT           1.00000
-    #   MDOT            DOUBLE    Array[7]
-    #   MDOT_MAX        DOUBLE         0.043402292
-    #   TIME            DOUBLE    Array[8]
-    #   ALPHA           FLOAT     Array[7]
-    #   E_B             FLOAT     Array[7]
-    #   MASS            FLOAT     1.4
-    #   RADIUS          FLOAT     11.2
     if train:
+        # Now call the function. From the code:
+        # This routine generates a simulated burst train. The output is a
+        # dict with the following keys:
+        # ['base', 'z', 'x_0', 'r1', 'r2', 'r3', 'time', 'mdot_max', 'mdot',
+        #  'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
+
         result = generate_burst_train(
-            base, z, x, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
+            Q_b, Z, X, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
         )
 
         tpred = result["time"]
@@ -53,8 +55,12 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         if (y is not None) & (len(tpred) > 0):
 
             # Assemble the array for comparison with the data
+            # First the burst times; we dynamically determine which
+            # predicted burst is closest in time to each observed one, and
+            # assign that predicted burst to it for comparison of the
+            # properties
 
-            i1 = []
+            i1 = [] # index mapping predicted bursts to observed 
             for i in range(0, ref_ind):
                 i1.append(np.argmin(np.abs(tpred - y[i])))
 
@@ -63,14 +69,11 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
             for i in range(ref_ind, len(bstart) - 1):
                 i1.append(np.argmin(np.abs(tpred - y[i])))
 
-            li1 = list(i1)
-            li1m1 = [np.max([x - 1, 0]) for x in li1]
-
             # We compare the fluences for all the bursts
-            # We add 1 here, and also to the expression for ialpha, because the indexing is different for
+            # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for
             # the e_b and alpha arrays, compared to the times, coming out of generate_burst_train
 
-            ie_b = li1m1
+            ie_b = [np.max([x - 1, 0]) for x in li1]
 
             # We only compare the times of the bursts for observed events #0, 2 & 3; #10 is a "reference"
             # from which the train is calculated

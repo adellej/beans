@@ -6,9 +6,17 @@ import random
 import matplotlib.pyplot as plt
 
 def mean_flux(t1, t2, tobs, a, b):
+    """
+    Calculates the mean flux between t1 and t2 from the piecewise linear
+    interpolation of tobs,a,b
 
-    # Calculates the mean flux between t1 and t2 from the piecewise linear
-    # interpolation of tobs,a,b
+    :param t1: start time for averaging
+    :param t2: end time for averaging
+    :param tobs: observation times
+    :param a, b: coefficients for pw continuous fit between measurements,
+      calculated by get_a_b
+    :result: mean flux
+    """
 
     na = len(a)
 
@@ -79,9 +87,15 @@ def mean_flux(t1, t2, tobs, a, b):
 
 
 def get_a_b(pflux, pfluxe, tobs):
+    """
+    Do piecewise continuous fits to the flux evolution, here
+    determine the appropriate parameters for each interval:
 
-    # Do piecewise continuous fits to the flux evolution, here
-    # determine the appropriate parameters for each interval:
+    :param pflux: persistent flux measurements to interpolate
+    :param pfluxe: uncertainty on persistent flux (not used)
+    :param tobs: time (midpoint of observation extent) for flux measurement
+    :result: a, b arrays for use with mean_flux
+    """
 
     # Now actually calculate the coefficients for the flux fit
 
@@ -91,32 +105,11 @@ def get_a_b(pflux, pfluxe, tobs):
     b0 = np.zeros(ng - 1)
     a0 = np.zeros(ng - 1)
 
-    fpflux = np.zeros(ng)
-    for i in range(0, ng):
-        fpflux[i] = pflux[i]
     for i in range(1, ng):
-        b0[i - 1] = (fpflux[i] - fpflux[i - 1]) / (tobs[i] - tobs[i - 1])
-        a0[i - 1] = fpflux[i - 1] - b0[i - 1] * tobs[i - 1]
+        b0[i - 1] = (pflux[i] - pflux[i - 1]) / (tobs[i] - tobs[i - 1])
+        a0[i - 1] = pflux[i - 1] - b0[i - 1] * tobs[i - 1]
 
-    a = a0
-    b = b0
-
-    result = dict()
-
-    result["a"] = [a]
-    result["b"] = [b]
-
-    # No longer used
-    # mflux = []
-    # for i in range(1, n_burst):
-        # mflux.append(mean_flux(bstart[i - 1], bstart[i], tobs, a0, b0))
-
-    # plt.scatter(tobs, fpflux,color='black')
-    # plt.scatter(tobs,pflux,color='magenta')
-    # plt.scatter(bstart[1:len(bstart)],mflux,color='cyan')
-    # plt.show()
-
-    return result
+    return a0, b0
 
 
 # ------------------------------------------------------------------------- #
@@ -276,61 +269,44 @@ def next_burst(
 # -------------------------------------------------------------------------#
 
 
-def generate_burst_train(
-    base,
-    z,
-    x_0,
-    r1,
-    r2,
-    r3,
-    mass,
-    radius,
+def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
+    bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, debug=False):
+    """
+    This routine generates a simulated burst train based on the model
+    input parameters, and the mdot history inferred from the persistent
+    flux measurements (tobs, pflux, pfluxe)
+
+    :param base: base flux [MeV/nucleon]
+    :param z: accreted CNO metallicity
+    :param x_0: accreted H-fraction
+    :param r1: scaling factor for mdot
+    :param r2: scaling factor for alpha
+    :param r3: scaling factor for fluence
+    :param mass: NS mass (M_sun)
+    :param radius: NS radius (km)
     # Now all the parameters below can be passed from a Beans object
-    bstart,
-    pflux,
-    pfluxe,
-    tobs,
-    numburstssim,
-    ref_ind,
-    debug=False
-):
+    :param bstart: burst start times
+    :param pflux: persistent flux measurements
+    :param pfluxe: uncertainty on persistent flux
+    :param tobs: times for the persistent flux measurements
+    :param numburstssim: number of bursts to simulate (in each direction)
+    :param ref_ind: index of reference burst
+    :param debug: set to True to show additional debugging information
 
-    # This routine generates a simulated burst train. The output is a
-    # structure with the following elements:
-    #   BASE            FLOAT          0.175000
-    #   Z               FLOAT         0.0100000
-    #   X_0             FLOAT          0.440000
-    #   R1              FLOAT          0.108533
-    #   R2              FLOAT           1.00000
-    #   R3              FLOAT           1.00000
-    #   RUN             INT              1
-    #   DOUBLE          INT              0
-    #   FLAG            INT              1
-    #   MDOT            DOUBLE    Array[7]
-    #   MDOT_MAX        DOUBLE         0.043402292
-    #   TIME            DOUBLE    Array[8]
-    #   ALPHA           FLOAT     Array[7]
-    #   E_B             FLOAT     Array[7]
-    #   QNUC            FLOAT     Array[7]
-    #   XBAR            FLOAT     Array[7]
-    #
-    # We have one more element of the time array than the other arrays, because
-    # we can't determine the properties for that burst, as we don't have
-    # enough data to back project. So the ith element of e_b, alpha etc.
-    # belongs with the (i+1)th element of time
+    :return: a dictionary with the following keys:
+    ['base', 'z', 'x_0', 'r1', 'r2', 'r3', 'time', 'mdot_max', 'mdot',
+    'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
+    We have one more element of the time array than the other arrays, because
+    we can't determine the properties for that burst, as we don't have
+    enough data to back project. So the ith element of e_b, alpha etc.
+    belongs with the (i+1)th element of time:
+    time  [ 0  1  2  3  4  5  6  7  ...  n ]
+    mdot     [ 0  1  2  3  4  5  6  ... n-1 ]
+    alpha    [ 0  1  2  3  4  5  6  ... n-1 ]
+    e_b      [ 0  1  2  3  4  5  6  ... n-1 ]
+    """
 
-    # obs = obs
-    # bstart = bstart
-    # tobs = tobs
-    # a = a
-    # b = b
-
-    # if len(double) == 0:
-    #    double = 0
-    # if len(debug) == 0:
-    #    debug = 0
-    # if len(run) == 0:
-    #    run=1
+    forward, backward = True, True  # go in both directions at the start
 
     mdot_max = -1
 
@@ -352,40 +328,25 @@ def generate_burst_train(
     salpha = -1
     flag = 1  # Initially OK
 
-    #          for i=0,2*(1+double) do begin
-    #  for i=0,3*(1+double) do begin # Do the 5th burst also, forward only
-
-    # salpha = np.zeros(2*(1+double)+1)
-    # se_b = np.zeros(2*(1+double)+1)
-    # smdot = np.zeros(2*(1+double)+1)
-    # sqnuc = np.zeros(2*(1+double)+1)
-    # sxbar = np.zeros(2*(1+double)+1)
-    # stime=np.zeros(2*(1+double)+1)
-
     # Get a and b for varying persistent flux:
+    # dkg: I don't think we *ever* vary the persistent flux, so I think we can
+    # TODO skip recalculating the a,b arrays at every step
 
-    # n_burst = len(bstart)
-    result0 = get_a_b(pflux, pfluxe, tobs)# , n_burst, bstart)
-    a = result0["a"]
-    b = result0["b"]
+    a, b = get_a_b(pflux, pfluxe, tobs)# , n_burst, bstart)
 
     stime = []  # initialise array to store simulated times
-    forward, backward = True, True  # go in both directions at the start
     earliest = sbt  # this is the earliest burst in the train
     latest = sbt    # this is the time of the latest burst in the train
     # for i in range (0,2*(1+double)+1): # Do the 5th burst also, forward only
     for i in range(0, numburstssim):  # Do the 5th burst also, forward only
-        # print "i = ",i
-        # print 'stime = {}'.format(stime)
-        # Now that we reduce the overall number of forward bursts, this if statement
-        # is redundant
 
-        #    if i lt 3*(1+double) then $
+        # Here we adopted recurrence time corrections for SAX
+	# J1808.4--3658 ,since the accretion rate is not constant over the
+	# extrapolated time, resulting in the recurrence time being
+	# underestimated by settle. Correction factors are from Zac
+	# Johnston, calculated using KEPLER 
 
-        # Here we introduce recurrence time corrections since the accretion rate is not flat over the extrapolated time, resulting in the recurrence time being underestimated by settle. Correction factors are from Zac, calculated using KEPLER for SAX J1808.4--3658
-
-        # if i == 0:  # This is observed burst at 1.89
-        #     cfac1 = 1.02041
+	# if i == 0:  # This is observed burst at 1.89 cfac1 = 1.02041
         #     cfac2 = 1.02041
         # if (
         #     i == 1
@@ -408,39 +369,13 @@ def generate_burst_train(
 
         if backward:
             # Find the time for the *previous* burst in the train
-            result2 = next_burst(
-                base,
-                z,
-                x_0,
-                earliest,
-                tobs,
-                a,
-                b,
-                r1,
-                1.0,
-                mass,
-                radius,
-                direction=-1,
-                debug=debug
-            )
+            result2 = next_burst( base, z, x_0, earliest, tobs, a, b,
+                r1, 1.0, mass, radius, direction=-1, debug=debug)
 
         if forward:
             # Also find the time for the *next* burst in the train
-            result3 = next_burst(
-                base,
-                z,
-                x_0,
-                latest,
-                tobs,
-                a,
-                b,
-                r1,
-                1.0,
-                mass,
-                radius,
-                direction=1,
-                debug=debug
-            )
+            result3 = next_burst( base, z, x_0, latest, tobs, a, b,
+                r1, 1.0, mass, radius, direction=1, debug=debug)
 
         if result2 is not None:
             # we have a result from the next_burst call going backward, so add its properties to the arrays
