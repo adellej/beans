@@ -147,10 +147,6 @@ def next_burst(
     minmdot = 0.0
     maxmdot = 1.0
 
-    # a, b passed as an array of an array
-    a = a[0]
-    b = b[0]
-
     # Determine the initial guess for mean mdot (linear)
     #  i0=min([n_elements(a)-1,max(where(t1 gt tobs))])
     itobs = np.where(t1 > tobs)[0]

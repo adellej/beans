@@ -73,12 +73,12 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
             # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for
             # the e_b and alpha arrays, compared to the times, coming out of generate_burst_train
 
-            ie_b = [np.max([x - 1, 0]) for x in li1]
+            ie_b = [np.max([x - 1, 0]) for x in i1]
 
             # We only compare the times of the bursts for observed events #0, 2 & 3; #10 is a "reference"
             # from which the train is calculated
 
-            i2 = li1
+            i2 = i1
             i2.pop(ref_ind)
             itime = i2
 
