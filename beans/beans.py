@@ -46,8 +46,12 @@ from initialise import init
 
 
 def lnZprior(z):
-    # This beta function for the metallicity prior is from Andy Casey and is an approximation of the metallicity of a mock galaxy
-    # at 2.5-4.5 kpc for the location of 1808. Assuming ZCNO = 0.01 is average value.
+    """
+    This beta function for the metallicity prior is from Andy Casey and is an
+    approximation of the metallicity of a mock galaxy at 2.5-4.5 kpc for the
+    location of 1808. Assuming ZCNO = 0.01 is average value.
+    """
+
     from scipy import stats
     import numpy as np
 
@@ -60,16 +64,31 @@ def lnZprior(z):
 
 
 def prior_func(theta_in):
+    """
+    This function implements a simple box prior for all the parameters 
+    excluding mass and radius, which comes instead from a separate mr_prior
+    function
+
+    :param theta_in: parameter vector
+    """
+
     import numpy as np
 
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
-    if 0.00001 < X < 0.76 and 0.00001 < Z < 0.056 and 0.000001 <= Q_b < 5.0 \
-        and 0 < f_a < 100 and 0 < f_E < 100 and 0.005 < r1 < 1.0 and 0.005 < r2 < 3.0 and 0 < r3 * 1e3 < 1000 and 1.15 < mass < 2.5 and 9 < radius < 17:  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
+    # upper bound and lower bounds of each parameter defined here. Bounds were
+    # found by considering an estimated value for each parameter then giving
+    # reasonable limits.
+    if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
+        (0.000001 <= Q_b < 5.0) and (0 < f_a < 100) and (0 < f_E < 100) and \
+        (0.005 < r1 < 1.0) and (0.005 < r2 < 3.0) and \
+        (0 < r3 * 1e3 < 1000) \
+        and (1.15 < mass < 2.5) and (9 < radius < 17):
         #return 0.0 + lnZprior(Z) + mr_prior(mass, radius) #use this option for 1808 prior
         return 0.0 + mr_prior(mass, radius)
     else:
         return -np.inf
+
 
 class Beans:
     """
@@ -83,15 +102,14 @@ class Beans:
     bursts ("ensemble" mode)
     """
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
+    def __init__(self, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
                  burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
-                 numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
-                 threads = 4, test_model=True, restart=False):
+                 numburstssim=3, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
+                 threads = 4, test_model=True, restart=False, **kwargs):
         """
         Initialise a Beans object
 
-        :param ndim: number of dimensions for the parameter array (redundant)
         :param nwalkers: number of walkers for the emcee run
         :param nsteps: number of MCMC steps to run
         :param run_id: string identifier for the run, used to label all the
@@ -108,7 +126,6 @@ class Beans:
           both earlier and later than the reference burst; i.e. set to half
           the total number of bursts you want to simulate. Don't forget to
           account for missed bursts!
-        :param numburstsobs: number of bursts observed (redundant)
         :param bc: bolometric correction to adopt for the flux history (set
           to 1.0 if the fluxes are already bolometric):
         :param ref_ind: rank of "index" burst, against which the other burst
@@ -128,16 +145,26 @@ class Beans:
         from initialise import init
         from run_model import runmodel
 
+        # Some housekeeping
+
+        if 'ndim' in kwargs.keys():
+            print ('** WARNING ** parameter ndim is redundant (ignored), setting from len of param array')
+        if 'numburstsobs' in kwargs.keys():
+            print ('** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
+
         # Set up initial conditions:
 
-        self.ndim = ndim
+        # number of dimensions for the parameter array
+        # self.ndim = ndim
+        self.ndim = len(theta)
         self.nwalkers = nwalkers
         self.nsteps = nsteps
         self.run_id = run_id
         self.theta = theta
         self.threads = threads
         self.numburstssim = numburstssim
-        self.numburstsobs = numburstsobs
+        # number of bursts observed (redundant; set below after reading the data)
+        # self.numburstsobs = numburstsobs
         self.ref_ind = ref_ind
         self.gti_checking = gti_checking
         self.obsname = obsname
@@ -156,7 +183,8 @@ class Beans:
 
         # Read in all the measurements and set up all the parameters
 
-        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
+        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ref_ind, gti_checking, obsname, burstname, gtiname, bc)
+        self.numburstsobs = len(self.fluen)
         print(self.st, self.et)
 
 
@@ -246,6 +274,8 @@ class Beans:
         # self.train == True
 
         ato = int(self.train) # array "train" offset
+        # special to trap "unhashable type" error
+        # print (model, ato, len(self.bstart), len(self.fluen))
         model[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato] *= r3
         model[len(self.fluen)+len(self.bstart)-ato:] *= r2
 
@@ -298,12 +328,16 @@ class Beans:
         """
    
         lp = self.lnprior(theta_in)
+        # Check if the parameters are consistent with the prior, and skip
+        # the model run it if not
+        if (not np.isfinite(lp)):
+            return -np.inf, -np.inf, None
 
         # Now also returns the model, to accumulate along with the likelihoods
 
         like, model = self.lnlike(theta_in, x, y, yerr)
 
-        if (not np.isfinite(lp)) or (not np.isfinite(like)):
+        if (not np.isfinite(like)):
             return -np.inf, -np.inf, model
 
         # we return the logprobability as well as the theta parameters at this point so we can extract results later

@@ -111,7 +111,13 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
 
             model = np.array(model)
         else:
-            # If you're not comparing to observed bursts, just return the result of generate_burst_train
+	    # If you're not comparing to observed bursts, just return the
+	    # result of generate_burst_train
+            # This loop will (also?) be triggered if the call to 
+            # generate_burst_train results in no bursts. That can happen if
+            # the model parameters are nonsensical - e.g. Z<0. An "unhashable
+            # type" error will then be triggered - dkg
+            # TODO: fix handling of empty tpred array in runmodel
             model = result
             i1 = [] # created as empty list for the gti_checking below
 
@@ -123,10 +129,11 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
 
         model = np.concatenate((result['time'], result['e_b'], result['alpha']))
 
-    # Check here if the model instance is valid, i.e. the bursts that are NOT matched with the
-    # observed ones must fall in gaps
-    # We use the (global) arrays st, et defined by 1808-match, to avoid copying them over from IDL
-    # each time
+    # Check here if the model instance is valid, i.e. the bursts that are NOT
+    # matched with the observed ones must fall in gaps
+    # Originally we used the (global) arrays st, et defined by 1808-match, to
+    # avoid copying them over from IDL each time; but now these are passed
+    # as parameters gti_start, gti_end
     valid = True
     if gti_checking == 1:
         # if "st" not in globals():
