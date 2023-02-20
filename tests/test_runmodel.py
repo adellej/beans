@@ -39,7 +39,9 @@ def test_run_model():
     yerr = obs_err
     x = 0 # in our case, we do not require x (independent variables), however for input into MCMC we need to define a x
 
-    test, valid = runmodel(theta,y,tref,bstart,pflux, pfluxe, tobs,numburstssim,ref_ind,gti_checking, st, et)
+    # updated call to include the train, numburstsobs parameter, and add the
+    # full model which is now also output
+    test, valid, full_model = runmodel(theta,y,tref,bstart,pflux, pfluxe, tobs,numburstssim,len(bstart),ref_ind,gti_checking, 1, st, et)
 
     #exp = [  0.37596756  , 2.57382977 ,  3.6951732  ,  5.22042564 ,  5.49339669, 5.76917402  , 7.5398804  ,129.9739876,  139.81100404 ,155.46956035]
 
