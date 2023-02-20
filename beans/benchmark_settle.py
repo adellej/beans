@@ -79,16 +79,19 @@ M_NS, R_NS, Q_b = 1.4, 10., 0.1
 
 tdel, E_b, alpha = [], [], []
 
-num_runs = 1
+num_runs = 8
 
 print("======== parallel run ==========")
 
-print("Detected CPUs: ", mp.cpu_count())
+cpu_count = mp.cpu_count()
+
+print("Detected CPUs: ", cpu_count)
+
+chunksize = round(len(ft)/cpu_count)
+
+print("Chunk size: ", chunksize)
 
 t_start = time.process_time()
-
-pool = mp.Pool(mp.cpu_count())
-# pool = mp.Pool(1)
 
 t2_sum = 0.0
 
@@ -106,8 +109,20 @@ for j in range(num_runs):
     # because table is not iterable in Python >:-(
     ft_list = [dict(zip(ft.colnames, row)) for row in ft]
     # print(ft_list)
+
+    # Simply configured like this, the speedup is excellent
+    # the magic is done mostly by removing some internal Python
+    # memory management inefficiency
+    pool = mp.Pool(cpu_count)
+
+    # The following is pure speed-up only by CPUs, removing the
+    # beneficial effect of bypassing some internal Python
+    # memory management inefficiency
+    # pool = mp.Pool(1, maxtasksperchild=1)
+
     multi_res = pool.map(settle_multiprocessing_wrapper,
-                         ft_list, chunksize=8)
+                         ft_list, chunksize=chunksize)
+
     # free up the resources used by process pool
     # WTF dunno why I have to call this before being
     # able to wait for processes to join!
