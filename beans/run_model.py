@@ -8,22 +8,29 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     This routine calls one of two functions that generate the burst model
     predictions, either generate_burst_train or burstensemble, depending on
     which mode the analysis is in
+    It then assembles the predictions from the model into a form that can
+    be compared to the observations (with appropriate scaling)
 
     :param theta_in: parameter tuple: X, Z, Q_b, f_a, f_E, r1, r2, r3,
       mass & radius
-    :param y:
-    :param tref:
-    :param bstart:
-    :param pflux:
-    :param pfluxe:
-    :param tobs:
-    :param numburstssim:
-    :param numburstsobs:
-    :param ref_ind:
-    :param gti_checking:
-    :param rain:
-    :param gti_start:
-    :param gti_end:
+    :param y: observation array, comprising burst times, fluences and alpha
+      values
+    :param tref: reference time for bursts and observations, generally the
+      first observed burst
+    :param bstart: start times of observed bursts (MJD), relative to tref
+    :param pflux: persistent flux, used to infer the accretion rate
+    :param pfluxe: uncertainty on persistent flux
+    :param tobs: times of observations for flux measurements (MJD), relative
+      to tref
+    :param numburstssim: number of bursts to simulate, for the "train" mode,
+      both earlier and later than the reference burst
+    :param numburstsobs: number of bursts observed (probably redundant)
+    :param ref_ind: index (pointer to bstart) of reference burst
+    :param gti_checking: flag for GTI checking (probably redundant)
+    :param train: run mode, set to True for "train" (sequential) mode, False
+      otherwise
+    :param gti_start: array of start times for GTIs (good time intervals)
+    :param gti_end: array of end times for GTIs
     :param debug: set to True to display more diagnostic information
     :return: model array with predicted burst parameters, Boolean giving
       the validity of the solution (i.e. consistent with the GTI information),
@@ -32,6 +39,29 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
 
     if debug:
         print('Calling runmodel')
+
+    def next_nearest(target, trials, exclude):
+        """
+        Function to find the element of an array that is closest (in absolute
+        terms) to a particular value, excluding some "masked" elements
+        Used to match the predicted bursts with those observed
+
+        :param target: the target value we're trying to match
+        :param trials: the set of candidates
+        :param exclude: a list of indices that are excluded
+        :return: index of matching item, or None if all are excluded
+        """
+
+        isort = np.argsort(np.abs(trials-target))
+        i = 0
+        while (isort[i] in exclude) and (i < len(isort)-1):
+            i += 1
+
+        if isort[i] in exclude:
+            return None
+
+        return isort[i]
+
 
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
@@ -59,48 +89,45 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
             # predicted burst is closest in time to each observed one, and
             # assign that predicted burst to it for comparison of the
             # properties
+            # this approach is a bit newer and hopefully more robust, also
+            # reflects the simulation approach in generate_burst_train
 
-            i1 = [] # index mapping predicted bursts to observed 
-            for i in range(0, ref_ind):
-                i1.append(np.argmin(np.abs(tpred - y[i])))
+            imatch = [np.argmin(np.abs(tpred - bstart[ref_ind]))]
+            for i in range(1,numburstssim):
+                # now looking for a match for bursts ref_ind-i, ref_ind+i:
+                # (but also want to exclude any that have already been 
+                # matched!)
+                if ref_ind-i >= 0:
+                    # imatch.insert(0,np.argmin(np.abs(tpred-bstart[ref_ind-i])))
+                    imatch.insert(0, next_nearest(bstart[ref_ind-i], tpred, imatch))
+                if ref_ind+i < numburstsobs:
+                    # imatch.append(np.argmin(np.abs(tpred-bstart[ref_ind+i])))
+                    imatch.append(next_nearest(bstart[ref_ind+i], tpred, imatch))
 
-            i1.append(np.argmin(np.abs(tpred - tref)))
+            if np.any(np.array(imatch) == None):
+                # Not enough bursts to match, so count model as invalid
+                return None, False, result
 
-            for i in range(ref_ind, len(bstart) - 1):
-                i1.append(np.argmin(np.abs(tpred - y[i])))
+            assert len(imatch) == numburstsobs
+            # print (imatch)
+            assert len(set(imatch)) == numburstsobs # don't double up on bursts
+
+            # We only compare the times of the bursts for the events excluding
+            # the reference burst, from which the train is calculated
+            itime = imatch.copy()
+            itime.pop(ref_ind)
 
             # We compare the fluences for all the bursts
             # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for
             # the e_b and alpha arrays, compared to the times, coming out of generate_burst_train
-
-            ie_b = [np.max([x - 1, 0]) for x in i1]
-
-            # We only compare the times of the bursts for observed events #0, 2 & 3; #10 is a "reference"
-            # from which the train is calculated
-
-            i2 = i1
-            i2.pop(ref_ind)
-            itime = i2
+            ie_b = [np.max([x - 1, 0]) for x in imatch]
 
             # We compare the alpha values only for observed events #1, 2 & 3 as we don't have the recurrence
             # time for event #0
+            ialpha = ie_b.copy()
+            ialpha.pop(0)
 
-            i11 = []
-            for i in range(0, ref_ind):
-                i11.append(np.argmin(np.abs(tpred - y[i])))
-
-            i11.append(np.argmin(np.abs(tpred - tref)))
-
-            for i in range(ref_ind, len(bstart)):
-                i11.append(np.argmin(np.abs(tpred - y[i])))
-            li11 = list(i11)
-            li1m11 = [np.max([x - 1, 0]) for x in li11]
-
-            i3 = li1m11
-
-            i3.pop(0)
-            ialpha = i3
-
+            # Now assemble the whole array for comparison with the measurements
             model = []
             for i in range(0, len(bstart) - 1):
                 model.append(result["time"][itime[i]])
