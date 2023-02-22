@@ -67,6 +67,13 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
 
     if train:
+
+        # by default we assume the model is valid, i.e. has sufficient bursts
+        # to match the observations, AND doesn't violate the GTI conditions 
+        # (if we are checking those)
+
+        valid = True
+
         # Now call the function. From the code:
         # This routine generates a simulated burst train. The output is a
         # dict with the following keys:
@@ -144,9 +151,13 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
             # generate_burst_train results in no bursts. That can happen if
             # the model parameters are nonsensical - e.g. Z<0. An "unhashable
             # type" error will then be triggered - dkg
-            # TODO: fix handling of empty tpred array in runmodel
-            model = result
-            i1 = [] # created as empty list for the gti_checking below
+
+            # I don't think it's ever correct to swap model for result
+            # anymore, particularly since we're also returning the result;
+            # just set the model as invalid and bail out
+
+            # model = result
+            return None, False, result
 
     else:
         # If we're not generating a burst train, just run the ensemble
@@ -161,7 +172,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     # Originally we used the (global) arrays st, et defined by 1808-match, to
     # avoid copying them over from IDL each time; but now these are passed
     # as parameters gti_start, gti_end
-    valid = True
+
     if gti_checking == 1:
         # if "st" not in globals():
         if (gti_start is None) or (gti_end is None):
@@ -171,14 +182,13 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
             st, et = gti_start, gti_end
 
         for index, rt in enumerate(tpred):
-            if index not in i1:
+            if index not in imatch:
                 # ok, not one of the known bursts. Is it an excluded time?#
                 for i in range(len(st)):
 
                     if rt >= st[i] and rt <= et[i] - 10.0 / 86400.0:
 
-                        valid = False
-                        return model, valid, result
+                        return model, False, result
 
     # Check here if anisoptropy estimates are consistent with Fujimoto model
     #   sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
