@@ -21,3 +21,5 @@ astropy
 idlsave
 scipy
 chainconsumer
+tables
+h5py
