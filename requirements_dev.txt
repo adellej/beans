@@ -1,4 +1,5 @@
-#pip==19.2.3
+# beans requirements_dev - works with python 3.7, not with 3.8
+# pip==19.2.3
 bump2version==0.5.11
 wheel==0.33.6
 watchdog==0.9.0
@@ -23,3 +24,4 @@ scipy
 chainconsumer
 tables
 h5py
+
