@@ -508,9 +508,20 @@ class Beans:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self):
-        ## Running the chain
-        # we use multiprocessing to speed things up. Emcee parameters are defined in runemcee module.
+    def do_run(self, analyse=True, burnin=2000):
+        """
+        This routine runs the chain for as many steps as is specified in
+        the init call.  Emcee parameters are defined in runemcee module.
+        Have previously used multiprocessing to speed things up, but that's
+        not currently active
+
+        :param analyse: set to True to call do_analysis automatically once the
+          chains finish
+        :param burnin: number of steps to ignore at the start of the run, 
+          passed to do_analysis
+
+        :return:
+        """
 
         print("# -------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
@@ -569,14 +580,16 @@ class Beans:
 
         sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
         print(f"Sampling complete!")
-        self.do_analysis()
+
+        if analyse:
+            self.do_analysis(burnin=burnin)
         #if self.restart == False:
             #sampler.reset()
 
 # -------------------------------------------------------------------------#
 # Analyse and display the results:
 
-    def do_analysis(self):
+    def do_analysis(self, burnin=2000):
        # run_id = "chains_1808/test1"
 
         # constants:
@@ -589,9 +602,15 @@ class Beans:
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
         #tau = 20
         tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        #burnin = int(2 * np.max(tau))
-        burnin = 2000
         thin = int(0.5 * np.min(tau))
+
+        # moved burnin to be a parameter, so we can pass that from do_run
+        ##burnin = int(2 * np.max(tau))
+        # burnin = 2000
+        if burnin > self.nsteps:
+            print ('** WARNING ** burnin {} > no. of steps ({}), ignoring'.format(burnin, self.nsteps))
+            burnin = 0
+
         samples=reader.get_chain(flat=True, discard=burnin)
         sampler=reader.get_chain(flat=False)
         blobs = reader.get_blobs(flat=True)
