@@ -4,6 +4,7 @@ from __future__ import print_function
 import ctypes as ct
 import numpy
 
+
 class settle(object):
     '''
     Super basic interface to settle code
@@ -63,6 +64,7 @@ class settle(object):
         A = ct.c_double()
         E = ct.c_double()
 
+        # check if scalar or array
         if hasattr(M, '__iter__'):
 
             resA = []
@@ -76,7 +78,7 @@ class settle(object):
                                   ct.byref(ct.c_double(X[i])),
                                   ct.byref(ct.c_double(M[i])),
                                   ct.byref(self.C),
-                                  ct.byref(T), ct.byref(A), ctbyref(E),
+                                  ct.byref(T), ct.byref(A), ct.byref(E),
                                   ct.byref(ct.c_double(R[i])),
                                   ct.byref(ct.c_double(Ma[i])))
 
@@ -122,14 +124,13 @@ class settle(object):
                                   ct.byref(ct.c_double(X[i])),
                                   ct.byref(ct.c_double(M[i])),
                                   ct.byref(ct.c_double(C[i])),
-                                  ct.byref(T), ct.byref(A), ctbyref(E),
+                                  ct.byref(T), ct.byref(A), ct.byref(E),
                                   ct.byref(ct.c_double(R[i])),
                                   ct.byref(ct.c_double(Ma[i])))
 
                 resA.append(A.value)
                 resR.append(T.value)
                 resE.append(E.value)
-
 
             return numpy.array(resA), numpy.array(resR), numpy.array(resE)
 
@@ -142,6 +143,5 @@ class settle(object):
                               ct.byref(T), ct.byref(A), ct.byref(E),
                               ct.byref(ct.c_double(R)),
                               ct.byref(ct.c_double(Ma)))
-
 
             return A.value, T.value, E.value

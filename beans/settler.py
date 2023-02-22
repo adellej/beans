@@ -88,7 +88,7 @@ class Settle(object):
                     ct.byref(self.C),
                     ct.byref(T),
                     ct.byref(A),
-                    ctbyref(E),
+                    ct.byref(E),
                     ct.byref(ct.c_double(R[i])),
                     ct.byref(ct.c_double(Ma[i])),
                 )
