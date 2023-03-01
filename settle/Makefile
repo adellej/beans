@@ -44,6 +44,7 @@ cleaner: clean
 
 install: settle
 	sudo cp -arv --preserve=mode,timestamps ${LIBRARY} ${INSTALL_DIR}
+	sudo ldconfig
 
 test:	install
 	time python try.py
