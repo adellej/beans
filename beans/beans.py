@@ -8,6 +8,7 @@ import random
 import math
 import subprocess
 from astropy.io import ascii
+import astropy.constants as const
 import pickle
 from matplotlib.ticker import MaxNLocator
 import sys
@@ -587,14 +588,29 @@ class Beans:
             #sampler.reset()
 
 # -------------------------------------------------------------------------#
-# Analyse and display the results:
 
     def do_analysis(self, burnin=2000):
-       # run_id = "chains_1808/test1"
+        """
+        This method is for running standard analysis and displaying the
+        results.
+        Nothing is returned, but by default the method will create several
+        files, labeled by the run_id:
+          {}_autocorrelationtimes.pdf
+          {}_predictedburstscomparison.pdf
+          {}chain-plot.pdf
+          {}_massradius.pdf
+          {}_posteriors.pdf
+          {}_parameterconstraints_pred.txt
+
+        TODO: need to reorganise a bit, and add more options
+
+        :param burnin: number of steps to discard when plotting the posteriors
+        :return: none
+        """
 
         # constants:
-        c = 2.9979e10
-        G = 6.67428e-8
+        c = const.c.to('cm s-1')
+        G = const.G.to('cm3 g-1 s-2')
 
     # -------------------------------------------------------------------------#
         # load in sampler:
@@ -602,17 +618,22 @@ class Beans:
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
         #tau = 20
         tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        thin = int(0.5 * np.min(tau))
+        thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
+
+        # Read in the full chain to get the number of steps completed
+        sampler=reader.get_chain(flat=False)
+        nsteps_completed = np.shape(sampler)[0]
 
         # moved burnin to be a parameter, so we can pass that from do_run
-        ##burnin = int(2 * np.max(tau))
-        # burnin = 2000
-        if burnin > self.nsteps:
-            print ('** WARNING ** burnin {} > no. of steps ({}), ignoring'.format(burnin, self.nsteps))
+
+        if burnin >= nsteps_completed*0.9:
+            print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, nsteps_completed))
             burnin = 0
 
+        # Also read in the "flattened" chain, for the posteriors
         samples=reader.get_chain(flat=True, discard=burnin)
-        sampler=reader.get_chain(flat=False)
+
+        # and finally read in the model realisations
         blobs = reader.get_blobs(flat=True)
         # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
         # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
@@ -686,19 +707,19 @@ class Beans:
             window = auto_window(taus, c)
             return taus[window]
 
-        # Compute the estimators for a few different chain lengths
+        # loop through 10 parameters and plot the evolution of the
+        # autocorrelation time estimate for each
 
-        #loop through 10 parameters:
         f = plt.figure(figsize=(8,5))
 
         param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$", "$r{\mathrm{1}}$",\
                 "$r{\mathrm{2}}$", "$r{\mathrm{3}}$", "$M$", "$R$"]
         for j in range(10):
             chain = sampler[:, :, j].T
-            print(np.shape(sampler))
+            # print(np.shape(sampler))
 
             N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), 10)).astype(int)
-            print(N)
+            # print(N)
             gw2010 = np.empty(len(N))
             new = np.empty(len(N))
             for i, n in enumerate(N):
@@ -745,7 +766,7 @@ class Beans:
 
         # calculate redshift and gravity from mass and radius:
         R = np.array(radius)*1e5 #cgs
-        M = np.array(mass)*1.989e33 #cgs
+        M = np.array(mass)*const.M_sun.to('g') #cgs
         redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5)
         gravity = M*redshift*G/R**2 #cgs
 
@@ -759,8 +780,7 @@ class Beans:
         print(np.min(mass))
         print(np.min(X))
 
-        sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
-        xip = np.power(sqrt, 0.5)
+        xip = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
         xib = (0.74816*xip)/r2
         distance = 10*np.power((r1/xip), 0.5) #kpc
         cosi_2 = 1/(2*xip)
