@@ -166,14 +166,16 @@ def next_burst(
 
     # Calculate the burst properties for the trial mdot value
     trial = settle(base, z, x_0, mdot0, cfac, mass, radius)
+
     if debug:
         print ('{}: initial guess mdot0={} @ t1={}, tdel={}, direction={}'.format(fn,mdot0,t1,trial.tdel,direction))
 
     # Now update the mdot with the value averaged over the trial interval
+    # not sure why trial.tdel has suddenly become a vector
     if direction == 1:
-        mdot = (0.67 / 8.8) * mean_flux(t1, t1 + trial.tdel / 24.0, tobs, a, b) * r1
+        mdot = (0.67 / 8.8) * mean_flux(t1, t1 + trial.tdel[0] / 24.0, tobs, a, b) * r1
     else:
-        mdot = (0.67 / 8.8) * mean_flux(t1 - trial.tdel / 24.0, t1, tobs, a, b) * r1
+        mdot = (0.67 / 8.8) * mean_flux(t1 - trial.tdel[0] / 24.0, t1, tobs, a, b) * r1
 
     # Now retain the entire history of this iteration, so we can check for loops
     mdot_hist = [mdot0]
@@ -186,18 +188,18 @@ def next_burst(
             or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
         and (mdot > minmdot and mdot < maxmdot):
 
-        trial = settle(base, z, x_0, mdot[0], cfac, mass, radius)
+        trial = settle(base, z, x_0, mdot, cfac, mass, radius)
         nreturn = nreturn + 1
         nreturn_total = nreturn_total + 1
 
-        mdot_hist.append(mdot[0])
+        mdot_hist.append(mdot)
         tdel_hist.append(trial.tdel[0]/24.)
 
         if direction == 1:
-            mdot = (0.67 / 8.8) * mean_flux(t1, t1 + (trial.tdel / 24.0), tobs, a, b) * r1
+            mdot = (0.67 / 8.8) * mean_flux(t1, t1 + (trial.tdel[0] / 24.0), tobs, a, b) * r1
 
         else:
-            mdot = (0.67 / 8.8) * mean_flux(t1 - (trial.tdel / 24.0), t1, tobs, a, b) * r1
+            mdot = (0.67 / 8.8) * mean_flux(t1 - (trial.tdel[0] / 24.0), t1, tobs, a, b) * r1
 
         # Break out of the loop here, if necessary
         if nreturn > 10:
@@ -213,7 +215,7 @@ def next_burst(
 
 
     # save the final versions to the history arrays
-    mdot_hist.append(mdot[0])
+    mdot_hist.append(mdot)
     tdel_hist.append(trial.tdel[0]/24.)
     if debug:
         print('{}: mdot_hist={}'.format(fn, mdot_hist))
@@ -238,7 +240,6 @@ def next_burst(
         # plt.plot(np.array(t_arr2), np.array(m_arr), '.')
         plt.legend()
         plt.show()
-        breakpoint()
 
     # if mdot < minmdot or mdot > maxmdot:
     if abs(mdot - mdot_hist[-2]) > mdot_res / 2.0:
@@ -378,7 +379,7 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
             t2 = result2.t2[0]
             _alpha = result2.alpha[0]
             _e_b = result2.e_b[0]
-            _mdot = result2.mdot[0]
+            _mdot = result2.mdot
             if salpha == -1:
                 # create the arrays with which to accumulate the results
                 stime = [t2, sbt]
@@ -402,7 +403,7 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
             t3 = result3.t2[0]
             _alpha2 = result3.alpha[0]
             _e_b2 = result3.e_b[0]
-            _mdot2 = result3.mdot[0]
+            _mdot2 = result3.mdot
             if salpha == -1:
                 # This shouldn't happen, as we should be able to get at least one earlier burst
                 stime = [sbt, t3]

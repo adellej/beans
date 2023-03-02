@@ -8,6 +8,7 @@ import random
 import math
 import subprocess
 from astropy.io import ascii
+import astropy.constants as const
 import pickle
 from matplotlib.ticker import MaxNLocator
 import sys
@@ -80,7 +81,7 @@ def prior_func(theta_in):
     # found by considering an estimated value for each parameter then giving
     # reasonable limits.
     if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
-        (0.000001 <= Q_b < 5.0) and (0 < f_a < 100) and (0 < f_E < 100) and \
+        (0.000001 <= Q_b < 5.0) and (1 <= f_a < 100) and (1 <= f_E < 100) and \
         (0.005 < r1 < 1.0) and (0.005 < r2 < 3.0) and \
         (0 < r3 * 1e3 < 1000) \
         and (1.15 < mass < 2.5) and (9 < radius < 17):
@@ -508,9 +509,20 @@ class Beans:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self):
-        ## Running the chain
-        # we use multiprocessing to speed things up. Emcee parameters are defined in runemcee module.
+    def do_run(self, analyse=True, burnin=2000):
+        """
+        This routine runs the chain for as many steps as is specified in
+        the init call.  Emcee parameters are defined in runemcee module.
+        Have previously used multiprocessing to speed things up, but that's
+        not currently active
+
+        :param analyse: set to True to call do_analysis automatically once the
+          chains finish
+        :param burnin: number of steps to ignore at the start of the run, 
+          passed to do_analysis
+
+        :return:
+        """
 
         print("# -------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
@@ -565,60 +577,28 @@ class Beans:
         plt.show()
 
         print("# -------------------------------------------------------------------------#")
-        print("Beginning sampling..")
+        print("Beginning sampling...")
 
         sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
-        print(f"Sampling complete!")
-        self.do_analysis()
+        print(f"...sampling complete!")
+
+        if analyse:
+            self.do_analysis(burnin=burnin)
         #if self.restart == False:
             #sampler.reset()
 
 # -------------------------------------------------------------------------#
-# Analyse and display the results:
 
-    def do_analysis(self):
-       # run_id = "chains_1808/test1"
+    def plot_autocorr(self, reader=None, savefile=None, figsize=(8,5) ):
+        """
+        This method shows the estimated autocorrelation time for the run
+        Extracted from do_analysis
 
-        # constants:
-        c = 2.9979e10
-        G = 6.67428e-8
+        :param savefile: name of file to save as (skip if None)
+        :param figsize: size for the figure, (tuple, in inches)
 
-    # -------------------------------------------------------------------------#
-        # load in sampler:
-        reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
-        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
-        #tau = 20
-        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        #burnin = int(2 * np.max(tau))
-        burnin = 2000
-        thin = int(0.5 * np.min(tau))
-        samples=reader.get_chain(flat=True, discard=burnin)
-        sampler=reader.get_chain(flat=False)
-        blobs = reader.get_blobs(flat=True)
-        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
-        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
-        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
-
-        data = []
-        for i in range(len(blobs["model"])):
-            data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
-
-    # -------------------------------------------------------------------------#
-        # get the acceptance fraction:
-        #accept = reader.acceptance_fraction/nsteps #this will be an array with the acceptance fraction for each walker
-        #print(f"The average acceptance fraction of the walkers is: {np.mean(accept)}")
-
-        # get the autocorrelation times:
-        # print("burn-in: {0}".format(burnin))
-        # print("thin: {0}".format(thin))
-        # print("flat chain shape: {0}".format(samples.shape))
-        # print("flat log prob shape: {0}".format(log_prob_samples.shape))
-        # print("flat log prior shape: {0}".format(log_prior_samples.shape))
-
-        # alternate method of checking if the chains are converged:
-        # This code is from https://dfm.io/posts/autocorr/
-
-        # get autocorrelation time:
+        :return:
+        """
 
         def next_pow_two(n):
             i = 1
@@ -644,15 +624,21 @@ class Beans:
             return acf
 
 
-        # Automated windowing procedure following Sokal (1989)
         def auto_window(taus, c):
+            """
+            Automated windowing procedure following Sokal (1989)
+            """
+
             m = np.arange(len(taus)) < c * taus
             if np.any(m):
                 return np.argmin(m)
             return len(taus) - 1
 
-        # Following the suggestion from Goodman & Weare (2010)
         def autocorr_gw2010(y, c=5.0):
+            """
+            Following the suggestion from Goodman & Weare (2010)
+            """
+
             f = autocorr_func_1d(np.mean(y, axis=0))
             taus = 2.0*np.cumsum(f)-1.0
             window = auto_window(taus, c)
@@ -667,19 +653,37 @@ class Beans:
             window = auto_window(taus, c)
             return taus[window]
 
-        # Compute the estimators for a few different chain lengths
+        if reader is None:
+            # load in sampler:
+            reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
 
-        #loop through 10 parameters:
-        f = plt.figure(figsize=(8,5))
+        #tau = 20
+        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
+        thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
+        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
+        print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau), 
+          min(tau), max(tau)))
+
+        # alternate method of checking if the chains are converged:
+        # This code is from https://dfm.io/posts/autocorr/
+
+        # get autocorrelation time:
+
+        sampler=reader.get_chain(flat=False)
+
+        # loop through 10 parameters and plot the evolution of the
+        # autocorrelation time estimate for each
+
+        f = plt.figure(figsize=figsize)
 
         param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$", "$r{\mathrm{1}}$",\
                 "$r{\mathrm{2}}$", "$r{\mathrm{3}}$", "$M$", "$R$"]
         for j in range(10):
             chain = sampler[:, :, j].T
-            print(np.shape(sampler))
+            # print(np.shape(sampler))
 
             N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), 10)).astype(int)
-            print(N)
+            # print(N)
             gw2010 = np.empty(len(N))
             new = np.empty(len(N))
             for i, n in enumerate(N):
@@ -702,11 +706,114 @@ class Beans:
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
-        plt.savefig('{}_autocorrelationtimes.pdf'.format(self.run_id))
+        if savefile is not None:
+            print ('plot_autocorr: saving figure as {}'.format(savefile))
+            plt.savefig(savefile)
         plt.show()
 
 
-        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
+    def do_analysis(self, burnin=2000):
+        """
+        This method is for running standard analysis and displaying the
+        results.
+        Nothing is returned, but by default the method will create several
+        files, labeled by the run_id:
+          {}_autocorrelationtimes.pdf (via plot_autocorr)
+          {}_predictedburstscomparison.pdf
+          {}chain-plot.pdf
+          {}_massradius.pdf
+          {}_posteriors.pdf
+          {}_parameterconstraints_pred.txt
+
+        TODO: need to reorganise a bit, and add more options
+
+        :param burnin: number of steps to discard when plotting the posteriors
+        :return: none
+        """
+
+        # constants:
+        c = const.c.to('cm s-1')
+        G = const.G.to('cm3 g-1 s-2')
+
+    # -------------------------------------------------------------------------#
+
+        # plot autocorrelation times
+
+        print ("Reading in samples to calculate autocorrelation time...")
+
+        # load in sampler:
+        reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
+
+        self.plot_autocorr(reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
+        print ("...done")
+
+        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
+
+        # Read in the full chain to get the number of steps completed
+        sampler=reader.get_chain(flat=False)
+        nsteps_completed = np.shape(sampler)[0]
+
+        # plot the chains:
+
+        print ("Plotting the chains...")
+        labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
+        plt.clf()
+        fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
+
+        for i in range(self.ndim):
+            axes[i].plot(sampler[:,:,i].T, color="k", alpha=0.4)
+            axes[i].yaxis.set_major_locator(MaxNLocator(5))
+            axes[i].set_ylabel(labels[i])
+
+        axes[self.ndim-1].set_xlabel("step number")
+        plt.tight_layout(h_pad=0.0)
+        plt.savefig(self.run_id+'chain-plot.pdf')
+        plt.show()
+        print ("...done")
+
+        # moved burnin to be a parameter, so we can pass that from do_run
+
+        if burnin >= nsteps_completed*0.9:
+            print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, nsteps_completed))
+            burnin = 0
+
+        # Also read in the "flattened" chain, for the posteriors
+
+        print ("Reading in flattened samples to show posteriors...")
+        samples=reader.get_chain(flat=True, discard=burnin)
+
+        # make plot of posterior distributions of your parameters:
+        c = ChainConsumer()
+        c.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
+        print ("...done")
+
+        # and finally read in the model realisations
+        # This loop can take a LOOOOOONG time for long runs
+
+        print ("Reading in and processing blobs...")
+        blobs = reader.get_blobs(flat=True)
+        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
+
+        data = []
+        for i in range(len(blobs["model"])):
+            data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
+        print ("...done")
+
+    # -------------------------------------------------------------------------#
+        # get the acceptance fraction:
+        #accept = reader.acceptance_fraction/nsteps #this will be an array with the acceptance fraction for each walker
+        #print(f"The average acceptance fraction of the walkers is: {np.mean(accept)}")
+
+        # get the autocorrelation times:
+        # print("burn-in: {0}".format(burnin))
+        # print("thin: {0}".format(thin))
+        # print("flat chain shape: {0}".format(samples.shape))
+        # print("flat log prob shape: {0}".format(log_prob_samples.shape))
+        # print("flat log prior shape: {0}".format(log_prior_samples.shape))
+
     # -------------------------------------------------------------------------#
         # Get parameters for each model run from the blobs structure:
 
@@ -726,7 +833,7 @@ class Beans:
 
         # calculate redshift and gravity from mass and radius:
         R = np.array(radius)*1e5 #cgs
-        M = np.array(mass)*1.989e33 #cgs
+        M = np.array(mass)*const.M_sun.to('g') #cgs
         redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5)
         gravity = M*redshift*G/R**2 #cgs
 
@@ -740,8 +847,7 @@ class Beans:
         print(np.min(mass))
         print(np.min(X))
 
-        sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
-        xip = np.power(sqrt, 0.5)
+        xip = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
         xib = (0.74816*xip)/r2
         distance = 10*np.power((r1/xip), 0.5) #kpc
         cosi_2 = 1/(2*xip)
@@ -799,11 +905,6 @@ class Beans:
     # PLOTS
     # -------------------------------------------------------------------------#
 
-        # make plot of posterior distributions of your parameters:
-        c = ChainConsumer()
-        c.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
-        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
-
         # make plot of posterior distributions of the mass, radius, surface gravity, and redshift:
         # stack data for input to chainconsumer:
         mass = mass.ravel()
@@ -842,21 +943,4 @@ class Beans:
         plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
         plt.show()
 
-
-        # plot the chains:
-        ndim = 10
-
-        labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
-        plt.clf()
-        fig, axes = plt.subplots(ndim, 1, sharex=True, figsize=(8, 9))
-
-        for i in range(ndim):
-            axes[i].plot(sampler[:,:,i].T, color="k", alpha=0.4)
-            axes[i].yaxis.set_major_locator(MaxNLocator(5))
-            axes[i].set_ylabel(labels[i])
-
-        axes[ndim-1].set_xlabel("step number")
-        plt.tight_layout(h_pad=0.0)
-        plt.savefig(self.run_id+'chain-plot.pdf')
-        plt.show()
 
