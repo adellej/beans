@@ -206,7 +206,7 @@ class Beans:
                                    debug=False) # set debug to True for testing
             print("result: ", test, valid)
 
-            self.plot_model(test)
+            self.plot_model(test2)
 
     def lnlike(self, theta_in, x, y, yerr):
         """
@@ -345,17 +345,30 @@ class Beans:
         return lp + like, lp, model
 
 
-    def plot_model(self, model, mdot=True):
+    def plot_model(self, model=None, mdot=True):
         """
         Display a plot of the model results, for a burst train calculated with generate_burst_train
         Adapted from the example at https://matplotlib.org/gallery/api/two_scales.html
+
+        :param model: array of packed model prediction, OR dict giving full
+          model results
+        :param mdot: flag to show mdot rather than flux (only possible if
+          you're passing the full model)
         """
         tobs = self.bstart
         ebobs = self.fluen
 
+        if model is None:
+            test, valid, model = runmodel(self.theta, self.y, self.tref,
+                self.bstart, self.pflux, self.pfluxe, self.tobs,
+                self.numburstssim, self.numburstsobs, self.ref_ind,
+                self.gti_checking, self.train,self.st, self.et,
+                debug=False)
+
         full_model = False  # Flag to remember whether we're plotting the full model output of
                             # generate burst train or the packed output array
-        if hasattr(model, "time"):
+        # if hasattr(model, "time"):
+        if type(model) == dict:
             full_model = True
             timepred = model["time"]
             if len(timepred) == 0:
@@ -367,7 +380,7 @@ class Beans:
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
             # Don't have access to the r3 value to scale, as we did for ebpred above
-            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])#*np.array(model["r3"])
+            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])*self.theta[6]
 
         fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
@@ -378,9 +391,14 @@ class Beans:
 
         if mdot and full_model:
             ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
-            ax1.errorbar(self.tobs, self.pflux*model['r1'], self.pfluxe*model['r1'], marker='.',
+            if self.train:
+                ax1.errorbar(self.tobs, self.pflux*model['r1'], self.pfluxe*model['r1'], marker='.',
                          color=flux_color, label='mdot')
-            ax2.axvline(timepred[model["iref"]], c='k')
+                # show the time of the "reference" burst
+                ax2.axvline(timepred[model["iref"]], c='k')
+            else:
+                ax1.errorbar(self.bstart, self.pflux*model['r1'], self.pfluxe*model['r1'], fmt='.',
+                         color=flux_color, label='mdot')
         else:
             ax1.set_ylabel('Persistent flux', color=flux_color)
             if self.train:
@@ -407,7 +425,6 @@ class Beans:
             ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
 
-        # show the time of the "reference" burst
         ax2.tick_params(axis='y', labelcolor=bursts_color)
 
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
