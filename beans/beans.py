@@ -8,6 +8,7 @@ import random
 import math
 import subprocess
 from astropy.io import ascii
+import astropy.constants as const
 import pickle
 from matplotlib.ticker import MaxNLocator
 import sys
@@ -40,14 +41,18 @@ from analyse import get_param_uncert_obs, get_param_uncert
 from initialise import init
 
 # -------------------------------------------------------------------------#
-# Some example prior functions, or you can write your own for input to the code. 
+# Some example prior functions, or you can write your own for input to the code.
 
 # Define priors for theta. mr prior function is located in mrprior.py
 
 
 def lnZprior(z):
-    # This beta function for the metallicity prior is from Andy Casey and is an approximation of the metallicity of a mock galaxy
-    # at 2.5-4.5 kpc for the location of 1808. Assuming ZCNO = 0.01 is average value.
+    """
+    This beta function for the metallicity prior is from Andy Casey and is an
+    approximation of the metallicity of a mock galaxy at 2.5-4.5 kpc for the
+    location of 1808. Assuming ZCNO = 0.01 is average value.
+    """
+
     from scipy import stats
     import numpy as np
 
@@ -60,52 +65,127 @@ def lnZprior(z):
 
 
 def prior_func(theta_in):
+    """
+    This function implements a simple box prior for all the parameters 
+    excluding mass and radius, which comes instead from a separate mr_prior
+    function
+
+    :param theta_in: parameter vector
+    """
+
     import numpy as np
 
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
-    if 0.00001 < X < 0.76 and 0.00001 < Z < 0.056 and 0.000001 <= Q_b < 5.0 \
-        and 0 < f_a < 100 and 0 < f_E < 100 and 0.005 < r1 < 1.0 and 0.005 < r2 < 3.0 and 0 < r3 * 1e3 < 1000 and 1.15 < mass < 2.5 and 9 < radius < 17:  # upper bound and lower bounds of each parameter defined here. Bounds were found by considering an estimated value for each parameter then giving reasonable limits.
+    # upper bound and lower bounds of each parameter defined here. Bounds were
+    # found by considering an estimated value for each parameter then giving
+    # reasonable limits.
+    if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
+        (0.000001 <= Q_b < 5.0) and (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (0.005 < r1 < 1.0) and (0.005 < r2 < 3.0) and \
+        (0 < r3 * 1e3 < 1000) \
+        and (1.15 < mass < 2.5) and (9 < radius < 17):
         #return 0.0 + lnZprior(Z) + mr_prior(mass, radius) #use this option for 1808 prior
         return 0.0 + mr_prior(mass, radius)
     else:
         return -np.inf
 
-class Beans:
 
-    def __init__(self, ndim=10, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
+class Beans:
+    """
+    The main object class that includes the basic functionality required for
+    beans. The code will read in burst (and observation) data and attempt to
+    simulate bursts to match the observed burst properties. There are two
+    principle modes; the original function generates a "train" of individual
+    bursts, observed (for example) during a transient outburst, as for the 
+    original application to the 2002 outburst of SAX J1808.4-3658, observed
+    with RXTE/PCA. The alternative is to match to a set of non-contiguous
+    bursts ("ensemble" mode)
+    """
+
+    def __init__(self, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
                  burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
-                 numburstssim=3, numburstsobs=4, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
-                 threads = 4, test_model=True, restart=False):
+                 numburstssim=3, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
+                 threads = 4, test_model=True, restart=False, **kwargs):
+        """
+        Initialise a Beans object
+
+        :param nwalkers: number of walkers for the emcee run
+        :param nsteps: number of MCMC steps to run
+        :param run_id: string identifier for the run, used to label all the
+          result files, and where you want output to be saved
+        :param obsname: name of observation file, which includes the flux
+          history, from which the mdot is estimated to generate to generate
+          the burst train (set obsname=None for a non-contiguous, or "ensemble"
+          mode run)
+        :param burstname: name of the burst data file, listing the bursts
+        :param gtiname: name of the GTI file, only used if gti_checking is 1
+        :param theta: initial centroid values for walker model parameters, with
+          X, Z, Q_b, f_a, f_E, r1, r2, r3, mass & radius
+        :param numburstssim: number of bursts to simulate, for the "train" mode,
+          both earlier and later than the reference burst; i.e. set to half
+          the total number of bursts you want to simulate. Don't forget to
+          account for missed bursts!
+        :param bc: bolometric correction to adopt for the flux history (set
+          to 1.0 if the fluxes are already bolometric):
+        :param ref_ind: rank of "index" burst, against which the other burst
+          times are relative to. For the "train" mode, should be around the
+          middle of the predicted burst train. This burst will not be
+          simulated but will be used as a reference to predict the other bursts.
+        :param gti_checking: flag to turn on GTI checking (1 for on, 0 for off;
+          redundant)
+        :param prior: prior function to use
+        :param threads: number of threads for emcee to use (e.g. number of
+          cores your computer has)
+        :param test_model: flag to test the model during the setup process
+        :param restart: set to True to continue a previously interrupted run
+        :result: Beans object including all the required data
+        """
 
         from initialise import init
         from run_model import runmodel
+
+        # Some housekeeping
+
+        if 'ndim' in kwargs.keys():
+            print ('** WARNING ** parameter ndim is redundant (ignored), setting from len of param array')
+        if 'numburstsobs' in kwargs.keys():
+            print ('** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
+
         # Set up initial conditions:
 
-        self.ndim = ndim
-        self.nwalkers = nwalkers # nwalkers and nsteps are the number of walkers and number of steps for emcee to do
+        # number of dimensions for the parameter array
+        # self.ndim = ndim
+        self.ndim = len(theta)
+        self.nwalkers = nwalkers
         self.nsteps = nsteps
-        self.run_id = run_id # Where you want output to be saved and under what name
-        self.theta = theta # Set starting value for each theta parameter, Recall odering, theta: X, Z, Q_b, f_a, f_E, r1, r2, r3
-        self.threads = threads # Number of threads for emcee to use (e.g. number of cores your computer has)
-        self.numburstssim = numburstssim # this needs to be an integer value of half the number of bursts you want to simulate. I.e. simulate this many from the reference burst in either direction. Don't forget to account for missed bursts!
-        self.numburstsobs = numburstsobs # number of observed bursts in your dataset
-        self.ref_ind = ref_ind # Define index of reference burst (should be middle of predicted burst train). This burst will not be simulated but will be used as a reference to predict the other bursts.
-        self.gti_checking = gti_checking #Option to turn on gti time checking (1 for on, 0 for off):
-        self.obsname = obsname #set location of your observation data files
-        self.burstname = burstname #set location of your burst data files
-        self.gtiname = gtiname #set location of your gti data files
-        self.bc = bc #bolometric correction to apply to your persistent flux (1.0 if they are already bolometric fluxes):
+        self.run_id = run_id
+        self.theta = theta
+        self.threads = threads
+        self.numburstssim = numburstssim
+        # number of bursts observed (redundant; set below after reading the data)
+        # self.numburstsobs = numburstsobs
+        self.ref_ind = ref_ind
+        self.gti_checking = gti_checking
+        self.obsname = obsname
+        self.burstname = burstname
+        self.gtiname = gtiname
+        self.bc = bc
         self.lnprior = prior
-        self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
+        self.restart = restart
+
+	# determines whether will run as a train of bursts or non-contiguous
+	# bursts ("ensemble" mode); previously numerical, default is 1 (True),
+	# which means a burst train will be generated; set obsname=None for
+	# non-contiguous (ensemble mode) run
+
         self.train = (obsname is not None)
-            # determines whether will run as a train of bursts or
-            # non-contiguous bursts ("ensemble" mode); previously
-            # numerical, default is 1 (True), which means a burst train
-            # will be generated; set obsname=None for non-contiguous
-            # (ensemble mode)
-        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart)
+
+        # Read in all the measurements and set up all the parameters
+
+        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ref_ind, gti_checking, obsname, burstname, gtiname, bc)
+        self.numburstsobs = len(self.fluen)
         print(self.st, self.et)
 
 
@@ -120,7 +200,7 @@ class Beans:
             print("Testing the model works..")
 
 
-            test, valid = runmodel(self.theta, self.y, self.tref, self.bstart,
+            test, valid, test2 = runmodel(self.theta, self.y, self.tref, self.bstart,
                                    self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
                                    self.gti_checking, self.train,self.st, self.et,
                                    debug=False) # set debug to True for testing
@@ -129,8 +209,27 @@ class Beans:
             self.plot_model(test)
 
     def lnlike(self, theta_in, x, y, yerr):
+        """
+        Calculate the "model" likelihood for the current walker position
+        Calls runmodel which actually runs the model, either generating a 
+        burst train, or a set of runs for "ensemble" mode. Then extracts the
+        relevant model outputs and calculates the likelihood.
+        Includes an *additional* call to generate_burst_train/burstensemble
+        to get the model, so as to be able to return it to the calling function;
+        this step is totally redundant
+
+        :param theta_in: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1,
+          r2, r3, mass & radius
+        :param x: the "independent" variable, passed to lnlike
+        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+        :param yerr: erorr estimates on y
+        :return: likelihood, model result array
+        """
 
         # define y = "data" parameters
+        # I think these "globals" are not used; the only other reference I 
+        # can see is in run_model, which is commented out. So I think
+        # TODO these siz for loops can be deleted - dkg
 
         for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
             globals()['t%s' % i] = self.y[x]
@@ -158,12 +257,15 @@ class Beans:
 
         s_t = 10.0 / 1440.0
 
-        # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
-        model, valid = runmodel(
+	      # call model (function runmodel, in run_model.py) to generate the burst
+	      # train, or the set of bursts (for "ensemble" mode. In earlier versions
+	      # the corresponding IDL function was defined as
+        # modeldata(base, z, x, r1, r2 ,r3)
+
+        model, valid, model2 = runmodel(
             theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
              self.st, self.et
         )
-
         if not valid:
             return -np.inf, model
 
@@ -173,6 +275,8 @@ class Beans:
         # self.train == True
 
         ato = int(self.train) # array "train" offset
+        # special to trap "unhashable type" error
+        # print (model, ato, len(self.bstart), len(self.fluen))
         model[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato] *= r3
         model[len(self.fluen)+len(self.bstart)-ato:] *= r2
 
@@ -203,42 +307,38 @@ class Beans:
         # Test if the result string is defined here. It is, so we return the selected elements of result
         # instead of the downselection in model
 
-        base = Q_b
-        z = Z
-        x = X
-        r1 = r1
-        r2 = r2
-        r3 = r3
-        mass = mass
-        radius = radius
-
-        if self.train:
-            model2 = generate_burst_train(
-                base, z, x, r1,  r2,  r3, mass, radius, self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
-            )
-        else:
-            model2 = burstensemble(base, x, z, r1, r2, r3, mass, radius, self.bstart, self.pflux,self.numburstsobs)
-        #model2 =  np.string_(model2, dtype='S1000')
         model2 = str(model2).encode('ASCII')
+
 
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
 
 
-    # -------------------------------------------------------------------------#
-    # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
-
-    # define lnprob, which is the full log-probability function
     def lnprob(self, theta_in, x, y, yerr):
-        import numpy as np
+        """
+        The full log-probability function incorporating the priors (via 
+        lnprior), and and model likelihood (via lnlike), that is passed to
+        runemcee when creating the sampler (in the do_run method).
 
+        :param theta_in:
+        :param x: the "independent" variable, passed to lnlike
+        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+        :param yerr: erorr estimates on y
+        :return: total (prior+model) likelihood, prior likelihood, model array
+          (from lnlike)
+        """
+   
         lp = self.lnprior(theta_in)
+        # Check if the parameters are consistent with the prior, and skip
+        # the model run it if not
+        if (not np.isfinite(lp)):
+            return -np.inf, -np.inf, None
 
         # Now also returns the model, to accumulate along with the likelihoods
 
         like, model = self.lnlike(theta_in, x, y, yerr)
 
-        if (not np.isfinite(lp)) or (not np.isfinite(like)):
+        if (not np.isfinite(like)):
             return -np.inf, -np.inf, model
 
         # we return the logprobability as well as the theta parameters at this point so we can extract results later
@@ -356,7 +456,7 @@ class Beans:
                     # Run for just one burst to get the initial interval
                     # Set ref_ind to be zero, will subsequently distribute the start burst times
                     # between up to the simulated interval
-                    test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
+                    test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
                                            self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
                                            0, self.train, debug=False)
                     print("result: ", test, valid)
@@ -390,10 +490,9 @@ class Beans:
                             # Set nburstssim to 100 below, just need to make sure it's sufficient to cover
                             # the whole outburst. Replace ref_ind with trial, as the starting burst time
                             # (ref_ind is meaningless if there's no bursts)
-                            test, valid = runmodel(theta_1, self.y, 0.0, self.bstart,
+                            test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
                                                    self.pflux, self.pfluxe, self.tobs, 100,100, trial,
                                                    1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
-
                             # for debugging
                             # self.plot_model(test)
                             # breakpoint()
@@ -410,9 +509,20 @@ class Beans:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self):
-        ## Running the chain
-        # we use multiprocessing to speed things up. Emcee parameters are defined in runemcee module.
+    def do_run(self, analyse=True, burnin=2000):
+        """
+        This routine runs the chain for as many steps as is specified in
+        the init call.  Emcee parameters are defined in runemcee module.
+        Have previously used multiprocessing to speed things up, but that's
+        not currently active
+
+        :param analyse: set to True to call do_analysis automatically once the
+          chains finish
+        :param burnin: number of steps to ignore at the start of the run, 
+          passed to do_analysis
+
+        :return:
+        """
 
         print("# -------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
@@ -467,60 +577,28 @@ class Beans:
         plt.show()
 
         print("# -------------------------------------------------------------------------#")
-        print("Beginning sampling..")
+        print("Beginning sampling...")
 
         sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
-        print(f"Sampling complete!")
-        self.do_analysis()
+        print(f"...sampling complete!")
+
+        if analyse:
+            self.do_analysis(burnin=burnin)
         #if self.restart == False:
             #sampler.reset()
 
 # -------------------------------------------------------------------------#
-# Analyse and display the results:
 
-    def do_analysis(self):
-       # run_id = "chains_1808/test1"
+    def plot_autocorr(self, reader=None, savefile=None, figsize=(8,5) ):
+        """
+        This method shows the estimated autocorrelation time for the run
+        Extracted from do_analysis
 
-        # constants:
-        c = 2.9979e10
-        G = 6.67428e-8
+        :param savefile: name of file to save as (skip if None)
+        :param figsize: size for the figure, (tuple, in inches)
 
-    # -------------------------------------------------------------------------#
-        # load in sampler:
-        reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
-        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
-        #tau = 20
-        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        #burnin = int(2 * np.max(tau))
-        burnin = 2000
-        thin = int(0.5 * np.min(tau))
-        samples=reader.get_chain(flat=True, discard=burnin)
-        sampler=reader.get_chain(flat=False)
-        blobs = reader.get_blobs(flat=True)
-        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
-        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
-        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
-
-        data = []
-        for i in range(len(blobs["model"])):
-            data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
-
-    # -------------------------------------------------------------------------#
-        # get the acceptance fraction:
-        #accept = reader.acceptance_fraction/nsteps #this will be an array with the acceptance fraction for each walker
-        #print(f"The average acceptance fraction of the walkers is: {np.mean(accept)}")
-
-        # get the autocorrelation times:
-        # print("burn-in: {0}".format(burnin))
-        # print("thin: {0}".format(thin))
-        # print("flat chain shape: {0}".format(samples.shape))
-        # print("flat log prob shape: {0}".format(log_prob_samples.shape))
-        # print("flat log prior shape: {0}".format(log_prior_samples.shape))
-
-        # alternate method of checking if the chains are converged:
-        # This code is from https://dfm.io/posts/autocorr/
-
-        # get autocorrelation time:
+        :return:
+        """
 
         def next_pow_two(n):
             i = 1
@@ -546,15 +624,21 @@ class Beans:
             return acf
 
 
-        # Automated windowing procedure following Sokal (1989)
         def auto_window(taus, c):
+            """
+            Automated windowing procedure following Sokal (1989)
+            """
+
             m = np.arange(len(taus)) < c * taus
             if np.any(m):
                 return np.argmin(m)
             return len(taus) - 1
 
-        # Following the suggestion from Goodman & Weare (2010)
         def autocorr_gw2010(y, c=5.0):
+            """
+            Following the suggestion from Goodman & Weare (2010)
+            """
+
             f = autocorr_func_1d(np.mean(y, axis=0))
             taus = 2.0*np.cumsum(f)-1.0
             window = auto_window(taus, c)
@@ -569,19 +653,37 @@ class Beans:
             window = auto_window(taus, c)
             return taus[window]
 
-        # Compute the estimators for a few different chain lengths
+        if reader is None:
+            # load in sampler:
+            reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
 
-        #loop through 10 parameters:
-        f = plt.figure(figsize=(8,5))
+        #tau = 20
+        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
+        thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
+        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
+        print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau), 
+          min(tau), max(tau)))
+
+        # alternate method of checking if the chains are converged:
+        # This code is from https://dfm.io/posts/autocorr/
+
+        # get autocorrelation time:
+
+        sampler=reader.get_chain(flat=False)
+
+        # loop through 10 parameters and plot the evolution of the
+        # autocorrelation time estimate for each
+
+        f = plt.figure(figsize=figsize)
 
         param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$", "$r{\mathrm{1}}$",\
                 "$r{\mathrm{2}}$", "$r{\mathrm{3}}$", "$M$", "$R$"]
         for j in range(10):
             chain = sampler[:, :, j].T
-            print(np.shape(sampler))
+            # print(np.shape(sampler))
 
             N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), 10)).astype(int)
-            print(N)
+            # print(N)
             gw2010 = np.empty(len(N))
             new = np.empty(len(N))
             for i, n in enumerate(N):
@@ -604,11 +706,114 @@ class Beans:
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
-        plt.savefig('{}_autocorrelationtimes.pdf'.format(self.run_id))
+        if savefile is not None:
+            print ('plot_autocorr: saving figure as {}'.format(savefile))
+            plt.savefig(savefile)
         plt.show()
 
 
-        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
+    def do_analysis(self, burnin=2000):
+        """
+        This method is for running standard analysis and displaying the
+        results.
+        Nothing is returned, but by default the method will create several
+        files, labeled by the run_id:
+          {}_autocorrelationtimes.pdf (via plot_autocorr)
+          {}_predictedburstscomparison.pdf
+          {}chain-plot.pdf
+          {}_massradius.pdf
+          {}_posteriors.pdf
+          {}_parameterconstraints_pred.txt
+
+        TODO: need to reorganise a bit, and add more options
+
+        :param burnin: number of steps to discard when plotting the posteriors
+        :return: none
+        """
+
+        # constants:
+        c = const.c.to('cm s-1')
+        G = const.G.to('cm3 g-1 s-2')
+
+    # -------------------------------------------------------------------------#
+
+        # plot autocorrelation times
+
+        print ("Reading in samples to calculate autocorrelation time...")
+
+        # load in sampler:
+        reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
+
+        self.plot_autocorr(reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
+        print ("...done")
+
+        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
+
+        # Read in the full chain to get the number of steps completed
+        sampler=reader.get_chain(flat=False)
+        nsteps_completed = np.shape(sampler)[0]
+
+        # plot the chains:
+
+        print ("Plotting the chains...")
+        labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
+        plt.clf()
+        fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
+
+        for i in range(self.ndim):
+            axes[i].plot(sampler[:,:,i].T, color="k", alpha=0.4)
+            axes[i].yaxis.set_major_locator(MaxNLocator(5))
+            axes[i].set_ylabel(labels[i])
+
+        axes[self.ndim-1].set_xlabel("step number")
+        plt.tight_layout(h_pad=0.0)
+        plt.savefig(self.run_id+'chain-plot.pdf')
+        plt.show()
+        print ("...done")
+
+        # moved burnin to be a parameter, so we can pass that from do_run
+
+        if burnin >= nsteps_completed*0.9:
+            print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, nsteps_completed))
+            burnin = 0
+
+        # Also read in the "flattened" chain, for the posteriors
+
+        print ("Reading in flattened samples to show posteriors...")
+        samples=reader.get_chain(flat=True, discard=burnin)
+
+        # make plot of posterior distributions of your parameters:
+        c = ChainConsumer()
+        c.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
+        print ("...done")
+
+        # and finally read in the model realisations
+        # This loop can take a LOOOOOONG time for long runs
+
+        print ("Reading in and processing blobs...")
+        blobs = reader.get_blobs(flat=True)
+        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
+        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
+        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
+
+        data = []
+        for i in range(len(blobs["model"])):
+            data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
+        print ("...done")
+
+    # -------------------------------------------------------------------------#
+        # get the acceptance fraction:
+        #accept = reader.acceptance_fraction/nsteps #this will be an array with the acceptance fraction for each walker
+        #print(f"The average acceptance fraction of the walkers is: {np.mean(accept)}")
+
+        # get the autocorrelation times:
+        # print("burn-in: {0}".format(burnin))
+        # print("thin: {0}".format(thin))
+        # print("flat chain shape: {0}".format(samples.shape))
+        # print("flat log prob shape: {0}".format(log_prob_samples.shape))
+        # print("flat log prior shape: {0}".format(log_prior_samples.shape))
+
     # -------------------------------------------------------------------------#
         # Get parameters for each model run from the blobs structure:
 
@@ -628,7 +833,7 @@ class Beans:
 
         # calculate redshift and gravity from mass and radius:
         R = np.array(radius)*1e5 #cgs
-        M = np.array(mass)*1.989e33 #cgs
+        M = np.array(mass)*const.M_sun.to('g') #cgs
         redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5)
         gravity = M*redshift*G/R**2 #cgs
 
@@ -642,8 +847,7 @@ class Beans:
         print(np.min(mass))
         print(np.min(X))
 
-        sqrt = (r1*r2*r3*1e3)/(63.23*0.74816)
-        xip = np.power(sqrt, 0.5)
+        xip = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
         xib = (0.74816*xip)/r2
         distance = 10*np.power((r1/xip), 0.5) #kpc
         cosi_2 = 1/(2*xip)
@@ -701,11 +905,6 @@ class Beans:
     # PLOTS
     # -------------------------------------------------------------------------#
 
-        # make plot of posterior distributions of your parameters:
-        c = ChainConsumer()
-        c.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
-        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
-
         # make plot of posterior distributions of the mass, radius, surface gravity, and redshift:
         # stack data for input to chainconsumer:
         mass = mass.ravel()
@@ -744,21 +943,4 @@ class Beans:
         plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
         plt.show()
 
-
-        # plot the chains:
-        ndim = 10
-
-        labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
-        plt.clf()
-        fig, axes = plt.subplots(ndim, 1, sharex=True, figsize=(8, 9))
-
-        for i in range(ndim):
-            axes[i].plot(sampler[:,:,i].T, color="k", alpha=0.4)
-            axes[i].yaxis.set_major_locator(MaxNLocator(5))
-            axes[i].set_ylabel(labels[i])
-
-        axes[ndim-1].set_xlabel("step number")
-        plt.tight_layout(h_pad=0.0)
-        plt.savefig(self.run_id+'chain-plot.pdf')
-        plt.show()
 

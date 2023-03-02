@@ -37,7 +37,20 @@ from run_emcee import runemcee
 # Begin the emcee initialisation:
 # -------------------------------------------------------------------------#
 
-def init(ndim, nwalkers, theta, run_id, threads, numburstssim, numburstsobs, ref_ind, gti_checking, obsname, burstname, gtiname,bc,restart):
+def init(ref_ind, gti_checking, obsname, burstname, gtiname, bc):
+    """
+    Function to read in and initialise the input parameters. Previously 
+    we also passed ndim, nwalkers, theta, run_id, threads, numburstssim,
+'   numburstsobs & restart, but these are not used
+
+    :param ref_ind:
+    :param gti_checking:
+    :param obsname:
+    :param burstname:
+    :param gtiname:
+    :param bc:
+    :return: 
+    """
 
     # -------------------------------------------------------------------------#
     # END OF PARAMETERS YOU NEED TO SET

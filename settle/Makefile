@@ -19,7 +19,7 @@ LD 	= g++
 
 ifeq ($(UNAME), Linux)
 	LDFLAGS := ${LDFLAGS} -Wl,-soname,${LIBRARY}
-	INSTALL_DIR=/usr/local/bin
+	INSTALL_DIR=/usr/local/lib
 else
 ifeq ($(UNAME), Darwin)
 	LDFLAGS := ${LDFLAGS} -Wl,-install_name,${LIBRARY}
@@ -44,6 +44,7 @@ cleaner: clean
 
 install: settle
 	sudo cp -arv --preserve=mode,timestamps ${LIBRARY} ${INSTALL_DIR}
+	sudo ldconfig
 
 test:	install
 	time python try.py
