@@ -42,7 +42,7 @@ class Settle(object):
             pathlib.Path(__file__).resolve().parent.parent / "settle" / "libsettle.so"
         )
 
-        self.libsettle = ct.cdll.LoadLibrary(path_to_data_file)
+        self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
 
         self.mainer = self.libsettle.mainer
 
