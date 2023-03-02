@@ -4,8 +4,7 @@ Setup for settle, the beans edition
 """
 import os
 import subprocess
-from setuptools import setup
-#from . import __version__
+from setuptools import setup, find_packages
 
 # Utility function to read the README file.
 # Used for the long_description.  It's nice, because now 1) we have a top level
@@ -17,6 +16,14 @@ def read(fname):
     """Read a file"""
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
+
+def get_version():
+    """Get the version number of pySettle"""
+    build_install_libsettle()
+    import pySettle
+    return pySettle.__version__
+
+
 # The C/C++ coded shared library had it's own makefike
 # to build. Hence we call that rather than duplicating that
 # within setuptools
@@ -24,7 +31,7 @@ def read(fname):
 
 def build_install_libsettle():
     """compile and install C/C++ library libsettle"""
-    result = subprocess.run("make install",
+    result = subprocess.run("make -C libsettle install",
                             shell=True,
                             check=True,
                             capture_output=True)
@@ -42,7 +49,9 @@ reqs = ['numpy>=1.16']
 
 setup(
     name="pySettle",
-    packages=['settle'],
+    packages=['pySettle'],
+    #packages=find_packages(exclude='test'),
+    version=get_version(),
 
     description="Computes ignition conditions for Type I X-ray bursts using a multi-zone model of the Neutron star accreting layer",
     long_description=read('README.rst'),
