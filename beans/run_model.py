@@ -66,13 +66,13 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
 
+    # by default we assume the model is valid, i.e. has sufficient bursts
+    # to match the observations, AND doesn't violate the GTI conditions 
+    # (if we are checking those)
+
+    valid = True
+
     if train:
-
-        # by default we assume the model is valid, i.e. has sufficient bursts
-        # to match the observations, AND doesn't violate the GTI conditions 
-        # (if we are checking those)
-
-        valid = True
 
         # Now call the function. From the code:
         # This routine generates a simulated burst train. The output is a
@@ -163,7 +163,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         # If we're not generating a burst train, just run the ensemble
 
         result = burstensemble(
-            base, x, z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs)
+            Q_b, X, Z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs)
 
         model = np.concatenate((result['time'], result['e_b'], result['alpha']))
 
