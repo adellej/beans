@@ -38,7 +38,7 @@ setup(
     packages=find_packages(include=['beans', 'beans.*']),
     test_suite='tests',
     url='https://github.com/adellej/beans',
-    version='0.8.0',
+    version='0.8.1',
     zip_safe=False,
     ext_modules=[Extension("settle", glob.glob("settle/*.cc"))]
 )

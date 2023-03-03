@@ -135,7 +135,7 @@ class Beans:
           simulated but will be used as a reference to predict the other bursts.
         :param prior: prior function to use
         :param threads: number of threads for emcee to use (e.g. number of
-          cores your computer has)
+          cores your computer has). Set to None to use all available
         :param test_model: flag to test the model during the setup process
         :param restart: set to True to continue a previously interrupted run
         :result: Beans object including all the required data
@@ -655,7 +655,8 @@ Initial parameters:
         print("Beginning sampling...")
         _start = time.time()
 
-        sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
+        # run the chains and save the output as a h5 file
+        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart, self.threads)
         print(f"...sampling complete!")
 
         _end = time.time()

@@ -1,4 +1,3 @@
-""" function to initiliase and run emcee. Please note this software uses the latest stable version of emcee (v2.2.1). """
 import numpy as np
 import emcee
 import sys
@@ -7,7 +6,28 @@ from multiprocessing import Pool
 import time
 import h5py
 
-def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart):
+def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threads):
+    """
+    Function to initilise and run emcee.
+    Removed the redundant parameter ndim, which can be determined from the
+    theta parameter array
+
+    :param nwalkers: number of walkers for the emcee run
+    :param nsteps: number of MCMC steps to run
+    :param theta: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1, r2, r3,
+      mass & radius
+    :param lnprob: log-probability function to use with emcee
+    :param x: the "independent" variable, passed to lnlike
+    :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+    :param yerr: erorr estimates on y
+    :param run_id: string identifier for the run, used to label all the
+      result files, and where you want output to be saved
+    :param restart: set to True to continue a previously interrupted run
+    :param threads: number of threads for emcee to use (e.g. number of
+      cores your computer has). Set to None to use all available
+    """
+
+    ndim = len(theta)
 
     # This section now defines the initial walker positions and next defines the chain and runs emcee.
 
@@ -36,7 +56,7 @@ def runemcee(nwalkers, nsteps, ndim, theta, lnprob, x, y, yerr, run_id, restart)
    
     # try the multiprocessing (again) following the simple example here:
     # https://emcee.readthedocs.io/en/stable/tutorials/parallel
-    with Pool() as pool:
+    with Pool(processes=threads) as pool:
 
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader, blobs_dtype=dtype, pool=pool )
         #moves=emcee.moves.StretchMove(a=1.5))
