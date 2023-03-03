@@ -104,9 +104,9 @@ class Beans:
     """
 
     def __init__(self, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
-                 burstname='../data/1808_bursts.txt', gtiname='../data/1808_gti.txt',
+                 burstname='../data/1808_bursts.txt', gtiname=None,
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
-                 numburstssim=3, bc=2.21, ref_ind=1, gti_checking=0, prior=prior_func,
+                 numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
                  threads = 4, test_model=True, restart=False, **kwargs):
         """
         Initialise a Beans object
@@ -120,7 +120,7 @@ class Beans:
           the burst train (set obsname=None for a non-contiguous, or "ensemble"
           mode run)
         :param burstname: name of the burst data file, listing the bursts
-        :param gtiname: name of the GTI file, only used if gti_checking is 1
+        :param gtiname: name of the GTI file, set to None to turn off checking
         :param theta: initial centroid values for walker model parameters, with
           X, Z, Q_b, f_a, f_E, r1, r2, r3, mass & radius
         :param numburstssim: number of bursts to simulate, for the "train" mode,
@@ -133,8 +133,6 @@ class Beans:
           times are relative to. For the "train" mode, should be around the
           middle of the predicted burst train. This burst will not be
           simulated but will be used as a reference to predict the other bursts.
-        :param gti_checking: flag to turn on GTI checking (1 for on, 0 for off;
-          redundant)
         :param prior: prior function to use
         :param threads: number of threads for emcee to use (e.g. number of
           cores your computer has)
@@ -152,6 +150,8 @@ class Beans:
             print ('** WARNING ** parameter ndim is redundant (ignored), setting from len of param array')
         if 'numburstsobs' in kwargs.keys():
             print ('** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
+        if 'gti_checking' in kwargs.keys():
+            print ('** WARNING ** parameter gti_checking is redundant (ignored), setting from value of gtiname param')
 
         # Set up initial conditions:
 
@@ -167,7 +167,8 @@ class Beans:
         # number of bursts observed (redundant; set below after reading the data)
         # self.numburstsobs = numburstsobs
         self.ref_ind = ref_ind
-        self.gti_checking = gti_checking
+        # self.gti_checking = gti_checking
+        self.gti_checking = gtiname is not None
         self.obsname = obsname
         self.burstname = burstname
         self.gtiname = gtiname
@@ -184,7 +185,10 @@ class Beans:
 
         # Read in all the measurements and set up all the parameters
 
-        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(ref_ind, gti_checking, obsname, burstname, gtiname, bc)
+        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, \
+            self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(
+            self.ref_ind, self.gti_checking, self.obsname, self.burstname,
+            self.gtiname, self.bc)
         self.numburstsobs = len(self.fluen)
         print(self.st, self.et)
 
@@ -206,7 +210,61 @@ class Beans:
                                    debug=False) # set debug to True for testing
             print("result: ", test, valid)
 
-            self.plot_model(test)
+            self.plot_model(test2)
+
+
+    def __str__(self):
+        """
+        Show the parameters that the code has been intialised with
+        For restart runs could include the number of steps that has
+        already been done
+        """
+
+        mode = ('ensemble', 'train')
+        restart = ('', ', resuming')
+        return """== beans dataset =============================================================
+See https://beans-7.readthedocs.io
+
+Run ID: {}
+Observation data file: {}
+  bolometric correction: {}
+GTI data file: {}
+Burst data file: {}
+  comprising {} observed bursts, ref. to #{}
+No. of bursts to simulate: {} ({} mode)
+  with {} walkers, {} steps, {} threads{}
+Initial parameters:
+{} 
+==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
+            self.numburstsobs, self.ref_ind,
+            self.train+self.numburstssim*(1+self.train), mode[self.train],
+            self.nwalkers, self.nsteps,
+            self.threads, restart[int(self.restart)], 
+            self.theta_table(self.theta, indent=2) )
+
+
+    def theta_table(self, theta, indent=0):
+        """
+        Format the run parameter vector as a table
+        Could include the errors for a neatly formatted way to present
+        results
+
+        :param theta: the model parameter tuple
+        :param indent: number of characters to indent the string from the left
+        """
+
+        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta
+
+        return """#X = {} \ hydrogen mass fraction
+#Z = {} \ CNO mass fraction
+#Q_b = {} \ base flux [MeV/nucleon]
+#M_NS = {} M_sun \ neutron star mass
+#R_NS = {} km \ neutron star radius
+#f_a, f_E = {}, {} \ systematic error terms for alpha, fluence
+#r_1, r_2, r_3 = {}, {}, {} \ scaling factors to convert predictions""".format(
+            X, Z, Q_b, mass, radius, f_a, f_E, r1, r2, r3).replace(
+            '#',' '*indent)
+
 
     def lnlike(self, theta_in, x, y, yerr):
         """
@@ -345,17 +403,30 @@ class Beans:
         return lp + like, lp, model
 
 
-    def plot_model(self, model, mdot=True):
+    def plot_model(self, model=None, mdot=True):
         """
         Display a plot of the model results, for a burst train calculated with generate_burst_train
         Adapted from the example at https://matplotlib.org/gallery/api/two_scales.html
+
+        :param model: array of packed model prediction, OR dict giving full
+          model results
+        :param mdot: flag to show mdot rather than flux (only possible if
+          you're passing the full model)
         """
         tobs = self.bstart
         ebobs = self.fluen
 
+        if model is None:
+            test, valid, model = runmodel(self.theta, self.y, self.tref,
+                self.bstart, self.pflux, self.pfluxe, self.tobs,
+                self.numburstssim, self.numburstsobs, self.ref_ind,
+                self.gti_checking, self.train,self.st, self.et,
+                debug=False)
+
         full_model = False  # Flag to remember whether we're plotting the full model output of
                             # generate burst train or the packed output array
-        if hasattr(model, "time"):
+        # if hasattr(model, "time"):
+        if type(model) == dict:
             full_model = True
             timepred = model["time"]
             if len(timepred) == 0:
@@ -367,7 +438,7 @@ class Beans:
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
             # Don't have access to the r3 value to scale, as we did for ebpred above
-            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])#*np.array(model["r3"])
+            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])*self.theta[6]
 
         fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
@@ -378,9 +449,14 @@ class Beans:
 
         if mdot and full_model:
             ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
-            ax1.errorbar(self.tobs, self.pflux*model['r1'], self.pfluxe*model['r1'], marker='.',
+            if self.train:
+                ax1.errorbar(self.tobs, self.pflux*model['r1'], self.pfluxe*model['r1'], marker='.',
                          color=flux_color, label='mdot')
-            ax2.axvline(timepred[model["iref"]], c='k')
+                # show the time of the "reference" burst
+                ax2.axvline(timepred[model["iref"]], c='k')
+            else:
+                ax1.errorbar(self.bstart, self.pflux*model['r1'], self.pfluxe*model['r1'], fmt='.',
+                         color=flux_color, label='mdot')
         else:
             ax1.set_ylabel('Persistent flux', color=flux_color)
             if self.train:
@@ -407,7 +483,6 @@ class Beans:
             ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
 
-        # show the time of the "reference" burst
         ax2.tick_params(axis='y', labelcolor=bursts_color)
 
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
