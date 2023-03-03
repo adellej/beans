@@ -61,7 +61,7 @@ def init(ref_ind, gti_checking, obsname, burstname, gtiname, bc):
     # -------------------------------------------------------------------------#
 
     # get the data:
-    if gti_checking == 1:
+    if gti_checking:
         tref, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
     else:
         tref, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
