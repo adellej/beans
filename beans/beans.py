@@ -653,9 +653,13 @@ Initial parameters:
 
         print("# -------------------------------------------------------------------------#")
         print("Beginning sampling...")
+        _start = time.time()
 
         sampler = runemcee(self.nwalkers, self.nsteps, self.ndim, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart) # this will run the chains and save the output as a h5 file
         print(f"...sampling complete!")
+
+        _end = time.time()
+        print ("Sampling took {0:.1f} seconds".format(_end-_start))
 
         if analyse:
             self.do_analysis(burnin=burnin)
