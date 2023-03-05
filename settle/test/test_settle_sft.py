@@ -1,5 +1,9 @@
-# This is Short Functional test of settle
+# This is Short Functional test of settle.
 # settle calls are done via settler.py interface module.
+#
+# Test type: integration, end-to-end, positive.
+# Runs a limited number of settle solutions and check result
+# for the last one only agains expected values.
 
 from __future__ import print_function
 from pySettle import settler as se
