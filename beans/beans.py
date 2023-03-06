@@ -584,13 +584,15 @@ Initial parameters:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self, analyse=True, burnin=2000):
+    def do_run(self, plot=False, analyse=True, burnin=2000):
         """
         This routine runs the chain for as many steps as is specified in
         the init call.  Emcee parameters are defined in runemcee module.
         Have previously used multiprocessing to speed things up, but that's
         not currently active
 
+        :param plot: set to True to do the plot of the initial guess. This
+          seems redundant since it's also plotted at the __init__ stage
         :param analyse: set to True to call do_analysis automatically once the
           chains finish
         :param burnin: number of steps to ignore at the start of the run, 
@@ -600,56 +602,51 @@ Initial parameters:
         """
 
         print("# -------------------------------------------------------------------------#")
+        print (self)
+        print("# -------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         print("Testing the prior and likelihood functions..")
         print("lnprior:", self.lnprior(self.theta))
         print("lnlike:", self.lnlike(self.theta, self.x, self.y, self.yerr))
         print("lnprob:", self.lnprob(self.theta, self.x, self.y, self.yerr))
         print("# -------------------------------------------------------------------------#")
-        print(f"The theta parameters will begin at: {self.theta}")
-        print("# -------------------------------------------------------------------------#")
-        print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
-        # make plot of observed burst comparison with predicted bursts:
-        # TODO: this section can presumably be replaced by the plot_model
-        # method, which also produces a plot at this point
-        # get the observed bursts for comparison:
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
-        base = Q_b
-        z = Z
-        x = X
-        r1 = r1
-        r2 = r2
-        r3 = r3
-        mass = mass
-        radius = radius
-        print(self.train)
-        if self.train:
-            model = generate_burst_train(
-                base,z,x,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
-            )
-        else:
-            model = burstensemble(base,x,z,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.numburstsobs)
-        timepred = model["time"]
-        ebpred = np.array(model["e_b"])*np.array(model["r3"])
-
-        # Display initial model
-        tobs = self.bstart
-        ebobs = self.fluen
-        plt.figure(figsize=(10,7))
-        plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
-        if self.train:
-            plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
-        else:
-            # No predicted time in "ensemble" mode so we just plot the
-            # fluences, predicted and observed, as a function of epoch
-            plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-        #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
-        #plt.errorbar(tobs, ebobs, fmt='.',color='black')
-        plt.xlabel("Time (days after start of outburst)")
-        plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
-        plt.title("Initial guess of parameters")
-        plt.legend(loc=2)
-        plt.show()
+        # print(f"The theta parameters will begin at: {self.theta}")
+        # print("# -------------------------------------------------------------------------#")
+        if plot:
+            print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
+            # make plot of observed burst comparison with predicted bursts:
+            # TODO: this section can presumably be replaced by the plot_model
+            # method, which also produces a plot at this point
+            # get the observed bursts for comparison:
+            X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
+            print(self.train)
+            if self.train:
+                model = generate_burst_train(
+                    Q_b,Z,X,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
+                )
+            else:
+                model = burstensemble(Q_b,X,Z,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.numburstsobs)
+            timepred = model["time"]
+            ebpred = np.array(model["e_b"])*np.array(model["r3"])
+    
+            # Display initial model
+            tobs = self.bstart
+            ebobs = self.fluen
+            plt.figure(figsize=(10,7))
+            plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
+            if self.train:
+                plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
+            else:
+                # No predicted time in "ensemble" mode so we just plot the
+                # fluences, predicted and observed, as a function of epoch
+                plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
+            #plt.errorbar(tobs, ebobs, fmt='.',color='black')
+            plt.xlabel("Time (days after start of outburst)")
+            plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
+            plt.title("Initial guess of parameters")
+            plt.legend(loc=2)
+            plt.show()
 
         print("# -------------------------------------------------------------------------#")
         print("Beginning sampling...")
