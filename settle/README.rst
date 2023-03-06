@@ -39,5 +39,4 @@ imports like
 
     from pySettle import settler as se
 
-(See beans/settle/test/try.py)
-
+(See beans/settle/test/test_settle_sft.py)
