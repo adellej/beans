@@ -28,10 +28,13 @@ Activate conda environment based on python 3.8 (or later) and requirements.txt i
     cd settle
 
     # upgrade pip and build
+    
     python3 -m pip install --upgrade pip
+    
     python3 -m pip install --upgrade build
 
     # test build & local install
+    
     python -m pip --verbose install -e .
 
 After this, in that enviroment, pySettle just works from everywhere.
