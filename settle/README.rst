@@ -49,7 +49,7 @@ then do
     
     python -m pip --verbose install -e .
 
-After this, in that enviroment, pySettle just works from every directorty, providing the conda environment isactivated.
+After this, in that enviroment, pySettle just works from every directorty, providing the conda environment is activated.
 Imports like:
 
     from pySettle import settler as se
