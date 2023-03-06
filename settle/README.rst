@@ -20,3 +20,23 @@ Credits
 
 Rotational Evolution During Type I X-Ray Bursts, Andrew Cumming, Lars Bildsten (2000) - https://arxiv.org/abs/astro-ph/0004347
 
+Package installation and usage
+------------------------------
+
+Activate conda environment based on python 3.8 (or later) and requirements.txt in the root of beans repo, then do
+
+    cd settle
+
+    # upgrade pip and build
+    python3 -m pip install --upgrade pip
+    python3 -m pip install --upgrade build
+
+    # test build & local install
+    python -m pip --verbose install -e .
+
+After this, in that enviroment, pySettle just works from everywhere.
+imports like
+
+    from pySettle import settler as se
+
+(See beans/settle/test/test_settle_sft.py)
