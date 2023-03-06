@@ -23,7 +23,7 @@ Rotational Evolution During Type I X-Ray Bursts, Andrew Cumming, Lars Bildsten (
 Package installation and usage
 ------------------------------
 
-activate conda environment based on python 3.8 and requirements.txt in the root of beans repo, then do
+Activate conda environment based on python 3.8 (or later) and requirements.txt in the root of beans repo, then do
 
     cd settle
 
