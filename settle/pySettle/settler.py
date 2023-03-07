@@ -15,18 +15,6 @@ class Settle(object):
         """
         Will just return a convenient object to call settle
 
-        Takes:
-
-        F: [default: 0.1] the flux from the bottom
-        C: [default: 0  ] 0 or 1: to do compressional heating or not
-
-        Has attributes:
-
-        F, C     : the default parameters
-                   (so that you do not specify these all the times, just for lazyness)
-        libsettle: link to the settle code library
-        mainer   : the real callable of the library (should not be used directly by user)
-
         Has methods:
 
         full: calls settle with all arguments, in case you want to change paramenters,
@@ -37,7 +25,6 @@ class Settle(object):
               Takes m, x, and z
               Returns alpha, trec, fluence
         """
-
         path_to_data_file = (
             pathlib.Path(__file__).resolve().parent.parent / "settle" / "libsettle.so"
         )
@@ -56,8 +43,26 @@ class Settle(object):
         ]
         self.mainer.returntype = ct.c_int
 
+        self.init_vars(F, C)
+
+
+    def init_vars(self, F=0.1, C=0):
+        """
+        Takes:
+
+        F: [default: 0.1] the flux from the bottom
+        C: [default: 0  ] 0 or 1: to do compressional heating or not
+
+        Has attributes:
+
+        F, C     : the default parameters
+                   (so that you do not specify these all the times, just for lazyness)
+        libsettle: link to the settle code library
+        mainer   : the real callable of the library (should not be used directly by user)
+        """
         self.F = ct.c_double(F)
         self.C = ct.c_int(C)
+
 
     def run(self, M, X, Z, R, Ma):
 
