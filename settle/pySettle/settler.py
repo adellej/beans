@@ -45,7 +45,6 @@ class Settle(object):
 
         self.init_vars(F, C)
 
-
     def init_vars(self, F=0.1, C=0):
         """
         Takes:
@@ -63,9 +62,7 @@ class Settle(object):
         self.F = ct.c_double(F)
         self.C = ct.c_int(C)
 
-
     def run(self, M, X, Z, R, Ma):
-
         """
         Runs settle, you CANNOT specify F and C,
         because it uses the defaults you specified at creation.
