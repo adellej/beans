@@ -5,7 +5,8 @@ Setup for settle, the beans edition
 import os
 import subprocess
 from setuptools import setup
-# , find_packages, Extension
+# , find_packages
+# , Extension
 
 # Utility function to read the README file.
 # Used for the long_description.  It's nice, because now 1) we have a top level
@@ -51,6 +52,8 @@ reqs = ['numpy>=1.16']
 setup(
     name="pySettle",
     packages=['pySettle'],
+    # the following does not work - will not exclude test procedures
+    # used MANIFEST.in instead.
     # packages=find_packages(exclude='test'),
     version=get_version(),
 
@@ -65,7 +68,10 @@ setup(
     # include_package_data=True,
     keywords='settle',
 
-    python_requires='!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    install_requires=['numpy>=1.16'],
+
+    python_requires='>=3.6',
+    # python_requires='!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
     classifiers=[
         # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable"
         # as the current state of your package
