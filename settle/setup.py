@@ -57,7 +57,7 @@ setup(
     long_description=read('README.rst'),
     license='MIT',
     author="Andrew Cumming",
-    author_email='Andrew.Cumming@gmail.com',
+    author_email='andrew.cumming@mcgill.ca',
     # include_package_data=True,
     keywords='settle',
     # installresult=build_install_libsettle(),
