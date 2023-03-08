@@ -37,4 +37,5 @@ jobs:
         python -m pip --verbose install -e .
     - name: Test settle with pytest
       run: |
+        cd settle
         pytest
