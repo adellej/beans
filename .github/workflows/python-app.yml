@@ -33,6 +33,7 @@ jobs:
         python -m pip install astropy        
     - name: build and install settle
       run: |
+        cd settle
         python -m pip --verbose install -e .
     - name: Test settle with pytest
       run: |
