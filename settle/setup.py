@@ -4,7 +4,8 @@ Setup for settle, the beans edition
 """
 import os
 import subprocess
-from setuptools import setup, find_packages
+from setuptools import setup
+# , find_packages, Extension
 
 # Utility function to read the README file.
 # Used for the long_description.  It's nice, because now 1) we have a top level
@@ -44,23 +45,25 @@ def build_install_libsettle():
     return result.returncode
 
 
-# What is the reasonable version of numpy to start with?
+# What is the reasonable minimal version of numpy to start with?
 reqs = ['numpy>=1.16']
 
 setup(
     name="pySettle",
     packages=['pySettle'],
-    #packages=find_packages(exclude='test'),
+    # packages=find_packages(exclude='test'),
     version=get_version(),
 
-    description="Computes ignition conditions for Type I X-ray bursts using a multi-zone model of the Neutron star accreting layer",
+    description="Computes ignition conditions for Type I X-ray bursts\
+                 using a multi-zone model of the Neutron star accreting layer",
     long_description=read('README.rst'),
     license='MIT',
+    # the author of the original settle packege
+    # https://github.com/andrewcumming/settle
     author="Andrew Cumming",
     author_email='andrew.cumming@mcgill.ca',
     # include_package_data=True,
     keywords='settle',
-    # installresult=build_install_libsettle(),
 
     python_requires='!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
     classifiers=[
