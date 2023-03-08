@@ -30,6 +30,7 @@ jobs:
         python -m pip install pytest
         cd settle
         if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+        python -m pip install astropy        
     - name: build and install settle
       run: |
         python -m pip --verbose install -e .
