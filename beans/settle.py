@@ -1,7 +1,7 @@
 """ Runs settle based on the input parameters and extracts the recurrence
 time, fluence and alphas """
 
-import settler as se
+from pySettle import settler as se
 import numpy as np
 
 
