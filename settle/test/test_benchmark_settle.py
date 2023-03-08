@@ -51,8 +51,6 @@ def settle_multiprocessing_wrapper(ft_list_item):
                          ft_list_item['R_NS'])
 
 
-# declare settle - loads the library and initilaise interface
-settl = settler.Settle()
 # just print newline chatacter
 print(" ")
 
@@ -84,7 +82,8 @@ M_NS, R_NS, Q_b = 1.4, 10., 0.1
 
 tdel, E_b, alpha = [], [], []
 
-num_runs = 8
+num_runs = 5
+print("num_runs = ", num_runs)
 
 print("======== serial run ==========")
 
@@ -109,10 +108,10 @@ for j in range(num_runs):
         # an extra factor of (1+X) in the MRT values that we need to divide by
         ts1_start = time.process_time()
         # res = settl.full(Q_b, ft[i]['Z'], ft[i]['X'], ft[i]['mdot']/(1+ft[i]['X']), 1, R_NS, M_NS)
-        res = settle.settle_fast(settl, Q_b, ft[i]['Z'],
-                                 ft[i]['X'],
-                                 ft[i]['mdot']/(1+ft[i]['X']),
-                                 1.0, M_NS, R_NS)
+        res = settle.settle(Q_b, ft[i]['Z'],
+                            ft[i]['X'],
+                            ft[i]['mdot']/(1+ft[i]['X']),
+                            1.0, M_NS, R_NS)
         ts1_end = time.process_time()
         ts1_sum += (ts1_end-ts1_start)
         tdel.append(res['tdel'][0])
@@ -141,6 +140,11 @@ ts.write('se.ecsv', format='ascii.ecsv', overwrite=True)
 
 print("======== end of serial run ==========")
 
+# ------ clear lists ----------
+
+tdel.clear()
+E_b.clear()
+alpha.clear()
 
 print("======== parallel run ==========")
 
@@ -155,12 +159,6 @@ print("Chunk size: ", chunksize)
 t_start = time.process_time()
 
 t2_sum = 0.0
-
-# ------ clear lists ----------
-
-tdel.clear()
-E_b.clear()
-alpha.clear()
 
 # ----- parallel settle run loop ------
 

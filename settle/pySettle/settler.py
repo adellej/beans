@@ -31,8 +31,6 @@ class Settle(object):
 
         self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
 
-        print("o", end="")
-
         self.mainer = self.libsettle.mainer
 
         self.mainer.argtypes = [
