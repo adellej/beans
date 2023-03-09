@@ -174,13 +174,7 @@ class Beans:
         self.gtiname = gtiname
         self.bc = bc
         self.lnprior = prior
-        self.restart = restart
-
-	# determines whether will run as a train of bursts or non-contiguous
-	# bursts ("ensemble" mode); previously numerical, default is 1 (True),
-	# which means a burst train will be generated; set obsname=None for
-	# non-contiguous (ensemble mode) run
-
+        self.restart = restart #if your run crashed and you would like to restart from a previous run, with run_id above, set this to True
         self.train = (obsname is not None)
 
         # Read in all the measurements and set up all the parameters
@@ -190,6 +184,7 @@ class Beans:
             self.ref_ind, self.gti_checking, self.obsname, self.burstname,
             self.gtiname, self.bc)
         self.numburstsobs = len(self.fluen)
+        self.scaling = scaling
         print(self.st, self.et)
 
 
@@ -204,10 +199,10 @@ class Beans:
             print("Testing the model works..")
 
 
-            test, valid, test2 = runmodel(self.theta, self.y, self.tref, self.bstart,
+            test, valid, result = runmodel(self.theta, self.y, self.tref, self.bstart,
                                    self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
                                    self.gti_checking, self.train,self.st, self.et,
-                                   debug=False) # set debug to True for testing
+                                   debug=False,scaling=self.scaling) # set debug to True for testing
             print("result: ", test, valid)
 
             self.plot_model(test2)
@@ -267,27 +262,8 @@ Initial parameters:
 
 
     def lnlike(self, theta_in, x, y, yerr):
-        """
-        Calculate the "model" likelihood for the current walker position
-        Calls runmodel which actually runs the model, either generating a 
-        burst train, or a set of runs for "ensemble" mode. Then extracts the
-        relevant model outputs and calculates the likelihood.
-        Includes an *additional* call to generate_burst_train/burstensemble
-        to get the model, so as to be able to return it to the calling function;
-        this step is totally redundant
-
-        :param theta_in: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1,
-          r2, r3, mass & radius
-        :param x: the "independent" variable, passed to lnlike
-        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
-        :param yerr: erorr estimates on y
-        :return: likelihood, model result array
-        """
 
         # define y = "data" parameters
-        # I think these "globals" are not used; the only other reference I 
-        # can see is in run_model, which is commented out. So I think
-        # TODO these siz for loops can be deleted - dkg
 
         for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
             globals()['t%s' % i] = self.y[x]
@@ -315,15 +291,12 @@ Initial parameters:
 
         s_t = 10.0 / 1440.0
 
-	      # call model (function runmodel, in run_model.py) to generate the burst
-	      # train, or the set of bursts (for "ensemble" mode. In earlier versions
-	      # the corresponding IDL function was defined as
-        # modeldata(base, z, x, r1, r2 ,r3)
-
+        # call model from IDL code defined as modeldata(base, z, x, r1, r2 ,r3)
         model, valid, model2 = runmodel(
             theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
-             self.st, self.et
+             self.st, self.et,scaling=self.scaling
         )
+
         if not valid:
             return -np.inf, model
 
@@ -367,25 +340,17 @@ Initial parameters:
 
         model2 = str(model2).encode('ASCII')
 
-
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
 
 
-    def lnprob(self, theta_in, x, y, yerr):
-        """
-        The full log-probability function incorporating the priors (via 
-        lnprior), and and model likelihood (via lnlike), that is passed to
-        runemcee when creating the sampler (in the do_run method).
+    # -------------------------------------------------------------------------#
+    # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
 
-        :param theta_in:
-        :param x: the "independent" variable, passed to lnlike
-        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
-        :param yerr: erorr estimates on y
-        :return: total (prior+model) likelihood, prior likelihood, model array
-          (from lnlike)
-        """
-   
+    # define lnprob, which is the full log-probability function
+    def lnprob(self, theta_in, x, y, yerr):
+        import numpy as np
+
         lp = self.lnprior(theta_in)
         # Check if the parameters are consistent with the prior, and skip
         # the model run it if not
@@ -531,9 +496,9 @@ Initial parameters:
                     # Run for just one burst to get the initial interval
                     # Set ref_ind to be zero, will subsequently distribute the start burst times
                     # between up to the simulated interval
-                    test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
+                    test, valid, result = runmodel(theta_1, self.y, 0.0, self.bstart,
                                            self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
-                                           0, self.train, debug=False)
+                                           0, self.train,self.scaling, debug=False,scaling=self.scaling)
                     print("result: ", test, valid)
                     # self.plot_model(test)
 
@@ -565,9 +530,10 @@ Initial parameters:
                             # Set nburstssim to 100 below, just need to make sure it's sufficient to cover
                             # the whole outburst. Replace ref_ind with trial, as the starting burst time
                             # (ref_ind is meaningless if there's no bursts)
-                            test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
+                            test, valid, result = runmodel(theta_1, self.y, 0.0, self.bstart,
                                                    self.pflux, self.pfluxe, self.tobs, 100,100, trial,
-                                                   1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
+                                                   1,self.train, gti_start=self.st, gti_end=self.et, debug=False,scaling=self.scaling)
+
                             # for debugging
                             # self.plot_model(test)
                             # breakpoint()
@@ -1009,8 +975,8 @@ Initial parameters:
             plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup[1:], timepred_errlow[1:]], fmt='.', color='darkgrey')
             plt.errorbar(tobs, ebobs, fmt='.', color='black')
         else:
-            plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-            plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
+            plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            plt.errorbar(tobs, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
             plt.errorbar(tobs, ebobs, fmt='.', color='black')
 
         plt.xlabel("Time (days after start of outburst)")
