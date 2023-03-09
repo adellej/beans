@@ -2,6 +2,6 @@ include libsettle/*.c
 include libsettle/*.cc
 include libsettle/*.h
 include libsettle/Makefile
-
+exclude test/*
 
 
