@@ -7,19 +7,29 @@ from setuptools import setup, find_packages, Extension
 import glob
 
 
+def get_version():
+    """Get the version number of pySettle"""
+    import beansp
+    return beansp.__version__
+
+
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ "numpy","matplotlib"] # add all libraries 
+
+# add all libraries 
+requirements = ["numpy", "matplotlib"]
 
 
 setup(
     author="Adelle Goodwin",
     author_email='adelle.goodwin@monash.edu',
-    python_requires='!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    python_requires='>=3.5.0',
+    version=get_version(),
+    version='0.8.1',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -38,7 +48,5 @@ setup(
     packages=find_packages(include=['beans', 'beans.*']),
     test_suite='tests',
     url='https://github.com/adellej/beans',
-    version='0.8.1',
     zip_safe=False,
-    ext_modules=[Extension("settle", glob.glob("settle/*.cc"))]
 )
