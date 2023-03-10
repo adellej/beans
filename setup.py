@@ -19,17 +19,22 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-
-# add all libraries 
-requirements = ["numpy", "matplotlib"]
-
+# add all libraries
+requirements = ["numpy>=1.16",
+                "matplotlib",
+                "emcee>=3.0",
+                "corner",
+                "astropy",
+                "scipy",
+                "tables",
+                "chainconsumer",
+                "h5py>=2.10.0"]
 
 setup(
     author="Adelle Goodwin",
     author_email='adelle.goodwin@monash.edu',
-    python_requires='>=3.5.0',
+    python_requires='>=3.6.0',
     version=get_version(),
-    version='0.8.1',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -39,13 +44,13 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     description="Bayesian parameter Estimation of Accreting Neutron Stars",
-    install_requires=requirements, #just list the requirements here
+    install_requires=requirements,
     license="MIT license",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='beans',
-    name='beans',
-    packages=find_packages(include=['beans', 'beans.*']),
+    name='beansp',
+    packages=find_packages(include=['beansp']),
     test_suite='tests',
     url='https://github.com/adellej/beans',
     zip_safe=False,
