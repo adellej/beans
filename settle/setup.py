@@ -83,4 +83,5 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
     ],
+    # ext_modules=[Extension("settle", glob.glob("settle/*.*c"))]
 )
