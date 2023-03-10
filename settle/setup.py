@@ -68,7 +68,7 @@ setup(
     # include_package_data=True,
     keywords='settle',
 
-    install_requires=['numpy>=1.16'],
+    install_requires=reqs,
 
     python_requires='>=3.6',
 
