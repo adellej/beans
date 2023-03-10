@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 from scipy import stats
 
 # read in file
-path_to_data_file = pathlib.Path(__file__).parent / "mr_prior_fit.txt"
+path_to_data_file = pathlib.Path(__file__).parent / "data" / "mr_prior_fit.txt"
 data = np.loadtxt(path_to_data_file)
 mu = data[:, 0]
 sigma = data[:, 1]
