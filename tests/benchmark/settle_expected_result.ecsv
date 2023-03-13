@@ -1,3 +1,11 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: run, datatype: int64, description: '[1/63] Run ID'}
+# - {name: col1, datatype: float64}
+# - {name: col2, datatype: float64}
+# - {name: col3, datatype: float64}
+# schema: astropy-2.0
 run col1 col2 col3
 1 0.9750249492495953 2.76332981297192 125.364004067687
 2 1.1834082259963892 3.5327331387729717 101.17854126804075
