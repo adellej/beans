@@ -3,8 +3,9 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages, Extension
-import glob
+from setuptools import setup, find_packages
+# Extension
+# import glob
 
 
 def get_version():
