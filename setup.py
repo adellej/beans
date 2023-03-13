@@ -8,7 +8,7 @@ import glob
 
 
 def get_version():
-    """Get the version number of pySettle"""
+    """Get the version number of BEANSp"""
     import beansp
     return beansp.__version__
 
