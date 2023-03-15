@@ -13,18 +13,20 @@ CFLAGS		:= -g -Wall -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unus
 CPPFLAGS 	:= $(CFLAGS)
 LDFLAGS		:= -Wall -Ofast -shared -fPIC
 
-CC 	= gcc
-CPPC 	= g++
-LD 	= g++
-
 ifeq ($(UNAME), Linux)
 	LDFLAGS := ${LDFLAGS} -Wl,-soname,${LIBRARY}
+	CC 	= gcc
+	CPPC 	= g++
+	LD 	= g++
 	INSTALL_DIR=/usr/local/lib
 else
 ifeq ($(UNAME), Darwin)
 	LDFLAGS := ${LDFLAGS} -Wl,-install_name,${LIBRARY}
 # add suitable install dir for OSX here
-	INSTALL_DIR=.
+	CC 	= clang
+	CPPC 	= clang++
+	LD 	= clang++
+	INSTALL_DIR=/usr/local/lib
 else
 	@echo "ERROR: unsupported platform, this ${LIBRARY} library can be build only on Linux or Mac!"
 	exit 1
@@ -43,11 +45,15 @@ cleaner: clean
 	rm -fv *.so *.pyc
 
 install: settle
-	sudo cp -arv --preserve=mode,timestamps ${LIBRARY} ${INSTALL_DIR}
-	sudo ldconfig
-
-test:	install
-	time python try.py
+	 sudo cp -av ${LIBRARY} ${INSTALL_DIR}
+ifeq ($(UNAME), Linux)
+	 sudo chown root:root ${INSTALL_DIR}/${LIBRARY}
+	 ldconfig
+else
+ifeq ($(UNAME), Darwin)
+	 sudo chown root:wheel ${INSTALL_DIR}/${LIBRARY}
+endif
+endif
 
 .cc.o: 
 	@echo Compiling ...
