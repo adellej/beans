@@ -47,11 +47,11 @@ cleaner: clean
 install: settle
 	 sudo cp -av ${LIBRARY} ${INSTALL_DIR}
 ifeq ($(UNAME), Linux)
-	 sudo chown root:root ${INSTALL_DIR}/${LIBRARY}
-	 ldconfig
+	sudo chown root:root ${INSTALL_DIR}/${LIBRARY}
+	sudo ldconfig
 else
 ifeq ($(UNAME), Darwin)
-	 sudo chown root:wheel ${INSTALL_DIR}/${LIBRARY}
+	sudo chown root:wheel ${INSTALL_DIR}/${LIBRARY}
 endif
 endif
 
