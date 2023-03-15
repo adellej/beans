@@ -33,12 +33,20 @@ class Settle(object):
 
         self.mainer = self.libsettle.mainer
 
+        # mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
+        #        double* trec, double* alpha, double* fluen,
+        #        double* radius, double* mass)
+
         self.mainer.argtypes = [
             ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_double),
+            ct.POINTER(ct.c_double),
+            ct.POINTER(ct.c_double),
+            ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_double),
         ]
         self.mainer.returntype = ct.c_int
