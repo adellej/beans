@@ -22,6 +22,7 @@ from chainconsumer import ChainConsumer
 from multiprocessing import Pool
 import os
 import time
+from configparser import ConfigParser
 
 import pkg_resources  # part of setuptools
 try:
@@ -112,7 +113,7 @@ class Beans:
     bursts ("ensemble" mode)
     """
 
-    def __init__(self, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
+    def __init__(self, config_file=None, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
                  burstname='../data/1808_bursts.txt', gtiname=None,
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
@@ -120,6 +121,8 @@ class Beans:
         """
         Initialise a Beans object
 
+        :param config_file: file to read in configuration parameters (in
+          which case the keyword params below are ignored)
         :param nwalkers: number of walkers for the emcee run
         :param nsteps: number of MCMC steps to run
         :param run_id: string identifier for the run, used to label all the
@@ -164,26 +167,37 @@ class Beans:
 
         # Set up initial conditions:
 
+        if config_file is not None:
+            if not os.path.exists(config_file):
+                print ('** ERROR ** config file not found, applying keywords')
+            print ('Reading run params from {} ...'.format(config_file))
+            self.read_config(config_file)
+            print ("...done")
+        else:
+            # apply the keyword values or defaults
+            self.nwalkers = nwalkers
+            self.nsteps = nsteps
+            self.run_id = run_id
+            self.theta = theta
+            self.threads = threads
+            self.numburstssim = numburstssim
+            # number of bursts observed (redundant; set below after reading the data)
+            # self.numburstsobs = numburstsobs
+            self.ref_ind = ref_ind
+            self.obsname = obsname
+            self.burstname = burstname
+            self.gtiname = gtiname
+            self.bc = bc
+
+        self.lnprior = prior
+        self.restart = restart
+
         # number of dimensions for the parameter array
         # self.ndim = ndim
         self.ndim = len(theta)
-        self.nwalkers = nwalkers
-        self.nsteps = nsteps
-        self.run_id = run_id
-        self.theta = theta
-        self.threads = threads
-        self.numburstssim = numburstssim
-        # number of bursts observed (redundant; set below after reading the data)
-        # self.numburstsobs = numburstsobs
-        self.ref_ind = ref_ind
+
         # self.gti_checking = gti_checking
         self.gti_checking = gtiname is not None
-        self.obsname = obsname
-        self.burstname = burstname
-        self.gtiname = gtiname
-        self.bc = bc
-        self.lnprior = prior
-        self.restart = restart
 
 	# determines whether will run as a train of bursts or non-contiguous
 	# bursts ("ensemble" mode); previously numerical, default is 1 (True),
@@ -273,6 +287,91 @@ Initial parameters:
 #r_1, r_2, r_3 = {}, {}, {} \ scaling factors to convert predictions""".format(
             X, Z, Q_b, mass, radius, f_a, f_E, r1, r2, r3).replace(
             '#',' '*indent)
+
+
+    def save_config(self, file=None, clobber=True):
+        """
+        Routine to write all the configuration parameters to a file, as a
+        record of the run; but also to more easily replicate or continue
+        a run
+
+        :param file: name of file to save the config as. If None, the run_id
+          will be used as a prefix
+        :param clobber: set to True to overwrite any existing file
+        """
+
+        if file is None:
+            file = self.run_id+'.ini'
+
+        if (not clobber) and (os.path.isfile(file)):
+            print ('** ERROR ** config file already exists, skipping write')
+            return
+        else:
+           cfgfile = open(file, "w")
+
+           Config = ConfigParser()
+           Config.add_section("beans")
+           Config.set("beans", "run_id", self.run_id)
+           Config.set("beans", "version", __version__)
+
+           Config.add_section("data")
+           Config.set("data", "obsname", str(self.obsname))
+           Config.set("data", "burstname", self.burstname)
+           Config.set("data", "ref_ind", str(self.ref_ind))
+           Config.set("data", "gtiname", str(self.gtiname))
+           Config.set("data", "bc", str(self.bc))
+
+           Config.add_section("emcee")
+           Config.set("emcee", "theta", str(self.theta))
+           Config.set("emcee", "numburstssim", str(self.numburstssim))
+           # Config.set("emcee", "prior", str(self.lnprior))
+           Config.set("emcee", "nwalkers", str(self.nwalkers))
+           Config.set("emcee", "nsteps", str(self.nsteps))
+           Config.set("emcee", "threads", str(self.threads))
+
+           Config.write(cfgfile)
+           cfgfile.close()
+
+
+    def read_config(self, file='../data/beans.ini'):
+        """
+        Routine to read all the configuration parameters from a file, to
+        more easily replicate or continue a run
+
+        :param file: name of file to read the config from.
+        """
+
+        int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
+
+        if not os.path.isfile(file):
+            print ('** ERROR ** config file not found')
+            return
+
+        config = ConfigParser(allow_no_value=True)
+        config.read(file)
+        
+        # Loop over sections, attributes
+
+        for section in config.sections():
+            # print("Section: %s" % section)
+            for option in config.options(section):
+                # print(
+                #     "x %s:::%s:::%s"
+                #     % (option, config.get(section, option), str(type(option))))
+                if option == 'theta':
+                    setattr(self, option, 
+                        tuple(map(float, config.get(section, option)[1:-1].split(', '))))
+                elif option == 'bc':
+                    setattr(self, option, config.getfloat(section, option))
+                elif option in int_params:
+                    setattr(self, option, config.getint(section, option))
+                else:
+                    # string options (including "None")
+                    _value = config.get(section, option)
+                    if _value == 'None':
+                        setattr(self, option, None)
+                    else:
+                        setattr(self, option, _value)
 
 
     def lnlike(self, theta_in, x, y, yerr):
@@ -610,12 +709,19 @@ Initial parameters:
         :return:
         """
 
-        # Want to avoid overwriting existing log files
+        # Want to avoid overwriting existing log & config files
 
         if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
-            print ('** ERROR ** run will overwrite existing log file, set restart=True to extend')
+            print ('** ERROR ** run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
             return
-        breakpoint()
+
+        if (os.path.exists(self.run_id+'.ini')):
+            print ('** WARNING ** run will overwrite existing config file {}'.format(self.run_id+'.ini'))
+            value = input('              enter Y[RETURN] to continue: ')
+            if (value != 'y') and (value != 'Y'):
+                print ('do_run terminated')
+                return
+        self.save_config(clobber=True)
 
 
         print("# -------------------------------------------------------------------------#")
