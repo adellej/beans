@@ -22,6 +22,14 @@ from multiprocessing import Pool
 import os
 import time
 
+import pkg_resources  # part of setuptools
+try:
+    # this will fail if the package is not pip-installed
+    __version__ = pkg_resources.require("beans")[0].version
+except:
+    # in which case just record the path
+    __version__ = os.getcwd()
+
 try:
     # Required for the distance_limit method
     import concord as cd

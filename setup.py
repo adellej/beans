@@ -15,7 +15,6 @@ with open('HISTORY.rst') as history_file:
 
 requirements = [ "numpy","matplotlib"] # add all libraries 
 
-
 setup(
     author="Adelle Goodwin",
     author_email='adelle.goodwin@monash.edu',
@@ -38,7 +37,7 @@ setup(
     packages=find_packages(include=['beans', 'beans.*']),
     test_suite='tests',
     url='https://github.com/adellej/beans',
-    version='0.8.1',
+    version='0.9',
     zip_safe=False,
     ext_modules=[Extension("settle", glob.glob("settle/*.cc"))]
 )
