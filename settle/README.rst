@@ -47,7 +47,12 @@ then do
 
     # test build & local install
     
-    python -m pip --verbose install -e .
+    # The "-e" install does not seem to be reliable for re-install - keeps pulling some old build from some where.
+    # Do not use:        python -m pip --verbose install -e .
+    
+    # This is more ereliable:
+    python3 -m build --sdist
+    python3 -m pip install .
 
 After this, in that enviroment, pySettle just works from every directorty, providing the conda environment is activated.
 Imports like:
