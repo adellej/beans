@@ -3,8 +3,10 @@ UNAME := $(shell uname)
 
 LIBRARY = libsettle.so
 
-CSRCS	:= $(shell find . -maxdepth 1 -name '*.c')
-CPPSRCS := $(shell find . -maxdepth 2 -name '*.cc')
+# CSRCS  := $(shell find . -maxdepth 1 -name '*.c')
+# CPPSRCS := $(shell find . -maxdepth 1 -name '*.cc')
+CSRCS	:= nrutil.c gasdev.c root.c
+CPPSRCS := settle.cc odeint.cc eos.cc spline.cc useful.cc
 COBJS	:= $(CSRCS:.c=.o)
 CPPOBJS := $(CPPSRCS:.cc=.o)
 OBJS	:= $(COBJS) $(CPPOBJS)
