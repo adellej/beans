@@ -8,6 +8,7 @@ import random
 import math
 import subprocess
 from astropy.io import ascii
+import astropy.units as u
 import astropy.constants as const
 import pickle
 from matplotlib.ticker import MaxNLocator
@@ -609,6 +610,14 @@ Initial parameters:
         :return:
         """
 
+        # Want to avoid overwriting existing log files
+
+        if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
+            print ('** ERROR ** run will overwrite existing log file, set restart=True to extend')
+            return
+        breakpoint()
+
+
         print("# -------------------------------------------------------------------------#")
         print (self)
         print("# -------------------------------------------------------------------------#")
@@ -797,7 +806,7 @@ Initial parameters:
         plt.show()
 
 
-    def do_analysis(self, burnin=2000):
+    def do_analysis(self, burnin=2000, savefig=True):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -813,6 +822,8 @@ Initial parameters:
         TODO: need to reorganise a bit, and add more options
 
         :param burnin: number of steps to discard when plotting the posteriors
+        :param savefig: set to True to save figures to .pdf files, False to skip
+
         :return: none
         """
 
@@ -829,7 +840,11 @@ Initial parameters:
         # load in sampler:
         reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
 
-        self.plot_autocorr(reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
+        if savefig:
+            self.plot_autocorr(reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
+        else:
+            self.plot_autocorr(reader, savefile=None)
+            print ('Skipping autocorrelation plot save')
         print ("...done")
 
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
@@ -852,7 +867,12 @@ Initial parameters:
 
         axes[self.ndim-1].set_xlabel("step number")
         plt.tight_layout(h_pad=0.0)
-        plt.savefig(self.run_id+'chain-plot.pdf')
+        if savefig:
+            print ('Saving chain plot to {}chain-plot.pdf'.format(self.run_id))
+            plt.savefig(self.run_id+'chain-plot.pdf')
+        else:
+            print ('Skipping chain plot save')
+
         plt.show()
         print ("...done")
 
@@ -868,9 +888,9 @@ Initial parameters:
         samples=reader.get_chain(flat=True, discard=burnin)
 
         # make plot of posterior distributions of your parameters:
-        c = ChainConsumer()
-        c.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
-        c.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
+        cc = ChainConsumer()
+        cc.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+        cc.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
         print ("...done")
 
         # and finally read in the model realisations
@@ -917,10 +937,16 @@ Initial parameters:
         radius = np.array([data[i]['radius'] for i in range(len(data))])
 
         # calculate redshift and gravity from mass and radius:
-        R = np.array(radius)*1e5 #cgs
+        # keep the parameters that we're going to calculate limits on below, 
+        # dimensionless
+
+        R = np.array(radius)*1e5*u.cm #cgs
         M = np.array(mass)*const.M_sun.to('g') #cgs
-        redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5)
-        gravity = M*redshift*G/R**2 #cgs
+
+	# ChainConsumer's plot method can't handle Quantity objects, so we need
+	# to convert gravity and redshift back to numpy arrays here
+        redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+        gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
         # calculate distance and inclincation from scaling factors:
         r1 = np.array(r1)
@@ -994,14 +1020,14 @@ Initial parameters:
         # stack data for input to chainconsumer:
         mass = mass.ravel()
         radius = radius.ravel()
-        gravity = gravity.ravel()
+        gravity = np.array(gravity).ravel()
         redshift = redshift.ravel()
         mrgr = np.column_stack((mass, radius, gravity, redshift))
 
         # plot with chainconsumer:
-        c = ChainConsumer()
-        c.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
-        c.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
+        cc = ChainConsumer()
+        cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
+        cc.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
 
         # make plot of observed burst comparison with predicted bursts:
         # get the observed bursts for comparison:
@@ -1025,7 +1051,11 @@ Initial parameters:
         plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
         plt.legend(loc=2)
 
-        plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
+        if savefig:
+            print ('Saving burst comparison plot to {}_predictedburstscomparison.pdf'.format(self.run_id))
+            plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
+        else:
+            print ('Skipping burst comparison plot save')
         plt.show()
 
 
