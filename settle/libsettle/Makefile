@@ -47,6 +47,7 @@ cleaner: clean
 	rm -fv *.so *.pyc
 
 install: settle
+	 sudo rm -f ${INSTALL_DIR}/${LIBRARY}
 	 sudo cp -av ${LIBRARY} ${INSTALL_DIR}
 ifeq ($(UNAME), Linux)
 	sudo chown root:root ${INSTALL_DIR}/${LIBRARY}
