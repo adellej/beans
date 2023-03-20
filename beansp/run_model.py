@@ -1,6 +1,8 @@
 # -------------------------------------------------------------------------#
 import numpy as np
-from burstrain import *
+
+# load local module
+from .burstrain import *
 
 def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, ref_ind, gti_checking,train,
              gti_start=None, gti_end=None, debug=False):
@@ -173,7 +175,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     # avoid copying them over from IDL each time; but now these are passed
     # as parameters gti_start, gti_end
 
-    if gti_checking == 1:
+    if gti_checking:
         # if "st" not in globals():
         if (gti_start is None) or (gti_end is None):
             print ('** WARNING ** can''t access GTI information')

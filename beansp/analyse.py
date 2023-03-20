@@ -26,13 +26,13 @@ import matplotlib.gridspec as gridspec
 
 # -------------------------------------------------------------------------#
 ## load local  modules
-from settle import settle
-from burstrain import *
-from run_model import runmodel
-from get_data import get_obs
-from mrprior import mr_prior
-from get_data import *
-from run_emcee import runemcee
+from .settle import settle
+from .burstrain import *
+from .run_model import runmodel
+from .get_data import get_obs
+from .mrprior import mr_prior
+from .get_data import *
+from .run_emcee import runemcee
 
 
 # def get_param_uncert_obs1(param_array, numburstssim):

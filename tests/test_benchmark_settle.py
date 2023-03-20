@@ -11,14 +11,10 @@ from astropy.io import ascii
 # from astropy.table.table_helpers import simple_table
 
 # local modules
-sys.path.append('/home/martin/src/CIC/Adele/beans/settle')
-sys.path.append('/home/martin/src/CIC/Adele/beans/beans')
-import settle
+from pySettle import settler
+from beansp import settle
 # imported like this it will not be identifiable where grabbed from
 # from settle import settle
-
-# MCu Q: what is the purpose of the following code line?
-sys.path
 
 # MCu: figuring out WTF is imported and from where
 print("sys.path=")
@@ -51,6 +47,9 @@ def settle_multiprocessing_wrapper(ft_list_item):
                          ft_list_item['R_NS'])
 
 
+# just print newline chatacter
+print(" ")
+
 # ----- Comparison of settle with Kepler
 
 # Here we want to use the concord table and run a settle model
@@ -79,9 +78,71 @@ M_NS, R_NS, Q_b = 1.4, 10., 0.1
 
 tdel, E_b, alpha = [], [], []
 
-num_runs = 8
+num_runs = 5
+print("num_runs = ", num_runs)
 
-print("======== parallel run ==========")
+print("======== serial run ==========")
+
+ts_start = time.process_time()
+ts1_sum = 0.0
+ts2_sum = 0.0
+
+serial_count_settle_runs = 0
+
+# ----- serial settle run loop ------
+# the inner cycle is replaced by parallelisation
+# in the parallel version
+
+for j in range(num_runs):
+    ts2_start = time.process_time()
+    for i, run in enumerate(ft['run']):
+        serial_count_settle_runs += 1
+        # print ('Running settle for run #{}...'.format(run))
+        # need to convert the mdot here, I think this is right
+        # In the MRT file accretion rate is given as a fraction of the Eddington rate, i.e.
+        # Mdot_Edd = 8.8e4/(1+X) g/cm^2/s; and since settle uses fraction of 8.8e4, we have
+        # an extra factor of (1+X) in the MRT values that we need to divide by
+        ts1_start = time.process_time()
+        # res = settl.full(Q_b, ft[i]['Z'], ft[i]['X'], ft[i]['mdot']/(1+ft[i]['X']), 1, R_NS, M_NS)
+        res = settle.settle(Q_b, ft[i]['Z'],
+                            ft[i]['X'],
+                            ft[i]['mdot']/(1+ft[i]['X']),
+                            1.0, M_NS, R_NS)
+        ts1_end = time.process_time()
+        ts1_sum += (ts1_end-ts1_start)
+        tdel.append(res['tdel'][0])
+        E_b.append(res['E_b'][0])
+        alpha.append(res['alpha'][0])
+    ts2_end = time.process_time()
+    ts2_sum += (ts2_end-ts2_start)
+    print("Cycle #", j, " time = ", (ts2_end-ts2_start))
+
+ts_end = time.process_time()
+
+print("serial_count_settle_runs =", serial_count_settle_runs)
+print("total process time (", num_runs, "loops) = ", ts_end - ts_start)
+print("settle sum time (", num_runs, "loops) = ", ts1_sum)
+print("loop sum time (", num_runs, "loops) = ", ts2_sum)
+print("average", len(ft),
+      "row data table one loop run settle sum time = ", (ts1_sum/num_runs))
+
+ts = astropy.table.Table([ft['run'],
+                         tdel[: len(ft)],
+                         E_b[: len(ft)],
+                         alpha[: len(ft)]])
+# ts.write('se.txt', format='ascii', overwrite=True)
+# dump results produced by serial form of settle run
+ts.write('se.ecsv', format='ascii.ecsv', overwrite=True)
+
+print("======== end of serial run ==========")
+
+# ------ clear lists ----------
+
+tdel.clear()
+E_b.clear()
+alpha.clear()
+
+print("======== multiprocessing parallel run ==========")
 
 cpu_count = mp.cpu_count()
 
@@ -193,68 +254,6 @@ print(type(t))
 # dump results produced by serial form of settle run
 t.write('se1.ecsv', format='ascii.ecsv', overwrite=True)
 
-print("======== end of parallel run ==========")
-
-# ------ clear lists ----------
-
-tdel.clear()
-E_b.clear()
-alpha.clear()
-
-print("======== serial run ==========")
-
-ts_start = time.process_time()
-ts1_sum = 0.0
-ts2_sum = 0.0
-
-serial_count_settle_runs = 0
-
-# ----- serial settle run loop ------
-# the inner cycle is replaced by parallelisation
-# in the parallel version
-
-for j in range(num_runs):
-    ts2_start = time.process_time()
-    for i, run in enumerate(ft['run']):
-        serial_count_settle_runs += 1
-        # print ('Running settle for run #{}...'.format(run))
-        # need to convert the mdot here, I think this is right
-        # In the MRT file accretion rate is given as a fraction of the Eddington rate, i.e.
-        # Mdot_Edd = 8.8e4/(1+X) g/cm^2/s; and since settle uses fraction of 8.8e4, we have
-        # an extra factor of (1+X) in the MRT values that we need to divide by
-        ts1_start = time.process_time()
-        # res = settl.full(Q_b, ft[i]['Z'], ft[i]['X'], ft[i]['mdot']/(1+ft[i]['X']), 1, R_NS, M_NS)
-        res = settle.settle(Q_b, ft[i]['Z'],
-                            ft[i]['X'],
-                            ft[i]['mdot']/(1+ft[i]['X']),
-                            1.0, M_NS, R_NS)
-        ts1_end = time.process_time()
-        ts1_sum += (ts1_end-ts1_start)
-        tdel.append(res['tdel'][0])
-        E_b.append(res['E_b'][0])
-        alpha.append(res['alpha'][0])
-    ts2_end = time.process_time()
-    ts2_sum += (ts2_end-ts2_start)
-    print("Cycle #", j, " time = ", (ts2_end-ts2_start))
-
-ts_end = time.process_time()
-
-print("serial_count_settle_runs =", serial_count_settle_runs)
-print("total process time (", num_runs, "loops) = ", ts_end - ts_start)
-print("settle sum time (", num_runs, "loops) = ", ts1_sum)
-print("loop sum time (", num_runs, "loops) = ", ts2_sum)
-print("average", len(ft),
-      "row data table one loop run settle sum time = ", (ts1_sum/num_runs))
-
-ts = astropy.table.Table([ft['run'],
-                         tdel[: len(ft)],
-                         E_b[: len(ft)],
-                         alpha[: len(ft)]])
-print(type(t))
-# ts.write('se.txt', format='ascii', overwrite=True)
-# dump results produced by serial form of settle run
-ts.write('se.ecsv', format='ascii.ecsv', overwrite=True)
-
-print("======== end of serial run ==========")
+print("======== end of multiprocessing parallel run ==========")
 
 print("Speed up is :", (ts_end - ts_start)/(t_end - t_start))

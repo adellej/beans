@@ -140,7 +140,7 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
 
     tobs = tobs - bstart0
 
-    if gti_checking == 1:
+    if gti_checking:
 
         # Read in the gtis (required arrays are st (start time) and et (end time) of times telescope IS observing (indexes need to match)
         # gtis should be in MJD
