@@ -52,8 +52,19 @@ def get_param_uncert_obs(param_array, numburstssim):
         plist2.append(plist3[i])
     return plist2
 
-def get_param_uncert(param_array):
-    # Get uncertainties on individual parameters:
-    p = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), zip(*np.percentile(param_array, [16, 50, 84], axis=0)))
+def get_param_uncert(param_array, percentile=[16,50,84]):
+    '''
+    Calculate uncertainties on individual parameterss.
+    This routine only works on unitless quantities
+
+    :param param_array: array of parameter values to calculate percentiles
+    :param percentile: percentiles to calculate, normally 1-sigma
+    :return: array of percentile values; by default, the 50th percentile,
+      upper error and lower error
+    '''
+
+    p = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]), 
+        zip(*np.percentile(param_array, percentile, axis=0)))
+
     return p
-                                        
+
