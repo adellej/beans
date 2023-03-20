@@ -2,7 +2,7 @@
 settle
 ======
 
-Settling solver - the beans edition
+Settling solver - the BEANSp edition
 -----------------------------------------------------------------
 
 * Forked from settle project by Andrew Cumming
