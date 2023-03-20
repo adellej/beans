@@ -10,8 +10,8 @@ from setuptools import setup, find_packages
 
 def get_version():
     """Get the version number of BEANSp"""
-    import beansp
-    return beansp.__version__
+    import beans
+    return beans.__version__
 
 
 with open('README.rst') as readme_file:
@@ -51,7 +51,7 @@ setup(
     include_package_data=True,
     keywords='beans',
     name='beansp',
-    packages=find_packages(include=['beansp']),
+    packages=find_packages(include=['beans']),
     test_suite='tests',
     url='https://github.com/adellej/beans',
     zip_safe=False,
