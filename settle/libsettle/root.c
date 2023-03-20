@@ -14,7 +14,11 @@ double zbrent(double (*func)(double), double x1, double x2, double tol)
   double a=x1,b=x2,c=x2,d,e,min1,min2;
   double fa=(*func)(a),fb=(*func)(b),fc,p,q,r,s,tol1,xm;
 
-  if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0));
+  // added by MCU to prevent e and d to be possibly uninitialised
+  e=b-a;
+  d=b-a;
+
+  // if ((fa > 0.0 && fb > 0.0) || (fa < 0.0 && fb < 0.0));
     //    printf("Root must be bracketed in zbrent! (x1=%lg x2=%lg)\n",
     //   x1,x2);
   fc=fb;
@@ -224,6 +228,13 @@ void lnsrch(int n, double xold[], double fold, double g[], double p[], double x[
 	double a,alam,alam2,alamin,b,disc,f2,fold2,rhs1,rhs2,slope,sum,temp,
 		test,tmplam;
 
+	// added by MCU to prevent variables to be possibly uninitialised
+	alam=1.0;
+	alam2=alam;
+	tmplam=0.5*alam;
+	fold2=fold;
+	f2=*f;
+
 	*check=0;
 	for (sum=0.0,i=1;i<=n;i++) sum += p[i]*p[i];
 	sum=sqrt(sum);
@@ -304,6 +315,9 @@ void ludcmp(double **a, int n, int *indx, double *d)
 	int i,imax,j,k;
 	double big,dum,sum,temp;
 	double *vv;
+
+	// added by MCU to prevent imax to be possibly uninitialised
+	imax=1;
 
 	vv=dvector(1,n);
 	*d=1.0;

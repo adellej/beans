@@ -2,7 +2,7 @@
 settle
 ======
 
-Settling solver - the beans edition
+Settling solver - the BEANSp edition
 -----------------------------------------------------------------
 
 * Forked from settle project by Andrew Cumming
@@ -23,44 +23,58 @@ Rotational Evolution During Type I X-Ray Bursts, Andrew Cumming, Lars Bildsten (
 Package installation and usage
 ------------------------------
 
-Activate conda environment based on python 3.8 (or later) and requirements.txt in the root of beans repo
+#. Create and activate a clean conda environment
 
-    # remove existing environment if needed - to start from scratch
+   The example is for python 3.8, but should work eg for 3.9, 3.10 as well.
+
+   .. code-block::
     
-    conda remove -n settle-3.8 --all
-    
-    # create blank conda environment (has numpy in it by defeult now with python 3.8)
-    
-    conda create --name settle-3.8 python==3.8
-    
-    conda activate settle-3.8
+      # remove existing environment if needed - to start from scratch
+      conda remove -n settle-3.8 --all
+      # create blank conda environment (has numpy in it by defeult now with python 3.8)
+      conda create --name settle-3.8 python==3.8
+      conda activate settle-3.8
 
-then do
+#. Install/upgarde pip and build
 
-    cd settle
+   .. code-block::
+  
+      python3 -m pip install --upgrade pip
+      python3 -m pip install --upgrade build
 
-    # upgrade pip and build
-    
-    python3 -m pip install --upgrade pip
-    
-    python3 -m pip install --upgrade build
+   .. code-block::
+  
+      # test build & local install
+      # The "-e" install does not seem to be reliable for re-install - keeps pulling some old build from some where.
+      # *Do not use:        python -m pip --verbose install -e .*
+      # This is more reliable:
+      python3 -m build --sdist
+      python3 -m pip install .
 
-    # test build & local install
-    
-    python -m pip --verbose install -e .
+   .. ::
+   
+   *Note: uninstall & purge the installed module before* ``pip install`` *to ensure the installed version has recent changes - if any.*
 
-After this, in that enviroment, pySettle just works from every directorty, providing the conda environment is activated.
-Imports like:
+   .. code-block::
+     
+      python3 -m pip -v uninstall pySettle
+      python3 -m pip -v cache purge
 
-    from pySettle import settler as se
+   After this, in that enviroment, pySettle just works from every directorty, providing the conda environment is activated.
+   Imports like:
 
-(See beans/settle/test/test_settle_sft.py)
+   .. code-block::
+   
+      from pySettle import settler as se
+
+   (See `test_settle_sft.py <https://github.com/ADACS-Australia/beans/blob/adacs_mc/settle/tests/test_settle_sft.py>`_.)
 
 Run short functional test (SFT) manually
 ----------------------------------------
 
-    cd test
-    
-    python ./test_settle_sft.py
-    
+.. code-block::
+
+   cd tests
+   python ./test_settle_sft.py
+ 
 

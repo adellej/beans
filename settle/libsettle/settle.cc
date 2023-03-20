@@ -88,6 +88,9 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
   int flag, n, i;
   double yb, y, dummy, Xbar;
 
+  // added by MCU to prevent variables to be possibly uninitialised
+  y=0.0;
+
   // ------ set up output files ----------------
   //  fp.out=fopen("out/settle","w");
   //fp.ign=fopen("cube","a");
@@ -172,6 +175,7 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
      flag=0; // flag used to find base of hydrogen layer
 
      // loop
+     // MCU note: kount is initialised somewhere deep inside find_yb();
      for (i=1; i<=ODE.kount; i++) {
 
 	  // column depth
@@ -361,6 +365,9 @@ double doint(double yb)
   // integrates the atmosphere
 {
   double F, Tb, x1, x2, heat, cool;
+
+  // added by MCU to prevent variables to be possibly uninitialised
+  F=0.0;
 
   yb=pow(10.0,yb);
 

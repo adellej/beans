@@ -24,14 +24,14 @@ import os
 import time
 
 # -------------------------------------------------------------------------#
-## load local  modules
-from settle import settle
-from burstrain import *
-from run_model import runmodel
-from get_data import get_obs
-from mrprior import mr_prior
-from get_data import *
-from run_emcee import runemcee
+# load local modules
+from .settle import settle
+from .burstrain import *
+from .run_model import runmodel
+from .get_data import get_obs
+from .mrprior import mr_prior
+from .get_data import *
+from .run_emcee import runemcee
 
 # -------------------------------------------------------------------------#
 # Begin the emcee initialisation:
@@ -61,7 +61,7 @@ def init(ref_ind, gti_checking, obsname, burstname, gtiname, bc):
     # -------------------------------------------------------------------------#
 
     # get the data:
-    if gti_checking == 1:
+    if gti_checking:
         tref, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
     else:
         tref, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)

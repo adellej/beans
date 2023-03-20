@@ -3,8 +3,15 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages, Extension
-import glob
+from setuptools import setup, find_packages
+# Extension
+# import glob
+
+
+def get_version():
+    """Get the version number of BEANSp"""
+    import beansp
+    return beansp.__version__
 
 
 with open('README.rst') as readme_file:
@@ -13,13 +20,22 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ "numpy","matplotlib"] # add all libraries 
-
+# add all libraries
+requirements = ["numpy>=1.16",
+                "matplotlib",
+                "emcee>=3.0",
+                "corner",
+                "astropy",
+                "scipy",
+                "tables",
+                "chainconsumer",
+                "h5py>=2.10.0"]
 
 setup(
     author="Adelle Goodwin",
     author_email='adelle.goodwin@monash.edu',
-    python_requires='!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*',
+    python_requires='>=3.6.0',
+    version=get_version(),
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
@@ -29,16 +45,14 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     description="Bayesian parameter Estimation of Accreting Neutron Stars",
-    install_requires=requirements, #just list the requirements here
+    install_requires=requirements,
     license="MIT license",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='beans',
-    name='beans',
-    packages=find_packages(include=['beans', 'beans.*']),
+    name='beansp',
+    packages=find_packages(include=['beansp']),
     test_suite='tests',
     url='https://github.com/adellej/beans',
-    version='0.6.0',
     zip_safe=False,
-    ext_modules=[Extension("settle", glob.glob("settle/*.cc"))]
 )

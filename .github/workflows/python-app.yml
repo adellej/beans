@@ -29,12 +29,12 @@ jobs:
         python -m pip install --upgrade build
         python -m pip install pytest
         cd settle
-        if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
-        python -m pip install astropy        
+        if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi        
     - name: build and install settle
       run: |
         cd settle
-        python -m pip --verbose install -e .
+        python -m build --sdist
+        python -m pip --verbose install .
     - name: Test settle with pytest
       run: |
         cd settle

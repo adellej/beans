@@ -5,6 +5,9 @@ import ctypes as ct
 import numpy
 import pathlib
 
+# self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
+libsettle = ct.CDLL("libsettle.so")
+
 
 class Settle(object):
     """
@@ -25,13 +28,15 @@ class Settle(object):
               Takes m, x, and z
               Returns alpha, trec, fluence
         """
-        path_to_data_file = (
-            pathlib.Path(__file__).resolve().parent.parent / "settle" / "libsettle.so"
-        )
+        #        path_to_data_file = (
+        #            pathlib.Path(__file__).resolve().parent.parent / "settle" / "libsettle.so"
+        #        )
 
-        self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
+        self.mainer = libsettle.mainer
 
-        self.mainer = self.libsettle.mainer
+        # mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
+        #        double* trec, double* alpha, double* fluen,
+        #        double* radius, double* mass)
 
         self.mainer.argtypes = [
             ct.POINTER(ct.c_double),
@@ -39,6 +44,10 @@ class Settle(object):
             ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_int),
+            ct.POINTER(ct.c_double),
+            ct.POINTER(ct.c_double),
+            ct.POINTER(ct.c_double),
+            ct.POINTER(ct.c_double),
             ct.POINTER(ct.c_double),
         ]
         self.mainer.returntype = ct.c_int
@@ -69,7 +78,6 @@ class Settle(object):
 
         Can pass either scalars, or equally long arrays.
         """
-
         T = ct.c_double()
         A = ct.c_double()
         E = ct.c_double()

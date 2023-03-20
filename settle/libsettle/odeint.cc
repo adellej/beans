@@ -110,6 +110,9 @@ void Ode_Int::odeint(double ystart[], int nvar, double x1, double x2,
   double xsav,x,hnext,hdid,h;
   double *yscal,*y,*dydx;
 
+  // added by MCU to prevent variables to be possibly uninitialised
+  xsav=0.0;
+
   yscal=dvector(1,nvar);
   y=dvector(1,nvar);
   dydx=dvector(1,nvar);
@@ -497,6 +500,10 @@ void Ode_Int::stifbs(double y[], double dydx[], int nv, double *xx, double htry,
 	static int nseq[IMAXX+1]={0,2,6,10,14,22,34,50,70};
 	int reduct,exitflag=0;
 
+	// added by MCU to prevent variables to be possibly uninitialised
+	scale=0.0;
+	red=0.0;
+
 	d=dmatrix(1,nv,1,KMAXX);
 	dfdx=dvector(1,nv);
 	dfdy=dmatrix(1,nv,1,nv);
@@ -689,6 +696,9 @@ void Ode_Int::ludcmp(double **a, int n, int *indx, double *d)
 	int i,imax,j,k;
 	double big,dum,sum,temp;
 	double *vv;
+
+	// added by MCU to prevent variables to be possibly uninitialised
+	imax=0;
 
 	vv=dvector(1,n);
 	*d=1.0;
