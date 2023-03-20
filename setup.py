@@ -3,15 +3,14 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages
-# Extension
-# import glob
+from setuptools import setup, find_packages, Extension
+import glob
 
 
 def get_version():
     """Get the version number of BEANSp"""
-    import beans
-    return beans.__version__
+    import beansp
+    return beansp.__version__
 
 
 with open('README.rst') as readme_file:
@@ -51,7 +50,7 @@ setup(
     include_package_data=True,
     keywords='beans',
     name='beansp',
-    packages=find_packages(include=['beans']),
+    packages=find_packages(include=['beansp']),
     test_suite='tests',
     url='https://github.com/adellej/beans',
     zip_safe=False,
