@@ -270,15 +270,14 @@ int mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,
   ODE.tidy();
   EOS.tidy();
 
-  return 0;
   } // loop through flux
 
   // ---------- tidy up ---------------------------------------------
   //  fclose(fp.out);
   //fclose(fp.ign);
 
-  /// added by MC - to eliminate warning about missing retval
-  return 1;
+  // added by MC - to eliminate warning about missing retval
+  return 0;
 }
 
 // ---------------------------------------------------------------------

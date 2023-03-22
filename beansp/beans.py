@@ -153,9 +153,6 @@ class Beans:
         :result: Beans object including all the required data
         """
 
-        from initialise import init
-        from run_model import runmodel
-
         # Some housekeeping
 
         if 'ndim' in kwargs.keys():
