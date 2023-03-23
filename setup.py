@@ -3,8 +3,10 @@
 
 """The setup script."""
 
-from setuptools import setup, find_packages, Extension
-import glob
+from setuptools import setup, find_packages
+# , find_namespace_packages
+# , Extension
+# import glob
 
 
 def get_version():
@@ -42,6 +44,9 @@ setup(
         'Natural Language :: English',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
     description="Bayesian parameter Estimation of Accreting Neutron Stars",
     install_requires=requirements,
@@ -51,6 +56,7 @@ setup(
     keywords='beans',
     name='beansp',
     packages=find_packages(include=['beansp']),
+    package_data={'beansp': ['data/*']},
     test_suite='tests',
     url='https://github.com/adellej/beans',
     zip_safe=False,
