@@ -12,6 +12,7 @@
 *.cfg text
 *.txt text
 *.yml text
+*.dat text
 
 *.rst text
 *.md text

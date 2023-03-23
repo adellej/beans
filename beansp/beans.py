@@ -113,8 +113,8 @@ class Beans:
     bursts ("ensemble" mode)
     """
 
-    def __init__(self, config_file=None, nwalkers=200, nsteps=100, run_id="1808/test1", obsname='../data/1808_obs.txt',
-                 burstname='../data/1808_bursts.txt', gtiname=None,
+    def __init__(self, config_file=None, nwalkers=200, nsteps=100,
+                 run_id=None, obsname=None, burstname=None, gtiname=None,
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
                  threads = 4, test_model=True, restart=False, **kwargs):
@@ -161,6 +161,24 @@ class Beans:
             print ('** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
         if 'gti_checking' in kwargs.keys():
             print ('** WARNING ** parameter gti_checking is redundant (ignored), setting from value of gtiname param')
+
+        # MCU: this is a solution to load packaged data compatible
+        # with python 3.6 - 3.10
+        # however for python 3.10 and later this might become deprecated
+        # alternative method is "from importlib.resources import files"
+        # see https://setuptools.pypa.io/en/latest/userguide/datafiles.html
+
+        data_path = os.path.join(os.path.dirname(__file__), 'data')
+        print("data_path = " + data_path)
+
+        if run_id is None:
+            run_id = os.path.join(data_path, '1808/test1')
+
+        if obsname is None:
+            obsname = os.path.join(data_path, '1808_obs.txt')
+
+        if burstname is None:
+            burstname = os.path.join(data_path, '1808_bursts.txt')
 
         # Set up initial conditions:
 
@@ -330,13 +348,17 @@ Initial parameters:
            cfgfile.close()
 
 
-    def read_config(self, file='../data/beans.ini'):
+    def read_config(self, file=None):
         """
         Routine to read all the configuration parameters from a file, to
         more easily replicate or continue a run
 
         :param file: name of file to read the config from.
         """
+
+        if file is None:
+            data_path = os.path.join(os.path.dirname(__file__), 'data')
+            run_id = os.path.join(data_path, 'beans.ini')
 
         int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
 
