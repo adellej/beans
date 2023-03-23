@@ -1,0 +1,17 @@
+# File 1826_bursts.txt
+#
+# The data in this file is intended for use with the beans code, available
+# from https://github.com/outs1der/beans 
+# and adapted from table 2 of the paper
+#
+# "Thermonuclear Burst Observations for Model Comparisons: A Reference
+# Sample" by D. K. Galloway et al. (2017, PASA 34 e019) doi:10.1017/pasa.2017.12
+#
+# The persistent flux is estimated as the product of the 3-25 keV flux and
+# the estimated bolometric correction, including the uncertainties
+#
+# The columns are as follows
+#"Burst epoch [MJD]" "Bolometric fluence [1e-6 erg/cm^2]" "Error on bolometric fluence" "alpha value" "Error on alpha value" "Bolometric persistant Flux [1e-9 erg/cm^2/s^-1]" "Error on bol. per flux" "Inferred recurrence time [hr]" "Error on recurrence time" "Likely source origin"
+50965.41362	1.102	0.011	34.2	0.5	2.107	0.015	5.14	0.07	"GS 1826-24"
+51788.41362	1.126	0.016	38.6	0.3	2.846	0.031	4.177	0.010	"GS 1826-24"
+54891.41362	1.18	0.04	35.3	1.0	3.273	0.034	3.530	0.004	"GS 1826-24"
