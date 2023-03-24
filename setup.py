@@ -30,7 +30,8 @@ requirements = ["numpy>=1.16",
                 "scipy",
                 "tables",
                 "chainconsumer",
-                "h5py>=2.10.0"]
+                "h5py>=2.10.0",
+                "pySettle"]
 
 setup(
     author="Adelle Goodwin",

@@ -5,8 +5,29 @@ import ctypes as ct
 import numpy
 import pathlib
 
-# self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
-libsettle = ct.CDLL("libsettle.so")
+# print out settle library that will be used
+settler_basepath = pathlib.Path(__file__).parent.parent.absolute()
+print("settle library = ")
+libsettle_path = sorted(pathlib.Path(settler_basepath).glob('*settle*.so'))
+print(libsettle_path)
+print("selecting ")
+print(libsettle_path[0])
+
+# MCU: This creates new instance of library each time called
+# Makes sense to put it in the Settle class __init__() constructor, not here
+# libsettle = ct.cdll.LoadLibrary("libsettle.so")
+
+# MCU: This creates global instance of library
+# That should save resources (loading and creating new instance each time)
+#
+# This works on Linux, but not on Mac (in case of setuptools wheel build)
+# But works perfectly on both Linux and Mac for
+# manually built and installed /usr/lcoal/lib/libsettle.so
+#   libsettle = ct.CDLL("libsettle.so")
+#
+# This works both on Linux, and on Mac - but not for
+# manually built and installed /usr/local/lib/libsettle.so
+libsettle = ct.CDLL(libsettle_path[0])
 
 
 class Settle(object):
@@ -32,6 +53,25 @@ class Settle(object):
         #            pathlib.Path(__file__).resolve().parent.parent / "settle" / "libsettle.so"
         #        )
 
+        # MCU note:
+        # Option A:
+        # This creates new instance of library each time called
+        # Makes sense to put it in the Settle class __init__() constructor
+        #
+        # This works on Linux, but not on Mac (setuptools wheel build)
+        # But works perfectly on both Linux and Mac for
+        # manually built and installed /usr/lcoal/lib/libsettle.so
+        #   self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
+        #
+        # This works both on Linux, and on Mac - but not for
+        # manually built and installed /usr/local/lib/libsettle.so
+        #   self.libsettle = ct.cdll.LoadLibrary(libsettle_path[0])
+
+        # MCU note:
+        # Only one global instance of library exists:
+        # Here we assign the mainer function to this instance of Settle class
+        # That should save resources (loading library and creating
+        # new library instance each time Settle class is declared)
         self.mainer = libsettle.mainer
 
         # mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,

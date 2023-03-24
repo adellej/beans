@@ -1,8 +1,23 @@
 #!/usr/bin/env python
+"""
+Settle benchmark test
 
-import sys
+Is part of beansp tests, because uses settle.py wrapper,
+which is part of beansp package
+
+It is also demonstartion how pySettle can be parallelised,
+providing the settling is not strictly iterative, but can be
+run by chunks.
+
+The speedup is a lot better than just dividing run time
+by number of CPU cores, beacause of reducing python
+overhead manipulating with data and/or initialising
+the extension (external settle libarry coded in C/C++)
+"""
+
 import time
 import multiprocessing as mp
+import os
 
 import numpy as np
 # from astropy.io using table andascii
@@ -11,14 +26,13 @@ from astropy.io import ascii
 # from astropy.table.table_helpers import simple_table
 
 # local modules
-from pySettle import settler
 from beansp import settle
 # imported like this it will not be identifiable where grabbed from
 # from settle import settle
 
-# MCu: figuring out WTF is imported and from where
-print("sys.path=")
-print(sys.path)
+# MCu: figuring out What is imported and from where
+# print("sys.path=")
+# print(sys.path)
 print("--------------------")
 # MCu note - this olways works (well so far...)
 print("settle.__name__=", settle.__name__)
@@ -34,6 +48,11 @@ if hasattr(settle, '__path__'):
     print("settle.__path__=", settle.__path__)
 else:
     print("settle does not have attribute __path__")
+
+# using local relative data directory, as input testdata is part of the repo
+local_data_dir = 'data'
+data_dir = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), local_data_dir)
 
 
 def settle_multiprocessing_wrapper(ft_list_item):
@@ -57,8 +76,8 @@ print(" ")
 # First need to read in the table
 
 # ft = astropy.io.ascii.read('benchmark/table1.mrt')
-ft = ascii.read('benchmark/table1.mrt')
-print("ft length = ", len(ft))
+ft = ascii.read(os.path.join(data_dir, 'benchmark/table1.mrt'))
+print("ft table rows = ", len(ft))
 if hasattr(ft, '__iter__'):
     print("astropy.table.Table ft is iterable")
 else:
@@ -130,9 +149,9 @@ ts = astropy.table.Table([ft['run'],
                          tdel[: len(ft)],
                          E_b[: len(ft)],
                          alpha[: len(ft)]])
-# ts.write('se.txt', format='ascii', overwrite=True)
 # dump results produced by serial form of settle run
-ts.write('se.ecsv', format='ascii.ecsv', overwrite=True)
+ts.write(os.path.join(data_dir, 'serial.ecsv'),
+         format='ascii.ecsv', overwrite=True)
 
 print("======== end of serial run ==========")
 
@@ -252,8 +271,33 @@ t = astropy.table.Table([ft['run'],
 
 print(type(t))
 # dump results produced by serial form of settle run
-t.write('se1.ecsv', format='ascii.ecsv', overwrite=True)
+t.write(os.path.join(data_dir, 'multiprocessing.ecsv'),
+        format='ascii.ecsv', overwrite=True)
 
 print("======== end of multiprocessing parallel run ==========")
 
 print("Speed up is :", (ts_end - ts_start)/(t_end - t_start))
+
+print("======== compare files if result as expected ==========")
+
+ref = astropy.table.Table.read(
+    os.path.join(data_dir, 'benchmark/settle_expected_result.ecsv'),
+    format='ascii.ecsv')
+
+result = False
+for col in ref.colnames:
+    result = np.allclose(ref[col], ts[col])
+    if not result:
+        print("serial run column " + col + " not identical!")
+        break
+    result = np.allclose(ref[col], t[col])
+    if not result:
+        print("multiprocessing run column " + col + " not identical!")
+        break
+
+if result:
+    print("PASSED")
+else:
+    print("FAILED")
+    raise AssertionError("Settle benchmark test failed - \
+    result not as expected!")
