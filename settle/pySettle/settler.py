@@ -5,7 +5,17 @@ import ctypes as ct
 import numpy
 import pathlib
 
-# self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
+# print out what settle library is most likely used
+basepath = pathlib.Path(__file__).parent.parent.absolute()
+print("settle library = ")
+print(sorted(pathlib.Path(basepath).glob('*settle*')))
+
+# MCU: This creates new instance of library each time called
+# Makes sense to put it in the Settle class __init__() constructor, not here
+# libsettle = ct.cdll.LoadLibrary("libsettle.so")
+
+# MCU: This creates global instance of library
+# That should save resources (loading and creating new instance each time)
 libsettle = ct.CDLL("libsettle.so")
 
 
@@ -32,6 +42,15 @@ class Settle(object):
         #            pathlib.Path(__file__).resolve().parent.parent / "settle" / "libsettle.so"
         #        )
 
+        # Option A:
+        # This creates new instance of library each time called
+        # Makes sense to put it in the Settle class __init__() constructor
+        # self.libsettle = ct.cdll.LoadLibrary("libsettle.so")
+
+        # Only one global instance of library exists
+        # Here we assign the mainer function to this instance of Settle class
+        # That should save resources (loading library and creating
+        # new library instance each time Settle class is declared)
         self.mainer = libsettle.mainer
 
         # mainer(double* flu, double* Z, double* X, double* mdo, int* docomp,

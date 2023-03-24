@@ -4,9 +4,10 @@ Setup for settle, the beans edition
 """
 import os
 import subprocess
-from setuptools import setup
+import sysconfig
+from setuptools import setup, Extension
+# , glob
 # , find_packages
-# , Extension
 
 # Utility function to read the README file.
 # Used for the long_description.  It's nice, because now 1) we have a top level
@@ -21,18 +22,23 @@ def read(fname):
 
 def get_version():
     """Get the version number of pySettle"""
-    build_install_libsettle()
+    # Not used now - building the settle dynamic library using setuptools
+    # build_install_libsettle()
+    print_platform()
     import pySettle
     return pySettle.__version__
 
 
 # The C/C++ coded shared library had it's own makefike
-# to build. Hence we call that rather than duplicating that
-# within setuptools
+# to build. This function is left here, for the case
+# there ever is a need to use this more transparent build method
+# rather than setuptools internal approach
 
 
 def build_install_libsettle():
-    """compile and install C/C++ library libsettle"""
+    """compile and install C/C++ library libsettle
+       using a custom Makefile
+    """
     result = subprocess.run("make -C libsettle install",
                             shell=True,
                             check=True,
@@ -46,15 +52,24 @@ def build_install_libsettle():
     return result.returncode
 
 
+def print_platform():
+    system_platform = sysconfig.get_platform()
+    print("========================")
+    print("Platform is " + system_platform)
+    print("========================")
+
+
 # What is the reasonable minimal version of numpy to start with?
 reqs = ['numpy>=1.16']
 
 setup(
     name="pySettle",
+    # prefer to set the package name explicitly, lets KISS!
     packages=['pySettle'],
     # the following does not work - will not exclude test procedures
     # used MANIFEST.in instead.
     # packages=find_packages(exclude='test'),
+    package_dir={'pySettle': 'pySettle'},
     version=get_version(),
 
     description="Computes ignition conditions for Type I X-ray bursts\
@@ -75,7 +90,7 @@ setup(
     classifiers=[
         # Chose either "3 - Alpha", "4 - Beta" or "5 - Production/Stable"
         # as the current state of your package
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
@@ -83,5 +98,21 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
     ],
-    # ext_modules=[Extension("settle", glob.glob("settle/*.*c"))]
+
+    ext_modules=[
+        Extension(
+            "settle",
+            # this compiles all *.c and *.cc source files
+            # and links them into dybamic library
+            #   glob.glob("libsettle/*.c*")
+            # let's be explicit to have full control
+            sources=["libsettle/gasdev.c", "libsettle/nrutil.c",
+                     "libsettle/root.c", "libsettle/eos.cc",
+                     "libsettle/odeint.cc", "libsettle/settle.cc",
+                     "libsettle/spline.cc", "libsettle/useful.cc"],
+            extra_compile_args=["-Ofast",
+                                "-Wno-unused-but-set-variable",
+                                "-Wno-unused-parameter",
+                                "-Wno-unused-variable"]
+        )],
 )
