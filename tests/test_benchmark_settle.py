@@ -97,7 +97,7 @@ M_NS, R_NS, Q_b = 1.4, 10., 0.1
 
 tdel, E_b, alpha = [], [], []
 
-num_runs = 1
+num_runs = 5
 print("num_runs = ", num_runs)
 
 print("======== serial run ==========")
