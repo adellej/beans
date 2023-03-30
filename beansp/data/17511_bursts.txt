@@ -1,0 +1,33 @@
+# The analysis results below have been extracted from the
+#
+# Multi-INstrument Burst ARchive (MINBAR) version 0.90
+#
+# comprising analyses of thermonuclear (type-I) X-ray bursts observed by
+# the Rossi X-ray Timing Explorer (RXTE), BeppoSAX, and INTEGRAL.
+#
+# The data provided here is PRELIMINARY and NOT SUITABLE FOR PUBLICATION.
+#
+# For more information, see the project home page < http://burst.erc.monash.edu/minbar >, the project wiki
+# <http://burst.erc.monash.edu/wiki/index.php?n=MINBAR.Home > or contact the PI Duncan Galloway.
+#
+# The last comment line before the data gives the column names and units
+#
+#"Burst start time (t_25) [MJD]" "Bolometric fluence (i.e. integrated bol. flux) [1e-9 erg/cm^2]" "Error on bolometric fluence" "Ratio of integrated persistent flux to burst fluence" "Error on alpha value" 
+55086.16911	.25045	.07906	100	10
+55088.32969	.22095	.0587	78	8
+55089.16499	.16924	.04893	175	12
+55089.72043	.22946	.0946	134	9
+55091.27324	.19242	.101	171	11
+55091.27325	.23717	.0832	142	10
+55091.61717	.23163	.0661	160	10
+55091.61723	.11893	.05153	160	10
+55092.33919	.19666	.03178	166	32
+55092.7363	.18769	0.05663	174	12
+55093.10229	.21634	0.04829	159	34
+55093.46665	.23239	0.03091	142	27
+55094.61844	.24721	0.0378	140	9
+55097.60219	.25836	0.0625	88	6
+55098.77726	.23739	0.0546	135	14
+55099.31364	.25565	0.0341	77	5
+55100.63292	.29763	0.0838	121	10
+55101.28986	.28356	0.0468	89	7
