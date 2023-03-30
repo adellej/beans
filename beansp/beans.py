@@ -349,11 +349,7 @@ Initial parameters:
            cfgfile.close()
 
 
-<<<<<<< HEAD:beans/beans.py
-    def read_config(self, file='../data/beans.ini'):
-=======
-    def read_config(self, file=None):
->>>>>>> aa7fc1fabc82fdc4754671edc42b895ddcb2808b:beansp/beans.py
+    def read_config(self, file='data/beans.ini'):
         """
         Routine to read all the configuration parameters from a file, to
         more easily replicate or continue a run
@@ -361,13 +357,10 @@ Initial parameters:
         :param file: name of file to read the config from.
         """
 
-<<<<<<< HEAD:beans/beans.py
-=======
         if file is None:
             data_path = os.path.join(os.path.dirname(__file__), 'data')
             run_id = os.path.join(data_path, 'beans.ini')
 
->>>>>>> aa7fc1fabc82fdc4754671edc42b895ddcb2808b:beansp/beans.py
         int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
 
         if not os.path.isfile(file):
