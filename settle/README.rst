@@ -7,8 +7,7 @@ Settling solver - the BEANSp edition
 
 * Forked from settle project by Andrew Cumming
   https://github.com/andrewcumming/settle
-* Repo: https://github.com/adellej/beans/settle
-
+* BEANSp Repo: https://github.com/adellej/beans
 
 Features
 --------
@@ -31,7 +30,7 @@ Package installation and usage
     
       # remove existing environment if needed - to start from scratch
       conda remove -n settle-3.8 --all
-      # create blank conda environment (has numpy in it by defeult now with python 3.8)
+      # create blank conda environment
       conda create --name settle-3.8 python==3.8.*
       conda activate settle-3.8
 
