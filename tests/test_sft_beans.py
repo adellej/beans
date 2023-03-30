@@ -26,5 +26,5 @@ B = Beans(nwalkers=20,
           nsteps=10,
           run_id=written_data_filename_base,
           gti_checking=0,
-          restart=True)
+          restart=False)
 B.do_run(analyse=False)

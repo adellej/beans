@@ -114,8 +114,7 @@ class Beans:
     """
 
     def __init__(self, config_file=None, nwalkers=200, nsteps=100,
-                 run_id="test", obsname='data/1808_obs.txt',
-                 burstname='data/1808_bursts.txt', gtiname=None,
+                 run_id="test", obsname=None, burstname=None, gtiname=None,
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
                  threads = 4, test_model=True, restart=False, **kwargs):
@@ -349,7 +348,7 @@ Initial parameters:
            cfgfile.close()
 
 
-    def read_config(self, file='data/beans.ini'):
+    def read_config(self, file=None):
         """
         Routine to read all the configuration parameters from a file, to
         more easily replicate or continue a run
