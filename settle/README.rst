@@ -53,7 +53,7 @@ Package installation and usage
 
    .. ::
    
-   *Note: in case of doubts that recent changes get propagated, uninstall & purge the installed module _before_* ``pip install`` *to ensure the installed version has recent changes - if any.*
+   *Note: when workinng on the code, in case of doubts that recent changes got propagated, uninstall & purge the installed module _before_* ``pip install`` *to ensure the installed version has all the recent modifications.*
 
    .. code-block::
      
