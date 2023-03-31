@@ -46,7 +46,7 @@ Package installation and usage
       # test build & local install
       # The "-e" install does not seem to be reliable for re-install 
       #       - keeps pulling some old build from somewhere middlewhere.
-      # *Do not use:        python -m pip --verbose install -e .*
+      # *Do not use:        python -m pip install -e .*
       # This is more reliable:
       python3 -m build
       python3 -m pip install .
@@ -87,11 +87,11 @@ Publish package on PyPI
 
 .. ::
 
-**Test PyPI**
+**Test PyPI** : testing all works, but not really publishing to a place where all the world is searching for python packages.
 
 .. code-block::
 
-   python3 -m twine upload --verbose --repository testpypi dist/*
+   python3 -m twine upload --repository testpypi dist/*
 
 .. ::
 
