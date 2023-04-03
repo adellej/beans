@@ -69,7 +69,6 @@ setup(
     # the following does not work - will not exclude test procedures
     # used MANIFEST.in instead.
     # packages=find_packages(exclude='test'),
-    package_dir={'pySettle': 'pySettle'},
     version=get_version(),
 
     description="Computes ignition conditions for Type I X-ray bursts\
