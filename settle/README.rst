@@ -34,7 +34,7 @@ Package installation and usage
       conda create --name settle-3.8 python==3.8.*
       conda activate settle-3.8
 
-#. Install/upgarde pip and build
+#. Install/upgarde pip, build and local install
 
    .. code-block::
   
