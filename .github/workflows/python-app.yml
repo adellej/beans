@@ -8,6 +8,18 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  # to be able to run workflow manually, workflow_dispatch event must be defined
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+        type: choice
+        options:
+        - info
+        - warning
+        - debug
 
 permissions:
   contents: read
@@ -16,6 +28,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
 
     steps:
     - uses: actions/checkout@v3
@@ -33,7 +47,7 @@ jobs:
     - name: build and install settle
       run: |
         cd settle
-        python -m build --sdist
+        python -m build
         python -m pip --verbose install .
     - name: Test settle with pytest
       run: |
