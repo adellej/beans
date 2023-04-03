@@ -83,7 +83,7 @@ Publish package on PyPI
 
 .. code-block::
 
-   python3 -m pip -v uninstall twine
+   python3 -m pip install twine
 
 .. ::
 
