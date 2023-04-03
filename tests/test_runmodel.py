@@ -2,10 +2,10 @@
 import sys, os
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '../beans')
-from beans.burstrain import *
-from beans.run_model import runmodel
+from beansp.burstrain import *
+from beansp.run_model import runmodel
 import numpy as np
-from beans.get_data import get_obs
+from beansp.get_data import get_obs
 import pathlib
 
 
