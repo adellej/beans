@@ -116,6 +116,7 @@ setup(
             extra_compile_args=["-Ofast",
                                 "-Wno-unused-but-set-variable",
                                 "-Wno-unused-parameter",
-                                "-Wno-unused-variable"]
+                                "-Wno-unused-variable",
+                                "-Wno-unused-result"]
         )],
 )
