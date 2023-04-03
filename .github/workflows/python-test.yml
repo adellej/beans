@@ -52,4 +52,4 @@ jobs:
     - name: Test settle with pytest
       run: |
         cd settle
-        pytest
+        pytest -v
