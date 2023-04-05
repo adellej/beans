@@ -248,7 +248,8 @@ class Beans:
                                    debug=False) # set debug to True for testing
             print("result: ", test, valid)
 
-            self.plot_model(test2)
+            # MCU Note: commented out - no interactive windows for automated testing
+            # self.plot_model(test2)
 
 
     def __str__(self):

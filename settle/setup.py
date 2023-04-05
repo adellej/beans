@@ -69,7 +69,6 @@ setup(
     # the following does not work - will not exclude test procedures
     # used MANIFEST.in instead.
     # packages=find_packages(exclude='test'),
-    package_dir={'pySettle': 'pySettle'},
     version=get_version(),
 
     description="Computes ignition conditions for Type I X-ray bursts\
@@ -94,9 +93,12 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
     ],
 
     ext_modules=[
@@ -113,6 +115,7 @@ setup(
             extra_compile_args=["-Ofast",
                                 "-Wno-unused-but-set-variable",
                                 "-Wno-unused-parameter",
-                                "-Wno-unused-variable"]
+                                "-Wno-unused-variable",
+                                "-Wno-unused-result"]
         )],
 )
