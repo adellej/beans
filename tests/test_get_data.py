@@ -1,20 +1,20 @@
 """ Tests the data reading in routine """
 import numpy as np
-from beans.get_data import get_obs
+from beansp.get_data import get_obs
 import pathlib
 
 def test_get_obs():
 
     path_to_data_file_obs = (
-            pathlib.Path(__file__).resolve().parent.parent / "data" / "1808_obs.txt"
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_obs.txt"
         )
 
     path_to_data_file_bursts = (
-            pathlib.Path(__file__).resolve().parent.parent / "data" / "1808_bursts.txt"
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_bursts.txt"
         )
 
     path_to_data_file_gti = (
-            pathlib.Path(__file__).resolve().parent.parent / "data" / "1808_gti.txt"
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_gti.txt"
         )
 
 
@@ -29,3 +29,11 @@ def test_get_obs():
     assert result
 
     return
+
+
+if __name__ == "__main__":
+    # introspect and run all the functions starting with 'test'
+    for f in dir():
+        if f.startswith('test'):
+            print(f)
+            globals()[f]()

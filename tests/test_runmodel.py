@@ -2,10 +2,10 @@
 import sys, os
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + '../beans')
-from beans.burstrain import *
-from beans.run_model import runmodel
+from beansp.burstrain import *
+from beansp.run_model import runmodel
 import numpy as np
-from beans.get_data import get_obs
+from beansp.get_data import get_obs
 import pathlib
 
 
@@ -17,15 +17,15 @@ def test_run_model():
     theta = 0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2
 
     path_to_data_file_obs = (
-            pathlib.Path(__file__).resolve().parent.parent / "data" / "1808_obs.txt"
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_obs.txt"
         )
 
     path_to_data_file_bursts = (
-            pathlib.Path(__file__).resolve().parent.parent / "data" / "1808_bursts.txt"
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_bursts.txt"
         )
 
     path_to_data_file_gti = (
-            pathlib.Path(__file__).resolve().parent.parent / "data" / "1808_gti.txt"
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_gti.txt"
         )
 
 

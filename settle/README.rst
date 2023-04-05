@@ -1,14 +1,13 @@
-======
-settle
-======
+========
+PySettle
+========
 
 Settling solver - the BEANSp edition
 -----------------------------------------------------------------
 
 * Forked from settle project by Andrew Cumming
   https://github.com/andrewcumming/settle
-* Repo: https://github.com/adellej/beans/settle
-
+* BEANSp Repo: https://github.com/adellej/beans
 
 Features
 --------
@@ -25,17 +24,17 @@ Package installation and usage
 
 #. Create and activate a clean conda environment
 
-   The example is for python 3.8, but should work eg for 3.9, 3.10 as well.
+   The example is for python 3.8, but should work for any version 3.6 to 3.11 as well.
 
    .. code-block::
     
       # remove existing environment if needed - to start from scratch
       conda remove -n settle-3.8 --all
-      # create blank conda environment (has numpy in it by defeult now with python 3.8)
-      conda create --name settle-3.8 python==3.8
+      # create blank conda environment
+      conda create --name settle-3.8 python==3.8.*
       conda activate settle-3.8
 
-#. Install/upgarde pip and build
+#. Install/upgarde pip, build and local install
 
    .. code-block::
   
@@ -45,15 +44,16 @@ Package installation and usage
    .. code-block::
   
       # test build & local install
-      # The "-e" install does not seem to be reliable for re-install - keeps pulling some old build from some where.
-      # *Do not use:        python -m pip --verbose install -e .*
+      # The "-e" install does not seem to be reliable for re-install 
+      #       - keeps pulling some old build from somewhere middlewhere.
+      # *Do not use:        python -m pip install -e .*
       # This is more reliable:
-      python3 -m build --sdist
+      python3 -m build
       python3 -m pip install .
 
    .. ::
    
-   *Note: uninstall & purge the installed module before* ``pip install`` *to ensure the installed version has recent changes - if any.*
+   *Note: when workinng on the code, in case of doubts that recent changes got propagated, uninstall & purge the installed module _before_* ``pip install`` *to ensure the installed version has all the recent modifications.*
 
    .. code-block::
      
@@ -77,4 +77,30 @@ Run short functional test (SFT) manually
    cd tests
    python ./test_settle_sft.py
  
+
+Publish package on PyPI
+----------------------------------------
+
+.. code-block::
+
+   python3 -m pip install twine
+
+.. ::
+
+**Test PyPI** : testing all works, but not really publishing to a place where all the world is searching for python packages.
+
+.. code-block::
+
+   python3 -m twine upload --repository testpypi dist/*
+
+.. ::
+
+**Real PyPI**
+
+.. code-block::
+
+   python3 -m twine upload dist/*
+
+.. ::
+
 
