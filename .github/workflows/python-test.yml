@@ -46,13 +46,13 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install --upgrade build
         python -m pip install pytest
-        cd settle
-        if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
-    - name: build and install settle
-      run: |
-        cd settle
-        python -m build
-        python -m pip --verbose install .
+#        cd settle
+#        if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+#    - name: build and install settle
+#      run: |
+#        cd settle
+#        python -m build
+#        python -m pip --verbose install .
     - name: build and install BEANSp
       run: |
         python -m build
