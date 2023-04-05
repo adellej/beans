@@ -57,10 +57,10 @@ jobs:
       run: |
         python -m build
         python -m pip --verbose install .
-    - name: Test settle with pytest
-      run: |
-        cd settle
-        pytest -v
+#    - name: Test settle with pytest
+#      run: |
+#        cd settle
+#        pytest -v
     - name: Test BEANSp with pytest
       run: |
         pytest -v

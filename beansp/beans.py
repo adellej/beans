@@ -171,11 +171,14 @@ class Beans:
         data_path = os.path.join(os.path.dirname(__file__), 'data')
         print("data_path = " + data_path)
 
+        # Only want to set the default values if both obsname and burstname
+        # are not set (indicating a default run). This because setting 
+        # obsname=None is also how we indicate an "ensemble" mode run
+        if (obsname is None) & (burstname is None):
+            obsname = os.path.join(data_path, '1808_obs.txt')
+
         if run_id is None:
             run_id = os.path.join(data_path, '1808/test1')
-
-        if obsname is None:
-            obsname = os.path.join(data_path, '1808_obs.txt')
 
         if burstname is None:
             burstname = os.path.join(data_path, '1808_bursts.txt')
