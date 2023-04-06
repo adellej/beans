@@ -1,6 +1,6 @@
-=====
-beans
-=====
+======
+BEANSp
+======
 
 
 .. .. image:: https://img.shields.io/pypi/v/beans.svg
@@ -15,8 +15,7 @@ beans
 
 
 
-
-Bayesian Estimation of Accreting Neutron Star parameters (BEANSp)
+Bayesian Estimation of Accreting Neutron Star parameters
 -----------------------------------------------------------------
 
 * Free software: MIT license
@@ -50,11 +49,11 @@ BEANSp is on pyPI (https://pypi.org/project/beansp/) so installation is easy - e
    
       from beansp.beans import Beans 
 
-(Please refer to `this simple test script <tests/test_sft_beans.py>`_ as an example.)
+(Please refer to `this simple test script <https://github.com/adellej/beans/tests/test_sft_beans.py>`_ as an example.)
 
 Build and installation from this github repository
 --------------------------------------------------
 
-Please refer to `build instructions <BUILD.rst>`_.
+Please refer to `build instructions <https://github.com/adellej/beans/BUILD.rst>`_.
 
 
