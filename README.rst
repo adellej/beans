@@ -34,9 +34,27 @@ Credits
 
 Software written by Adelle Goodwin. See Goodwin et al. (2019) - https://arxiv.org/pdf/1907.00996.
 
-This code makes use of settle (written by Andrew Cumming), was based on code written by Duncan Galloway, and uses Dan Foreman-Mackey's python implementation of MCMC, emcee. 
+This softwate (BEANSp) was based on code written by Duncan Galloway, and uses Dan Foreman-Mackey's python implementation of MCMC, emcee. It depends on pySettle (https://github.com/adellej/pysettle), which was forked from the original settle written by Andrew Cumming.
 
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+Package installation and usage
+------------------------------
+BEANSp is on pyPI (https://pypi.org/project/beansp/) so installation is easy - either straight or in virtual environment:
 
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+   .. code-block::
+   
+      pip install beansp
+  
+   .. ::
+   
+   .. code-block::
+   
+      from beansp.beans import Beans 
+
+(Please refer to `this simple test script <tests/test_sft_beans.py>`_ as an example.)
+
+Build and installation from this github repository
+--------------------------------------------------
+
+Please refer to `build instructions <BUILD.rst>`_.
+
+
