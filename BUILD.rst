@@ -1,13 +1,11 @@
 ========
-pySettle
+BEANSp
 ========
 
 Build and installation from this github repository
 --------------------------------------------------
 
-This includes compilation of the underlaying C/C++ library (libsettle.so) and including it in the python package. On Linux, GCC development tools must be installed, on Mac, it works with clang compiler.
-
-#. Clone the pysettle repository
+#. Clone the beans repository
 
    .. code-block::
     
@@ -22,10 +20,10 @@ This includes compilation of the underlaying C/C++ library (libsettle.so) and in
    .. code-block::
     
       # optional: remove existing environment if needed - to start from scratch
-      conda remove -n settle-3.8 --all
+      conda remove -n beans-3.8 --all
       # create blank conda environment
-      conda create --name settle-3.8 python==3.8.*
-      conda activate settle-3.8
+      conda create --name beans-3.8 python==3.8.*
+      conda activate beans-3.8
 
       
 #. Install/upgarde pip, build and local install
@@ -54,14 +52,14 @@ This includes compilation of the underlaying C/C++ library (libsettle.so) and in
       python3 -m pip -v uninstall beansp
       python3 -m pip -v cache purge
 
-   After this, in that enviroment, pySettle just works from every directorty, providing the conda environment is activated.
+   After this, in that enviroment, beansp just works from every directorty, providing the conda environment is activated.
    Imports like:
 
    .. code-block::
    
       from beansp.beans import Beans 
 
-   (See `test_settle_sft.py <tests/test_settle_sft.py>`_.)
+   (See `test_sft_beans.py <tests/test_sft_beans.py>`_.)
 
 
 Run short functional test (SFT) manually
