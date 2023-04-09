@@ -160,7 +160,7 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
             print(f"Observations found: \n burst times = {bstart}\n fluences = {fluen}\n alphas = {alpha}\n persistent fluxes = {pflux}\n You have chosen gti_checking = {gti_checking}, so the gti data is st = {st}")
 
         # not sure if you need to return st, et if they're also global variables (defined at start)
-        return bstart0, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs, st, et
+        return bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs, st, et
 
     else:
         if burstname is None:
@@ -168,4 +168,4 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
         else:
             print(f"Observations found: \n burst times = {bstart}\n fluences = {fluen}\n alphas = {alpha}\n persistent fluxes = {pflux}\n You have chosen gti_checking = {gti_checking}, so no gti data will be used.")
 
-    return bstart0, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs
+    return bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs

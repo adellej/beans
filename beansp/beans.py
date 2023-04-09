@@ -227,7 +227,8 @@ class Beans:
         # Read in all the measurements and set up all the parameters
 
         self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, \
-            self.pfluxe, self.tobs, self.fluen, self.st, self.et = init(
+            self.pfluxe, self.tobs, self.fluen, self.fluen_err, \
+            self.st, self.et = init(
             self.ref_ind, self.gti_checking, self.obsname, self.burstname,
             self.gtiname, self.bc)
         self.numburstsobs = len(self.fluen)
@@ -986,7 +987,7 @@ Initial parameters:
 
         print ("Plotting the chains...")
         labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
-        plt.clf()
+        # plt.clf()
         fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
 
         for i in range(self.ndim):
@@ -1019,7 +1020,8 @@ Initial parameters:
         # make plot of posterior distributions of your parameters:
         cc = ChainConsumer()
         cc.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
-        cc.plotter.plot(filename=self.run_id+"_posteriors.pdf", figsize="column")
+        cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
+            figsize="column", truth=list(self.theta))
         print ("...done")
 
         # and finally read in the model realisations
@@ -1081,11 +1083,11 @@ Initial parameters:
         r1 = np.array(r1)
         r2 = np.array(r2)
         r3 = np.array(r3)
-        print(np.min(r1))
-        print(np.min(r2))
-        print(np.min(r3))
-        print(np.min(mass))
-        print(np.min(X))
+        # print(np.min(r1))
+        # print(np.min(r2))
+        # print(np.min(r3))
+        # print(np.min(mass))
+        # print(np.min(X))
 
         xip = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
         xib = (0.74816*xip)/r2
@@ -1159,22 +1161,24 @@ Initial parameters:
         cc.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
 
         # make plot of observed burst comparison with predicted bursts:
-        # get the observed bursts for comparison:
-        tobs = self.bstart
-        ebobs = self.fluen
 
         plt.figure(figsize=(10,7))
 
-        plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
+        # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
+        plt.errorbar(self.bstart, self.fluen, yerr=self.fluen_err, 
+            color='black', linestyle='', marker='.', ms=13, label='Observed')
         #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
         if self.train:
-            plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-            plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup[1:], timepred_errlow[1:]], fmt='.', color='darkgrey')
-            plt.errorbar(tobs, ebobs, fmt='.', color='black')
+            # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+            plt.errorbar(timepred[1:], ebpred, 
+                yerr=[ebpred_errup, ebpred_errlow],
+                xerr=[timepred_errup[1:], timepred_errlow[1:]], 
+                marker='*', ms=11, color='darkgrey', linestyle='', 
+                label='Predicted')
         else:
             plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
             plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
-            plt.errorbar(tobs, ebobs, fmt='.', color='black')
+            plt.errorbar(self.bstart,  self.fluen, fmt='.', color='black')
 
         plt.xlabel("Time (days after start of outburst)")
         plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
