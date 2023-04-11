@@ -1,0 +1,66 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Python build settle and test
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  # to be able to run workflow manually, workflow_dispatch event must be defined
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+        type: choice
+        options:
+        - info
+        - warning
+        - debug
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+#    - name: Set up Python "3.8"
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+#        python-version: "3.8"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install --upgrade build
+        python -m pip install pytest
+#        cd settle
+#        if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+#    - name: build and install settle
+#      run: |
+#        cd settle
+#        python -m build
+#        python -m pip --verbose install .
+    - name: build and install BEANSp
+      run: |
+        python -m build
+        python -m pip --verbose install .
+#    - name: Test settle with pytest
+#      run: |
+#        cd settle
+#        pytest -v
+    - name: Test BEANSp with pytest
+      run: |
+        pytest -v

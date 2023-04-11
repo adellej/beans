@@ -1,8 +1,8 @@
 """ tests likelihood and prior functions for the emcee initialisation """
 
-from beans.mrprior import mr_prior
+from beansp.mrprior import mr_prior
 import numpy as np
-from beans.get_data import get_obs
+from beansp.get_data import get_obs
 import pathlib
 
 # def test_likelihood():
