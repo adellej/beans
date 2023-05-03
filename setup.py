@@ -11,9 +11,15 @@ from setuptools import setup, find_packages
 
 def get_version():
     """Get the version number of BEANSp"""
+    ### the original insired by Paul's Aegean package
     import beansp
     return beansp.__version__
-
+    ### the following deos not work
+    # from beansp import __version__
+    #return __version__
+    ### returning constant and not importing beansp/__init__.py here succeeds build,
+    ### but that is double/duplicity initialisation of __version__ :-(
+    #   return '0.9.2'
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()

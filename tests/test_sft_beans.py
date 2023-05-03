@@ -7,7 +7,7 @@
 
 import os
 
-from beansp.beans import Beans
+from beansp import Beans
 
 
 def test_SFT():
