@@ -45,12 +45,17 @@ from .burstrain import generate_burst_train, next_burst, get_a_b, mean_flux, bur
 from .run_model import runmodel
 from .get_data import get_obs
 from .mrprior import mr_prior
-from .get_data import get_obs
 from .run_emcee import runemcee
 from .analyse import get_param_uncert_obs, get_param_uncert
 from .initialise import init
 
 # -------------------------------------------------------------------------#
+
+
+__all__ = (
+    "Beans"
+)
+
 # Some example prior functions, or you can write your own for input to the code.
 
 # Define priors for theta. mr prior function is located in mrprior.py
