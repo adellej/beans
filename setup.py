@@ -18,7 +18,7 @@ def get_property(prop, project):
 
 def get_version():
     """Get the version number of BEANSp"""
-    # ## the original insired by Paul's Aegean package
+    # ## the original inspired by Paul's Aegean package
     import beansp
     return beansp.__version__
     # ## the following deos not work
