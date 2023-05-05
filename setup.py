@@ -19,8 +19,8 @@ def get_property(prop, project):
 def get_version():
     """Get the version number of BEANSp"""
     # ## the original insired by Paul's Aegean package
-    # import beansp
-    # return beansp.__version__
+    import beansp
+    return beansp.__version__
     # ## the following deos not work
     # from beansp import __version__
     # return __version__
@@ -28,7 +28,7 @@ def get_version():
     # ## build, but that is double/duplicity initialisation of __version__ :-(
     # return '0.9.2'
 
-   
+
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
@@ -50,8 +50,8 @@ requirements = ["numpy>=1.16",
 package_name = 'beansp'
 
 setup(
-    author="Adelle Goodwin",
-    author_email='adelle.goodwin@monash.edu',
+    author=get_property('__author__', package_name),
+    author_email=get_property('__email__', package_name),
     name=package_name,
     python_requires='>=3.6.0',
     # version=get_version(),
@@ -67,14 +67,14 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
     ],
-    description="Bayesian parameter Estimation of Accreting Neutron Stars",
+    description="Bayesian Estimation of Accreting Neutron Stars parameters",
     install_requires=requirements,
     license="MIT license",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='beans',
-    packages=find_packages(include=['beansp']),
-    package_data={'beansp': ['data/*']},
+    packages=find_packages(include=[package_name]),
+    package_data={package_name: ['data/*']},
     test_suite='tests',
     url='https://github.com/adellej/beans',
     zip_safe=False,

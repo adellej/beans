@@ -2,7 +2,7 @@
 
 """Top-level package for BEANSp."""
 
-__author__ = """Adelle Goodwin"""
+__author__ = 'Adelle Goodwin'
 __email__ = 'adelle.goodwin@monash.edu'
 __version__ = '0.9.2'
 
@@ -12,6 +12,5 @@ __version__ = '0.9.2'
 # Simplify imports from the package.
 # enables use "from beansp import Beans"
 # rather than "from beansp.beans import BEans"
-# from .beans import *
 from .beans import Beans
-# from beansp.beans import Beans
+# from .beans import *
