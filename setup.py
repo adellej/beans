@@ -4,9 +4,6 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
-# , find_namespace_packages
-# , Extension
-# import glob
 import re
 
 
@@ -19,14 +16,9 @@ def get_property(prop, project):
 def get_version():
     """Get the version number of BEANSp"""
     # ## the original inspired by Paul's Aegean package
+    # ## does not work with siplified imports trick in __init__.py
     import beansp
     return beansp.__version__
-    # ## the following deos not work
-    # from beansp import __version__
-    # return __version__
-    # ## returning constant and not importing beansp/__init__.py here succeeds
-    # ## build, but that is double/duplicity initialisation of __version__ :-(
-    # return '0.9.2'
 
 
 with open('README.rst') as readme_file:
@@ -54,7 +46,6 @@ setup(
     author_email=get_property('__email__', package_name),
     name=package_name,
     python_requires='>=3.6.0',
-    # version=get_version(),
     version=get_property('__version__', package_name),
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',

@@ -10,7 +10,7 @@ __version__ = '0.9.2'
 # __all__ = ["beans"]
 
 # Simplify imports from the package.
-# enables use "from beansp import Beans"
-# rather than "from beansp.beans import BEans"
+#   enables use "from beansp import Beans"
+#   rather than "from beansp.beans import BEans"
 from .beans import Beans
 # from .beans import *
