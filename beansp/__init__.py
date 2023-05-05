@@ -4,14 +4,14 @@
 
 __author__ = """Adelle Goodwin"""
 __email__ = 'adelle.goodwin@monash.edu'
-### this just does not work at all - importing version from a dedicated file,
-### that is not __init__.py
-# from .version import __version__
 __version__ = '0.9.2'
 
 # this allows "from beans import *"
 # __all__ = ["beans"]
 
+# Simplify imports from the package.
+# enables use "from beansp import Beans"
+# rather than "from beansp.beans import BEans"
 # from .beans import *
 from .beans import Beans
 # from beansp.beans import Beans
