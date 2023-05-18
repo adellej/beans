@@ -50,6 +50,12 @@ from .analyse import get_param_uncert_obs, get_param_uncert
 from .initialise import init
 
 # -------------------------------------------------------------------------#
+
+
+__all__ = (
+    "Beans"
+)
+
 # Some example prior functions, or you can write your own for input to the code.
 
 # Define priors for theta. mr prior function is located in mrprior.py
@@ -63,7 +69,6 @@ def lnZprior(z):
     """
 
     from scipy import stats
-    import numpy as np
 
     beta = stats.beta
     ZCNO = 0.01
@@ -82,8 +87,6 @@ def prior_func(theta_in):
     :param theta_in: parameter vector
     """
 
-    import numpy as np
-
     X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
@@ -96,6 +99,34 @@ def prior_func(theta_in):
         and (1.15 < mass < 2.5) and (9 < radius < 17):
         #return 0.0 + lnZprior(Z) + mr_prior(mass, radius) #use this option for 1808 prior
         return 0.0 + mr_prior(mass, radius)
+    else:
+        return -np.inf
+
+
+def prior_1808(theta_in):
+    """
+    This function implements a simple box prior for all the parameters 
+    excluding mass, radius, and the metallicity, which come instead from
+    separate functions
+
+    This prior is explicitly intended for use with SAX J1808.4-3653, and
+    should only be used with extreme caution in other cases!
+
+    :param theta_in: parameter vector
+    """
+
+    X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
+
+    # upper bound and lower bounds of each parameter defined here. Bounds were
+    # found by considering an estimated value for each parameter then giving
+    # reasonable limits.
+    if (0.00001 < X < 0.76) and \
+        (0.000001 <= Q_b < 5.0) and (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (0.005 < r1 < 1.0) and (0.005 < r2 < 3.0) and \
+        (0 < r3 * 1e3 < 1000) \
+        and (1.15 < mass < 2.5) and (9 < radius < 17):
+
+        return 0.0 + lnZprior(Z) + mr_prior(mass, radius) 
     else:
         return -np.inf
 
