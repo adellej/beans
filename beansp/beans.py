@@ -45,7 +45,6 @@ from .burstrain import generate_burst_train, next_burst, get_a_b, mean_flux, bur
 from .run_model import runmodel
 from .get_data import get_obs
 from .mrprior import mr_prior
-from .get_data import get_obs
 from .run_emcee import runemcee
 from .analyse import get_param_uncert_obs, get_param_uncert
 from .initialise import init
@@ -936,7 +935,8 @@ Initial parameters:
         plt.show()
 
 
-    def do_analysis(self, burnin=2000, savefig=True):
+    def do_analysis(self, options=['autocor','posteriors'], 
+                          burnin=2000, savefig=True):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -951,6 +951,8 @@ Initial parameters:
 
         TODO: need to reorganise a bit, and add more options
 
+        :param options: array of strings corresponding to various analysis 
+            options, listed in the analyses dict below
         :param burnin: number of steps to discard when plotting the posteriors
         :param savefig: set to True to save figures to .pdf files, False to skip
 
@@ -961,234 +963,259 @@ Initial parameters:
         c = const.c.to('cm s-1')
         G = const.G.to('cm3 g-1 s-2')
 
-    # -------------------------------------------------------------------------#
+        # list of available analyses
 
-        # plot autocorrelation times
+        analyses = {'autocor': 'autocorrelation times as a function of timestep',
+                    'chain': 'first 300 iterations of the chains',
+                    'posteriors': 'raw posteriors and the input values',
+                    'mrcorner': 'M, R, g and 1+z corner plot',
+                    'comparison': 'observed and predicted burst times, fluences' }
 
-        print ("Reading in samples to calculate autocorrelation time...")
+        # check the chosen option is one of those implemented
 
-        # load in sampler:
-        reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
+        for option in options:
+            if option not in analyses.keys():
+                print ('** ERROR ** {} is not an available analysis option; choose from'.format(option))
+                for key in analyses.keys():
+                    print ('  {}: {}'.format(key, analyses[key]))
+                return
 
-        if savefig:
-            self.plot_autocorr(reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
-        else:
-            self.plot_autocorr(reader, savefile=None)
-            print ('Skipping autocorrelation plot save')
-        print ("...done")
+        # ---------------------------------------------------------------------#
+        # PLOTS
+        # ---------------------------------------------------------------------#
 
-        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
+        if not hasattr(self, 'reader'):
 
-        # Read in the full chain to get the number of steps completed
-        sampler=reader.get_chain(flat=False)
-        nsteps_completed = np.shape(sampler)[0]
+            print ("Reading in samples...")# to calculate autocorrelation time...")
 
-        # plot the chains:
+            # load in sampler:
+            self.reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
 
-        print ("Plotting the chains...")
-        labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
-        # plt.clf()
-        fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
+            # Read in the full chain to get the number of steps completed
+            self.sampler = self.reader.get_chain(flat=False)
+            self.nsteps_completed = np.shape(self.sampler)[0]
 
-        for i in range(self.ndim):
-            axes[i].plot(sampler[:,:,i].T, color="k", alpha=0.4)
-            axes[i].yaxis.set_major_locator(MaxNLocator(5))
-            axes[i].set_ylabel(labels[i])
-
-        axes[self.ndim-1].set_xlabel("step number")
-        plt.tight_layout(h_pad=0.0)
-        if savefig:
-            print ('Saving chain plot to {}chain-plot.pdf'.format(self.run_id))
-            plt.savefig(self.run_id+'chain-plot.pdf')
-        else:
-            print ('Skipping chain plot save')
-
-        plt.show()
-        print ("...done")
+            print ("... done. Got {} steps completed".format(self.nsteps_completed))
 
         # moved burnin to be a parameter, so we can pass that from do_run
 
-        if burnin >= nsteps_completed*0.9:
-            print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, nsteps_completed))
+        if burnin >= self.nsteps_completed*0.9:
+            print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
             burnin = 0
 
-        # Also read in the "flattened" chain, for the posteriors
+        if 'autocor' in options:
 
-        print ("Reading in flattened samples to show posteriors...")
-        samples=reader.get_chain(flat=True, discard=burnin)
+            # plot autocorrelation times
 
-        # make plot of posterior distributions of your parameters:
-        cc = ChainConsumer()
-        cc.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
-        cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
-            figsize="column", truth=list(self.theta))
-        print ("...done")
+            if savefig:
+                self.plot_autocorr(self.reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
+            else:
+                self.plot_autocorr(self.reader, savefile=None)
+                print ('Skipping autocorrelation plot save')
+            print ("...done")
 
-        # and finally read in the model realisations
-        # This loop can take a LOOOOOONG time for long runs
+        #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
 
-        print ("Reading in and processing blobs...")
-        blobs = reader.get_blobs(flat=True)
-        # samples = reader.get_chain(discard=burnin, flat=True, thin=thin)
-        # log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
-        # blobs = reader.get_blobs(discard=burnin, flat=True, thin=thin)
+        if 'chain' in options:
 
-        data = []
-        for i in range(len(blobs["model"])):
-            data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
-        print ("...done")
+            # plot the chains:
 
-    # -------------------------------------------------------------------------#
-        # get the acceptance fraction:
-        #accept = reader.acceptance_fraction/nsteps #this will be an array with the acceptance fraction for each walker
-        #print(f"The average acceptance fraction of the walkers is: {np.mean(accept)}")
+            print ("Plotting the chains...")
+            labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
+            # plt.clf()
+            fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
 
-        # get the autocorrelation times:
-        # print("burn-in: {0}".format(burnin))
-        # print("thin: {0}".format(thin))
-        # print("flat chain shape: {0}".format(samples.shape))
-        # print("flat log prob shape: {0}".format(log_prob_samples.shape))
-        # print("flat log prior shape: {0}".format(log_prior_samples.shape))
+            for i in range(self.ndim):
+                axes[i].plot(self.sampler[:,:,i].T, color="k", alpha=0.4)
+                axes[i].yaxis.set_major_locator(MaxNLocator(5))
+                axes[i].set_ylabel(labels[i])
 
-    # -------------------------------------------------------------------------#
-        # Get parameters for each model run from the blobs structure:
+            axes[self.ndim-1].set_xlabel("step number")
+            plt.tight_layout(h_pad=0.0)
+            if savefig:
+                print ('Saving chain plot to {}chain-plot.pdf'.format(self.run_id))
+                plt.savefig(self.run_id+'chain-plot.pdf')
+            else:
+                print ('Skipping chain plot save')
 
-        # get each individual parameter:
-        time = [data[i]['time'] for i in range(len(data))]
-        e_b = [data[i]['e_b'] for i in range(len(data))]
-        alpha = [data[i]['alpha'] for i in range(len(data))]
-        X = [data[i]['x_0'] for i in range(len(data))]
-        Z = [data[i]['z'] for i in range(len(data))]
-        base = [data[i]['base'] for i in range(len(data))]
-        mdot = [data[i]['mdot'] for i in range(len(data))]
-        r1 = np.array([data[i]['r1'] for i in range(len(data))])
-        r2 = np.array([data[i]['r2'] for i in range(len(data))])
-        r3 = np.array([data[i]['r3'] for i in range(len(data))])
-        mass = np.array([data[i]['mass'] for i in range(len(data))])
-        radius = np.array([data[i]['radius'] for i in range(len(data))])
+            plt.show()
+            print ("...done")
 
-        # calculate redshift and gravity from mass and radius:
-        # keep the parameters that we're going to calculate limits on below, 
-        # dimensionless
+        if 'posteriors' in options:
 
-        R = np.array(radius)*1e5*u.cm #cgs
-        M = np.array(mass)*const.M_sun.to('g') #cgs
+            # Also read in the "flattened" chain, for the posteriors
 
-	# ChainConsumer's plot method can't handle Quantity objects, so we need
-	# to convert gravity and redshift back to numpy arrays here
-        redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
-        gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
+            # I think I can get samples from the previously-read in
+            # sampler object, just need to flatten the array
 
-        # calculate distance and inclincation from scaling factors:
-        r1 = np.array(r1)
-        r2 = np.array(r2)
-        r3 = np.array(r3)
-        # print(np.min(r1))
-        # print(np.min(r2))
-        # print(np.min(r3))
-        # print(np.min(mass))
-        # print(np.min(X))
+            # print ("Reading in flattened samples to show posteriors...")
+            # samples = self.reader.get_chain(flat=True, discard=burnin)
+            samples = self.sampler[burnin:,:,:].reshape((-1,10))
 
-        xip = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
-        xib = (0.74816*xip)/r2
-        distance = 10*np.power((r1/xip), 0.5) #kpc
-        cosi_2 = 1/(2*xip)
-        cosi = 0.5/(2*(xip/xib)-1)
+            # make plot of posterior distributions of your parameters:
+            cc = ChainConsumer()
+            cc.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+            if savefig:
+                cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
+                    figsize="column", truth=list(self.theta))
+            else:
+                # this one doesn't appear on the Mac, not sure why
+                cc.plotter.plot(figsize="column", truth=list(self.theta))
+            print ("...done")
+
+        if ('mrcorner' in options) or ('comparison' in options):
+
+            # and finally read in the model realisations
+            # This loop can take a LOOOOOONG time for long runs
+            # TODO save this to the Beans object so we only need to read
+            # it in once; need to rationalise what arrays are kept etc.
+
+            print ("Reading in and processing blobs...")
+            blobs = self.reader.get_blobs(flat=True)
+
+            data = []
+            for i in range(len(blobs["model"])):
+                data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
+            print ("...done")
+
+            # Get parameters for each model run from the blobs structure:
+
+            # get each individual parameter:
+            time = [data[i]['time'] for i in range(len(data))]
+            e_b = [data[i]['e_b'] for i in range(len(data))]
+            alpha = [data[i]['alpha'] for i in range(len(data))]
+            X = [data[i]['x_0'] for i in range(len(data))]
+            Z = [data[i]['z'] for i in range(len(data))]
+            base = [data[i]['base'] for i in range(len(data))]
+            mdot = [data[i]['mdot'] for i in range(len(data))]
+            r1 = np.array([data[i]['r1'] for i in range(len(data))])
+            r2 = np.array([data[i]['r2'] for i in range(len(data))])
+            r3 = np.array([data[i]['r3'] for i in range(len(data))])
+            mass = np.array([data[i]['mass'] for i in range(len(data))])
+            radius = np.array([data[i]['radius'] for i in range(len(data))])
+
+            # calculate redshift and gravity from mass and radius:
+	    # keep the parameters that we're going to calculate limits on
+	    # below, dimensionless
+
+            R = np.array(radius)*1e5*u.cm #cgs
+            M = np.array(mass)*const.M_sun.to('g') #cgs
+
+	    # ChainConsumer's plot method can't handle Quantity objects,
+	    # so we need to convert gravity and redshift back to numpy
+	    # arrays here
+            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
+
+            # calculate distance and inclincation from scaling factors:
+            r1 = np.array(r1)
+            r2 = np.array(r2)
+            r3 = np.array(r3)
+
+            xip = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
+            xib = (0.74816*xip)/r2
+            distance = 10*np.power((r1/xip), 0.5) #kpc
+            cosi_2 = 1/(2*xip)
+            cosi = 0.5/(2*(xip/xib)-1)
 
 
-        # to get the parameter middle values and uncertainty use the functions get_param_uncert_obs and get_param_uncert_pred, e.g.
+	    # to get the parameter middle values and uncertainty use the
+	    # functions get_param_uncert_obs and get_param_uncert_pred,
+	    # e.g.
 
-        #t1, t2, t3, t4, t5, t6, t7 = get_param_uncert_obs1(time, self.numburstssim+1)
-        #times = [list(t1), list(t2), list(t3), list(t4), list(t5), list(t6), list(t7)]
-        if self.train:
-            times = get_param_uncert_obs(time, self.numburstssim*2+1)
-        else:
-            times = get_param_uncert_obs(time, self.numburstsobs)
-        timepred = [x[0] for x in times]
-        timepred_errup = [x[1] for x in times]
-        timepred_errlow = [x[2] for x in times]
+            if self.train:
+                times = get_param_uncert_obs(time, self.numburstssim*2+1)
+            else:
+                times = get_param_uncert_obs(time, self.numburstsobs)
+            timepred = [x[0] for x in times]
+            timepred_errup = [x[1] for x in times]
+            timepred_errlow = [x[2] for x in times]
 
-        if self.train:
-            ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
-        else:
-            ebs = get_param_uncert_obs(e_b, self.numburstsobs)
-        ebpred = [x[0] for x in ebs]
-        ebpred_errup = [x[1] for x in ebs]
-        ebpred_errlow = [x[2] for x in ebs]
-        if self.train:
-            alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
-        else:
-            alphas = get_param_uncert_obs(alpha, self.numburstssim)
-        Xpred = np.array(list(get_param_uncert(X))[0])
-        Zpred = np.array(list(get_param_uncert(Z))[0])
-        basepred = np.array(list(get_param_uncert(base))[0])
-        dpred = np.array(list(get_param_uncert(distance))[0])
-        cosipred = np.array(list(get_param_uncert(cosi))[0])
-        xippred = np.array(list(get_param_uncert(xip))[0])
-        xibpred = np.array(list(get_param_uncert(xib))[0])
-        masspred = np.array(list(get_param_uncert(mass))[0])
-        radiuspred = np.array(list(get_param_uncert(radius))[0])
-        gravitypred = np.array(list(get_param_uncert(gravity))[0])
-        redshiftpred = np.array(list(get_param_uncert(redshift))[0])
-        r1pred = np.array(list(get_param_uncert(r1))[0])
-        r2pred = np.array(list(get_param_uncert(r2))[0])
-        r3pred = np.array(list(get_param_uncert(r3))[0])
+            if self.train:
+                ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
+            else:
+                ebs = get_param_uncert_obs(e_b, self.numburstsobs)
+            ebpred = [x[0] for x in ebs]
+            ebpred_errup = [x[1] for x in ebs]
+            ebpred_errlow = [x[2] for x in ebs]
+            if self.train:
+                alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
+            else:
+                alphas = get_param_uncert_obs(alpha, self.numburstssim)
+            Xpred = np.array(list(get_param_uncert(X))[0])
+            Zpred = np.array(list(get_param_uncert(Z))[0])
+            basepred = np.array(list(get_param_uncert(base))[0])
+            dpred = np.array(list(get_param_uncert(distance))[0])
+            cosipred = np.array(list(get_param_uncert(cosi))[0])
+            xippred = np.array(list(get_param_uncert(xip))[0])
+            xibpred = np.array(list(get_param_uncert(xib))[0])
+            masspred = np.array(list(get_param_uncert(mass))[0])
+            radiuspred = np.array(list(get_param_uncert(radius))[0])
+            gravitypred = np.array(list(get_param_uncert(gravity))[0])
+            redshiftpred = np.array(list(get_param_uncert(redshift))[0])
+            r1pred = np.array(list(get_param_uncert(r1))[0])
+            r2pred = np.array(list(get_param_uncert(r2))[0])
+            r3pred = np.array(list(get_param_uncert(r3))[0])
 
-        # scale fluences by scaling factor:
-        ebpred = np.array(ebpred)*np.array(r3pred[0])
-        ebpred_errup = np.array(ebpred_errup)*np.array(r3pred[0])
-        ebpred_errlow = np.array(ebpred_errlow)*np.array(r3pred[0])
+            # scale fluences by scaling factor:
+            ebpred = np.array(ebpred)*np.array(r3pred[0])
+            ebpred_errup = np.array(ebpred_errup)*np.array(r3pred[0])
+            ebpred_errlow = np.array(ebpred_errlow)*np.array(r3pred[0])
 
-        # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
+            # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
 
-        np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred \n value, upper uncertainty, lower uncertainty')
+            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred \n value, upper uncertainty, lower uncertainty')
 
-    # -------------------------------------------------------------------------#
-    # PLOTS
-    # -------------------------------------------------------------------------#
+	    # make plot of posterior distributions of the mass, radius,
+	    # surface gravity, and redshift: stack data for input to
+	    # chainconsumer:
+            mass = mass.ravel()
+            radius = radius.ravel()
+            gravity = np.array(gravity).ravel()
+            redshift = redshift.ravel()
+            mrgr = np.column_stack((mass, radius, gravity, redshift))
 
-        # make plot of posterior distributions of the mass, radius, surface gravity, and redshift:
-        # stack data for input to chainconsumer:
-        mass = mass.ravel()
-        radius = radius.ravel()
-        gravity = np.array(gravity).ravel()
-        redshift = redshift.ravel()
-        mrgr = np.column_stack((mass, radius, gravity, redshift))
+        if 'mrcorner' in options:
 
-        # plot with chainconsumer:
-        cc = ChainConsumer()
-        cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
-        cc.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
+            # plot with chainconsumer:
+            cc = ChainConsumer()
+            cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
+            if savefig:
+                cc.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
+            else:
+                cc.plotter.plot(figsize="column")
 
-        # make plot of observed burst comparison with predicted bursts:
+        if 'comparison' in options:
 
-        plt.figure(figsize=(10,7))
+            # make plot of observed burst comparison with predicted bursts:
 
-        # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
-        plt.errorbar(self.bstart, self.fluen, yerr=self.fluen_err, 
-            color='black', linestyle='', marker='.', ms=13, label='Observed')
-        #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
-        if self.train:
-            # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-            plt.errorbar(timepred[1:], ebpred, 
-                yerr=[ebpred_errup, ebpred_errlow],
-                xerr=[timepred_errup[1:], timepred_errlow[1:]], 
-                marker='*', ms=11, color='darkgrey', linestyle='', 
-                label='Predicted')
-        else:
-            plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-            plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
-            plt.errorbar(self.bstart,  self.fluen, fmt='.', color='black')
+            plt.figure(figsize=(10,7))
 
-        plt.xlabel("Time (days after start of outburst)")
-        plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
-        plt.legend(loc=2)
+            # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
+            plt.errorbar(self.bstart, self.fluen, yerr=self.fluen_err, 
+                color='black', linestyle='', marker='.', ms=13, label='Observed')
+            #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
+            if self.train:
+                # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+                plt.errorbar(timepred[1:], ebpred, 
+                    yerr=[ebpred_errup, ebpred_errlow],
+                    xerr=[timepred_errup[1:], timepred_errlow[1:]], 
+                    marker='*', ms=11, color='darkgrey', linestyle='', 
+                    label='Predicted')
+            else:
+                plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
+                plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
+                plt.errorbar(self.bstart,  self.fluen, fmt='.', color='black')
 
-        if savefig:
-            print ('Saving burst comparison plot to {}_predictedburstscomparison.pdf'.format(self.run_id))
-            plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
-        else:
-            print ('Skipping burst comparison plot save')
-        plt.show()
+            plt.xlabel("Time (days after start of outburst)")
+            plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
+            plt.legend(loc=2)
+
+            if savefig:
+                print ('Saving burst comparison plot to {}_predictedburstscomparison.pdf'.format(self.run_id))
+                plt.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
+            else:
+                print ('Skipping burst comparison plot save')
+            plt.show()
 
 

@@ -5,7 +5,7 @@ import numpy as np
 from os.path import exists
 import sys
 
-def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
+def get_obs(ref_ind, bc, obsname, burstname, gtiname):
     """
     Reads data in from ascii files and returns the data structures required for emcee
     Requires persistent burst observations and, optionally, flux observations & satellite
@@ -26,6 +26,22 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
 
     Example screenshots of how to generate this ascii format using the MINBAR web interface for SAX J1808.4-3658
     is included in this directory.
+
+    :param ref_ind: rank of "index" burst, against which the other burst
+      times are relative to. For the "train" mode, should be around the
+      middle of the predicted burst train. This burst will not be
+      simulated but will be used as a reference to predict the other bursts.
+    :param bc: bolometric correction to adopt for the flux history (set
+      to 1.0 if the fluxes are already bolometric):
+    :param obsname: name of observation file, which includes the flux
+      history, from which the mdot is estimated to generate to generate
+      the burst train (set obsname=None for a non-contiguous, or "ensemble"
+      mode run)
+    :param burstname: name of the burst data file, listing the bursts
+    :param gtiname: name of the GTI file, set to None to turn off checking
+
+    :return: bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs
+      [ and optionally, if gtiname != None: st, et ]
     """
 
     # Is this statement redundant? st and et are returned when the GTI file is read in
@@ -140,6 +156,7 @@ def get_obs(ref_ind, bc, gti_checking, obsname, burstname, gtiname):
 
     tobs = tobs - bstart0
 
+    gti_checking = gtiname is not None
     if gti_checking:
 
         # Read in the gtis (required arrays are st (start time) and et (end time) of times telescope IS observing (indexes need to match)

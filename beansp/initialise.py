@@ -62,9 +62,9 @@ def init(ref_ind, gti_checking, obsname, burstname, gtiname, bc):
 
     # get the data:
     if gti_checking:
-        tref, bstart, fluen, fluen_err, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
+        tref, bstart, fluen, fluen_err, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind,bc,obsname, burstname, gtiname)
     else:
-        tref, bstart, fluen, fluen_err, obs, obs_err, pflux, pfluxe, tobs = get_obs(ref_ind,bc,gti_checking,obsname, burstname, gtiname)
+        tref, bstart, fluen, fluen_err, obs, obs_err, pflux, pfluxe, tobs = get_obs(ref_ind,bc,obsname, burstname, gtiname)
         st, et = None, None
 
     if burstname is not None:
