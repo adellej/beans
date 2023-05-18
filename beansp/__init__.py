@@ -2,9 +2,9 @@
 
 """Top-level package for BEANSp."""
 
-__author__ = 'Adelle Goodwin'
-__email__ = 'adelle.goodwin@monash.edu'
-__version__ = '0.10.0'
+__author__ = """Adelle Goodwin and Duncan Galloway"""
+__email__ = 'adelle.goodwin@curtin.edu.au'
+__version__ = '1.0.0'
 
 # this allows "from beans import *"
 # __all__ = ["beans"]
