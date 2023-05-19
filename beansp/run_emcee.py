@@ -6,7 +6,36 @@ from multiprocessing import Pool
 import time
 import h5py
 
-def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threads):
+def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
+    '''
+    Distribute the initial positions for the walkers around the supplied theta value, 
+    making sure they're consistent with the prior
+
+    :param theta: desired centroid for walker parameters
+    :param nwalkers: number of initial positions to generate
+    :param prior: prior function adopted
+    :param scale: Gaussian spread of the values in each dimension
+
+    :return: list of nwalkers positions
+    '''
+    
+    ndim = len(theta)
+    pos = np.array([theta + scale*np.random.randn(ndim) for i in range(nwalkers)])
+    
+    valid = np.array([prior(pos[i]) != -np.inf for i in range(nwalkers)])
+    
+    print ('Initial walker positions within {} of supplied parameter vector, checking for consistency with prior...'.format(scale))
+
+    # print (len(np.where(~valid)[0]))
+    while (len(np.where(~valid)[0])) > 0:
+        pos[~valid] = [theta + scale*np.random.randn(ndim) for i in range(len(np.where(~valid)[0]))]
+        valid = np.array([prior(pos[i]) != -np.inf for i in range(nwalkers)])
+        # print (len(np.where(~valid)[0]))                                                                     
+
+    return list(pos)
+
+
+def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart, threads):
     """
     Function to initilise and run emcee.
     Removed the redundant parameter ndim, which can be determined from the
@@ -17,6 +46,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threa
     :param theta: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1, r2, r3,
       mass & radius
     :param lnprob: log-probability function to use with emcee
+    :param prior: prior function to use with emcee, used to check the initial walker positions
     :param x: the "independent" variable, passed to lnlike
     :param y: the "dependent" variable (i.e. measurements), passed to lnlike
     :param yerr: erorr estimates on y
@@ -49,7 +79,9 @@ def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threa
     else:
         reader.reset(nwalkers, ndim)
         # set the intial position of the walkers
-        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        # pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        pos = set_initial_positions(theta,  nwalkers, prior)
+
         print('Ready to run',run_id,'with',nwalkers,'walkers')
             
     print("Beginning sampling..")

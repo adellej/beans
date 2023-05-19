@@ -213,6 +213,8 @@ class Beans:
         if burstname is None:
             burstname = os.path.join(data_path, '1808_bursts.txt')
 
+        self.lnprior = prior
+
         # Set up initial conditions:
 
         if config_file is not None:
@@ -237,7 +239,10 @@ class Beans:
             self.gtiname = gtiname
             self.bc = bc
 
-        self.lnprior = prior
+        if self.lnprior(self.theta) == -np.inf:
+            print ('** ERROR ** supplied parameter vector is excluded by the prior')
+            return
+
         self.restart = restart
 
         # number of dimensions for the parameter array
@@ -374,7 +379,7 @@ Initial parameters:
            Config.add_section("emcee")
            Config.set("emcee", "theta", str(self.theta))
            Config.set("emcee", "numburstssim", str(self.numburstssim))
-           # Config.set("emcee", "prior", str(self.lnprior))
+           Config.set("emcee", "prior", str(self.lnprior))
            Config.set("emcee", "nwalkers", str(self.nwalkers))
            Config.set("emcee", "nsteps", str(self.nsteps))
            Config.set("emcee", "threads", str(self.threads))
@@ -417,6 +422,13 @@ Initial parameters:
                         tuple(map(float, config.get(section, option)[1:-1].split(', '))))
                 elif option == 'bc':
                     setattr(self, option, config.getfloat(section, option))
+                elif option =='prior':
+                    function_name = config.get(section, option).split(' ')[1]
+                    if function_name != str(self.lnprior).split(' ')[1]:
+                        print ('''
+** WARNING ** config file lists prior function as {}, but supplied prior is {}
+              To fully replicate the previous run you need to specify the same prior using the prior flag on init
+'''.format(function_name, self.lnprior))
                 elif option in int_params:
                     setattr(self, option, config.getint(section, option))
                 else:
@@ -830,7 +842,8 @@ Initial parameters:
         _start = time.time()
 
         # run the chains and save the output as a h5 file
-        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart, self.threads)
+        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.lnprior, 
+            self.x, self.y, self.yerr, self.run_id, self.restart, self.threads)
         print(f"...sampling complete!")
 
         _end = time.time()
