@@ -27,7 +27,7 @@ from configparser import ConfigParser
 import pkg_resources  # part of setuptools
 try:
     # this will fail if the package is not pip-installed
-    __version__ = pkg_resources.require("beans")[0].version
+    __version__ = pkg_resources.require("beansp")[0].version
 except:
     # in which case just record the path
     __version__ = os.getcwd()
