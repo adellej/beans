@@ -9,7 +9,7 @@ from astropy.io import ascii
 import pickle
 from matplotlib.ticker import MaxNLocator
 import sys
-from scipy.stats.kde import gaussian_kde
+from scipy.stats import gaussian_kde
 import scipy.stats as stats
 import matplotlib.mlab as mlab
 import tables
@@ -55,7 +55,11 @@ def get_param_uncert_obs(param_array, numburstssim):
 def get_param_uncert(param_array, percentile=[16,50,84]):
     '''
     Calculate uncertainties on individual parameterss.
-    This routine only works on unitless quantities
+    This routine only works on unitless quantities (lists?)
+
+    TODO simplify this function (e.g. using numpy.diff) to allow it to
+    work on other kinds of structures, and avoid the list-to-numpy array
+    conversion in the predicted parameters in do_analysis
 
     :param param_array: array of parameter values to calculate percentiles
     :param percentile: percentiles to calculate, normally 1-sigma
