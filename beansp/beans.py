@@ -13,8 +13,8 @@ import astropy.constants as const
 import pickle
 from matplotlib.ticker import MaxNLocator
 import sys
-from scipy.stats.kde import gaussian_kde
-import scipy.stats as stats
+from scipy.stats import gaussian_kde
+# import scipy.stats as stats
 import matplotlib.mlab as mlab
 import tables
 from scipy.interpolate import interp1d
@@ -38,6 +38,10 @@ try:
 except:
     pass
 
+# Some constants
+
+BSTART_ERR = 10*u.min # Default uncertainty for burst start times
+
 # -------------------------------------------------------------------------#
 ## load local  modules
 from .settle import settle
@@ -47,7 +51,6 @@ from .get_data import get_obs
 from .mrprior import mr_prior
 from .run_emcee import runemcee
 from .analyse import get_param_uncert_obs, get_param_uncert
-from .initialise import init
 
 # -------------------------------------------------------------------------#
 
@@ -129,6 +132,32 @@ def prior_1808(theta_in):
         return 0.0 + lnZprior(Z) + mr_prior(mass, radius) 
     else:
         return -np.inf
+
+
+def calc_dist_anisotropy(r1, r2, r3):
+    '''
+    Calculate distance and inclincation from scaling factors.  These
+    functions are taken (more or less) from Goodwin et al. 2019, eq.  18-20, 
+    but there seem to be some slight differences
+
+    TODO also infer the inclination, which will depend on the model
+    adopted for the anisotropy; because the burst and persistent emission
+    anisotropy are free to vary independently, there is no guarantee there
+    would be an inclination value consistent with every pair of values for
+    a given model
+
+    :param r1: ratio of mdot to bolometric (isotropic) fluence (eq. 12)
+    :param r2: ratio of observed to predicted alpha (eq. 13)
+    :param r3: ratio of fluence to isotropic burst energy (eq. 14)
+
+    :return: distance, xi_b, xi_p
+    '''
+
+    xi_p = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
+    xi_b = (0.74816*xi_p)/r2
+    distance = 10*np.power((r1/xi_p), 0.5) #kpc
+
+    return distance, xi_b, xi_p
 
 
 class Beans:
@@ -213,6 +242,8 @@ class Beans:
         if burstname is None:
             burstname = os.path.join(data_path, '1808_bursts.txt')
 
+        self.lnprior = prior
+
         # Set up initial conditions:
 
         if config_file is not None:
@@ -237,14 +268,16 @@ class Beans:
             self.gtiname = gtiname
             self.bc = bc
 
-        self.lnprior = prior
+        if self.lnprior(self.theta) == -np.inf:
+            print ('** ERROR ** supplied parameter vector is excluded by the prior')
+            return
+
         self.restart = restart
 
         # number of dimensions for the parameter array
-        # self.ndim = ndim
+
         self.ndim = len(theta)
 
-        # self.gti_checking = gti_checking
         self.gti_checking = gtiname is not None
 
 	# determines whether will run as a train of bursts or non-contiguous
@@ -254,16 +287,20 @@ class Beans:
 
         self.train = (obsname is not None)
 
+        self.bstart_err = BSTART_ERR.to('d').value
+
         # Read in all the measurements and set up all the parameters
+        # This function now operates on the Beans object directly, and the
+        # required attributes:
+        # x, y, yerr, tref, bstart, pflux, pfluxe, tobs, fluen, fluen_err, 
+        #     st, et
+        # are set in that routine
+        # bypasses the earlier init function, and instead calls get_obs
+        # directly
 
-        self.x, self.y, self.yerr, self.tref, self.bstart, self.pflux, \
-            self.pfluxe, self.tobs, self.fluen, self.fluen_err, \
-            self.st, self.et = init(
-            self.ref_ind, self.gti_checking, self.obsname, self.burstname,
-            self.gtiname, self.bc)
+        get_obs(self)
+
         self.numburstsobs = len(self.fluen)
-        print(self.st, self.et)
-
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -328,15 +365,18 @@ Initial parameters:
 
         X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta
 
-        return """#X = {} \ hydrogen mass fraction
-#Z = {} \ CNO mass fraction
-#Q_b = {} \ base flux [MeV/nucleon]
-#M_NS = {} M_sun \ neutron star mass
-#R_NS = {} km \ neutron star radius
-#f_a, f_E = {}, {} \ systematic error terms for alpha, fluence
-#r_1, r_2, r_3 = {}, {}, {} \ scaling factors to convert predictions""".format(
-            X, Z, Q_b, mass, radius, f_a, f_E, r1, r2, r3).replace(
-            '#',' '*indent)
+        dist, xi_b, xi_p = calc_dist_anisotropy(r1, r2, r3)
+
+        return """#X = {} \\ hydrogen mass fraction
+#Z = {} \\ CNO mass fraction
+#Q_b = {} \\ base flux [MeV/nucleon]
+#M_NS = {} M_sun \\ neutron star mass
+#R_NS = {} km \\ neutron star radius
+#f_a, f_E = {}, {} \\ systematic error terms for alpha, fluence
+#r_1, r_2, r_3 = {}, {}, {} \\ scaling factors to convert predictions
+#  (equivalent to d = {:.2f} kpc, xi_b = {:.3f}, xi_p = {:.3f})""".format(
+    X, Z, Q_b, mass, radius, f_a, f_E, r1, r2, r3, dist, xi_b, xi_p).replace(
+    '#',' '*indent)
 
 
     def save_config(self, file=None, clobber=True):
@@ -374,7 +414,7 @@ Initial parameters:
            Config.add_section("emcee")
            Config.set("emcee", "theta", str(self.theta))
            Config.set("emcee", "numburstssim", str(self.numburstssim))
-           # Config.set("emcee", "prior", str(self.lnprior))
+           Config.set("emcee", "prior", str(self.lnprior))
            Config.set("emcee", "nwalkers", str(self.nwalkers))
            Config.set("emcee", "nsteps", str(self.nsteps))
            Config.set("emcee", "threads", str(self.threads))
@@ -417,6 +457,13 @@ Initial parameters:
                         tuple(map(float, config.get(section, option)[1:-1].split(', '))))
                 elif option == 'bc':
                     setattr(self, option, config.getfloat(section, option))
+                elif option =='prior':
+                    function_name = config.get(section, option).split(' ')[1]
+                    if function_name != str(self.lnprior).split(' ')[1]:
+                        print ('''
+** WARNING ** config file lists prior function as {}, but supplied prior is {}
+              To fully replicate the previous run you need to specify the same prior using the prior flag on init
+'''.format(function_name, self.lnprior))
                 elif option in int_params:
                     setattr(self, option, config.getint(section, option))
                 else:
@@ -446,40 +493,13 @@ Initial parameters:
         :return: likelihood, model result array
         """
 
-        # define y = "data" parameters
-        # I think these "globals" are not used; the only other reference I 
-        # can see is in run_model, which is commented out. So I think
-        # TODO these siz for loops can be deleted - dkg
-
-        for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
-            globals()['t%s' % i] = self.y[x]
-        for x,i in zip(range(len(self.bstart)-1, len(self.fluen)+len(self.bstart)-1),range(0,len(self.bstart))):
-            globals()['Eb%s' % i] = self.y[x]
-        for x,i in zip(range(len(self.fluen)+len(self.bstart)-1, len(self.y)),range(0, len(self.bstart-1))):
-            globals()['a%s' % i] = self.y[x]
-
-    # define yerr as variance terms (errors) for our data parameters (listed in same order as for y)
-    # *note that we have to enter three time errors for the code to work however in reality the error should be the same for all of them (st0, st2 and st3 are really dummy parameters)
-
-        for x,i in zip([ x for x in range(0, len(self.bstart)-1) if x != self.ref_ind], [i for i in range(0, len(self.bstart)-1) if i != self.ref_ind]):
-            globals()['st%s' % i] = self.yerr[x]
-        for x,i in zip(range(len(self.bstart)-1, len(self.fluen)+len(self.bstart)-1),range(0,len(self.bstart))):
-            globals()['sEb%s' % i] = self.yerr[x]
-        for x,i in zip(range(len(self.fluen)+len(self.bstart)-1, len(self.y)),range(0, len(self.bstart-1))):
-            globals()['sa%s' % i] = self.yerr[x]
-
-
         # define theta = model parameters, which we define priors for
 
         X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
 
-        # Instead of treating s_t as a parameter, we just hardwire it here
-
-        s_t = 10.0 / 1440.0
-
-	      # call model (function runmodel, in run_model.py) to generate the burst
-	      # train, or the set of bursts (for "ensemble" mode. In earlier versions
-	      # the corresponding IDL function was defined as
+	# call model (function runmodel, in run_model.py) to generate the burst
+	# train, or the set of bursts (for "ensemble" mode. In earlier versions
+	# the corresponding IDL function was defined as
         # modeldata(base, z, x, r1, r2 ,r3)
 
         model, valid, model2 = runmodel(
@@ -497,29 +517,17 @@ Initial parameters:
         ato = int(self.train) # array "train" offset
         # special to trap "unhashable type" error
         # print (model, ato, len(self.bstart), len(self.fluen))
-        model[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato] *= r3
-        model[len(self.fluen)+len(self.bstart)-ato:] *= r2
+        model[self.numburstsobs-ato:len(self.fluen)+self.numburstsobs-ato] *= r3
+        model[len(self.fluen)+self.numburstsobs-ato:] *= r2
 
 	# To simplify final likelihood expression we define inv_sigma2 for each
 	# data parameter that describe the error.  The variance (eg sEb0) is
 	# underestimated by some fractional amount, f, for each set of
 	# parameters.
-        # TODO: assembling inv_sigma2 can probably all be done in one line
 
-        sEb = yerr[len(self.bstart)-ato:len(self.fluen)+len(self.bstart)-ato]
-        sa = yerr[len(self.fluen)+len(self.bstart)-ato:]
-
-        inv_sigma2 = []
-        if self.train:
-            for i in range (0,len(self.bstart)-1):
-                inv_sigma2.append(1.0/(s_t**2))
-        else:
-            for i in range (0,len(self.bstart)):
-                inv_sigma2.append(1.0/(yerr[i]**2))
-        for i in range(0,len(self.bstart)):
-            inv_sigma2.append(1.0/((sEb[i]*f_E)**2))
-        for i in range(0,len(self.bstart)-ato):
-            inv_sigma2.append(1.0/((sa[i]*f_a)**2))
+        err_fac = np.concatenate(( np.full(self.numburstsobs-ato,1.),
+            np.full(self.numburstsobs,f_E), np.full(self.numburstsobs-ato,f_a)))
+        inv_sigma2 = 1./(yerr*err_fac)**2
 
         # Final likelihood expression
         cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
@@ -528,7 +536,6 @@ Initial parameters:
         # instead of the downselection in model
 
         model2 = str(model2).encode('ASCII')
-
 
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
@@ -784,8 +791,8 @@ Initial parameters:
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         print("Testing the prior and likelihood functions..")
         print("lnprior:", self.lnprior(self.theta))
-        print("lnlike:", self.lnlike(self.theta, self.x, self.y, self.yerr))
-        print("lnprob:", self.lnprob(self.theta, self.x, self.y, self.yerr))
+        print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
+        print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
         print("# -------------------------------------------------------------------------#")
         # print(f"The theta parameters will begin at: {self.theta}")
         # print("# -------------------------------------------------------------------------#")
@@ -830,7 +837,8 @@ Initial parameters:
         _start = time.time()
 
         # run the chains and save the output as a h5 file
-        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.x, self.y, self.yerr, self.run_id, self.restart, self.threads)
+        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.lnprior, 
+            None, self.y, self.yerr, self.run_id, self.restart, self.threads)
         print(f"...sampling complete!")
 
         _end = time.time()
@@ -1143,12 +1151,10 @@ Initial parameters:
             r2 = np.array(r2)
             r3 = np.array(r3)
 
-            xip = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
-            xib = (0.74816*xip)/r2
-            distance = 10*np.power((r1/xip), 0.5) #kpc
+            distance, xib, xip = calc_dist_anisotropy(r1, r2, r3)
+
             cosi_2 = 1/(2*xip)
             cosi = 0.5/(2*(xip/xib)-1)
-
 
 	    # to get the parameter middle values and uncertainty use the
 	    # functions get_param_uncert_obs and get_param_uncert_pred,
