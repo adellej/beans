@@ -1,6 +1,7 @@
 """Main module. This has functions that do the sampling, save the chains, and analyse the results."""
 ## Python packages required:
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import numpy as np
 import emcee
 import corner
@@ -31,12 +32,6 @@ try:
 except:
     # in which case just record the path
     __version__ = os.getcwd()
-
-try:
-    # Required for the distance_limit method
-    import concord as cd
-except:
-    pass
 
 # Some constants
 
@@ -171,6 +166,14 @@ class Beans:
     with RXTE/PCA. The alternative is to match to a set of non-contiguous
     bursts ("ensemble" mode)
     """
+
+    HAS_CONCORD = False
+    try:
+        # Required for the distance_limit method
+        import concord as cd
+        HAS_CONCORD = True
+    except:
+        pass
 
     def __init__(self, config_file=None, nwalkers=200, nsteps=100,
                  run_id="test", obsname=None, burstname=None, gtiname=None,
@@ -574,8 +577,9 @@ Initial parameters:
 
     def plot_model(self, model=None, mdot=True):
         """
-        Display a plot of the model results, for a burst train calculated with generate_burst_train
-        Adapted from the example at https://matplotlib.org/gallery/api/two_scales.html
+	Display a plot of the model results, for a burst train calculated
+	with generate_burst_train Adapted from the example at
+        https://matplotlib.org/gallery/api/two_scales.html
 
         :param model: array of packed model prediction, OR dict giving full
           model results
@@ -832,8 +836,6 @@ Initial parameters:
             plt.legend(loc=2)
             plt.show()
 
-        print("# -------------------------------------------------------------------------#")
-        print("Beginning sampling...")
         _start = time.time()
 
         # run the chains and save the output as a h5 file
@@ -1007,7 +1009,9 @@ Initial parameters:
         analyses = {'autocor': 'autocorrelation times as a function of timestep',
                     'chain': 'first 300 iterations of the chains',
                     'posteriors': 'raw posteriors and the input values',
-                    'mrcorner': 'M, R, g and 1+z corner plot',
+                    'mrcorner': 'corner plot with M, R, g and 1+z',
+                    'fig6': 'corner plot with xi_b, xi_p, d, Q_b, Z',
+                    'fig8': 'xi_b vs. xi_p and models for comparison',
                     'comparison': 'observed and predicted burst times, fluences' }
 
         # check the chosen option is one of those implemented
@@ -1096,24 +1100,25 @@ Initial parameters:
             cc.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
             if savefig:
                 cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
-                    figsize="column", truth=list(self.theta))
+                    figsize="page", truth=list(self.theta))
             else:
-                # this one doesn't appear on the Mac, not sure why
-                cc.plotter.plot(figsize="column", truth=list(self.theta))
+                fig = cc.plotter.plot(figsize="page", truth=list(self.theta))
+                fig.show()
             print ("...done")
 
-        if ('mrcorner' in options) or ('comparison' in options):
+        if ('mrcorner' in options) or ('comparison' in options) \
+            or ('fig6' in options) or ('fig8' in options):
 
             # and finally read in the model realisations
             # This loop can take a LOOOOOONG time for long runs
             # TODO save this to the Beans object so we only need to read
             # it in once; need to rationalise what arrays are kept etc.
 
-            print ("Reading in and processing blobs...")
+            print ("Reading in and processing blobs, beginning with #{}...".format(burnin))
             blobs = self.reader.get_blobs(flat=True)
 
             data = []
-            for i in range(len(blobs["model"])):
+            for i in range(burnin, len(blobs["model"])):
                 data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
             print ("...done")
 
@@ -1123,15 +1128,16 @@ Initial parameters:
             time = [data[i]['time'] for i in range(len(data))]
             e_b = [data[i]['e_b'] for i in range(len(data))]
             alpha = [data[i]['alpha'] for i in range(len(data))]
-            X = [data[i]['x_0'] for i in range(len(data))]
-            Z = [data[i]['z'] for i in range(len(data))]
-            base = [data[i]['base'] for i in range(len(data))]
             mdot = [data[i]['mdot'] for i in range(len(data))]
-            r1 = np.array([data[i]['r1'] for i in range(len(data))])
-            r2 = np.array([data[i]['r2'] for i in range(len(data))])
-            r3 = np.array([data[i]['r3'] for i in range(len(data))])
-            mass = np.array([data[i]['mass'] for i in range(len(data))])
-            radius = np.array([data[i]['radius'] for i in range(len(data))])
+
+            X = [data[i]['x_0'][0] for i in range(len(data))]
+            Z = [data[i]['z'][0] for i in range(len(data))]
+            base = [data[i]['base'][0] for i in range(len(data))]
+            r1 = np.array([data[i]['r1'][0] for i in range(len(data))])
+            r2 = np.array([data[i]['r2'][0] for i in range(len(data))])
+            r3 = np.array([data[i]['r3'][0] for i in range(len(data))])
+            mass = np.array([data[i]['mass'][0] for i in range(len(data))])
+            radius = np.array([data[i]['radius'][0] for i in range(len(data))])
 
             # calculate redshift and gravity from mass and radius:
 	    # keep the parameters that we're going to calculate limits on
@@ -1147,9 +1153,6 @@ Initial parameters:
             gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
             # calculate distance and inclincation from scaling factors:
-            r1 = np.array(r1)
-            r2 = np.array(r2)
-            r3 = np.array(r3)
 
             distance, xib, xip = calc_dist_anisotropy(r1, r2, r3)
 
@@ -1179,20 +1182,21 @@ Initial parameters:
                 alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
             else:
                 alphas = get_param_uncert_obs(alpha, self.numburstssim)
-            Xpred = np.array(list(get_param_uncert(X))[0])
-            Zpred = np.array(list(get_param_uncert(Z))[0])
-            basepred = np.array(list(get_param_uncert(base))[0])
-            dpred = np.array(list(get_param_uncert(distance))[0])
-            cosipred = np.array(list(get_param_uncert(cosi))[0])
-            xippred = np.array(list(get_param_uncert(xip))[0])
-            xibpred = np.array(list(get_param_uncert(xib))[0])
-            masspred = np.array(list(get_param_uncert(mass))[0])
-            radiuspred = np.array(list(get_param_uncert(radius))[0])
-            gravitypred = np.array(list(get_param_uncert(gravity))[0])
-            redshiftpred = np.array(list(get_param_uncert(redshift))[0])
-            r1pred = np.array(list(get_param_uncert(r1))[0])
-            r2pred = np.array(list(get_param_uncert(r2))[0])
-            r3pred = np.array(list(get_param_uncert(r3))[0])
+
+            Xpred = get_param_uncert(X)
+            Zpred = get_param_uncert(Z)
+            basepred = get_param_uncert(base)
+            dpred = get_param_uncert(distance)
+            cosipred = get_param_uncert(cosi)
+            xippred = get_param_uncert(xip)
+            xibpred = get_param_uncert(xib)
+            masspred = get_param_uncert(mass)
+            radiuspred = get_param_uncert(radius)
+            gravitypred = get_param_uncert(gravity)
+            redshiftpred = get_param_uncert(redshift)
+            r1pred = get_param_uncert(r1)
+            r2pred = get_param_uncert(r2)
+            r3pred = get_param_uncert(r3)
 
             # scale fluences by scaling factor:
             ebpred = np.array(ebpred)*np.array(r3pred[0])
@@ -1210,17 +1214,106 @@ Initial parameters:
             radius = radius.ravel()
             gravity = np.array(gravity).ravel()
             redshift = redshift.ravel()
-            mrgr = np.column_stack((mass, radius, gravity, redshift))
 
         if 'mrcorner' in options:
+
+            mrgr = np.column_stack((mass, radius, gravity, redshift))
 
             # plot with chainconsumer:
             cc = ChainConsumer()
             cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
             if savefig:
-                cc.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="column")
+                cc.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="page")
             else:
-                cc.plotter.plot(figsize="column")
+                fig = cc.plotter.plot(figsize="page")
+                fig.show()
+
+        if 'fig6' in options:
+
+            # fig6data = np.column_stack((xip, xib, distance, base, Z, X))
+            fig6data = np.column_stack((X, Z, base, distance, xib, xip))
+
+            # plot with chainconsumer:
+
+            cc = ChainConsumer()
+
+            # configure params below copied from Adelle's jupyter notebook
+            cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
+                "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
+                .configure(flip=False, bins=0.7, summary=False, \
+                diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                label_font_size='xx-large',smooth=True, \
+                sigmas=np.linspace(0, 3, 4))
+            if savefig:
+                cc.plotter.plot(filename=self.run_id+"_fig6.pdf",figsize="page")
+            else:
+                fig = cc.plotter.plot(figsize="page")
+                fig.show()
+
+        if 'fig8' in options:
+
+            # here we read in data from the anisotropy models. There's
+            # probably a better way to do this, via concord (if it's
+            # available)
+
+            counts, ybins, xbins, image = plt.hist2d(np.array(xip), 
+                np.array(xib), bins=500, norm=LogNorm(), cmap='OrRd')
+
+            xi_p_model2 = np.arange(0, 2.5, 0.01)
+            xi_b_model2 = np.empty(len(xi_p_model2))
+
+            for i in range(0,250):
+    
+                xi_b_model2[i] = 1./((1./(2*xi_p_model2[i])) + 0.5)
+    
+            # overplot the various models
+
+            plt.plot(xi_p_model2, xi_b_model2, color = 'black',ls='-', label = 'Fujimoto (1988)')  
+
+            if Beans.HAS_CONCORD:
+                # setup dict with list of models, legend labels and linestyles
+                he16_models = {'he16_a': ('He & Keek (2016) model A', '--'),
+                               'he16_b': ('model B', '-.'),
+                               'he16_c': ('model C', (0, (3, 5, 1, 5))), 
+                               'he16_d': ('model D', (0, (1, 5))) }
+
+                for model in he16_models.keys():
+
+                    _model = self.cd.diskmodel.load_he16(model)
+
+                    model_theta = _model['col1']
+                    model_xid = _model['col2']
+                    model_xir = _model['col3']
+                    model_xip1 = _model['col4']
+                    model_xib1 = model_xid + model_xir
+
+                    model_xib = 1./model_xib1
+                    model_xip = 1./model_xip1
+
+                    #modela:
+                    plt.plot(model_xip, model_xib, color='darkblue', 
+                        ls=he16_models[model][1], label=he16_models[model][0])
+
+            else:
+                print ('''
+** WARNING ** install concord if you want to overplot model curves
+              See https://github.com/outs1der/concord''')
+
+            plt.xlabel(r'$\xi_{\mathrm{p}}$',fontsize='xx-large')
+            plt.ylabel(r'$\xi_{\mathrm{b}}$',fontsize='xx-large')
+
+            plt.legend(loc='best',fontsize='large')
+
+            plt.axis([0.,2.1,0.,2.1])
+
+            plt.xticks(fontsize=14)
+            plt.yticks(fontsize=14)
+
+            if savefig:
+                plt.savefig('test{}_xipvsxib_models_contourlines.pdf'.format(run_id))
+            else:
+                plt.show()
 
         if 'comparison' in options:
 
@@ -1229,7 +1322,7 @@ Initial parameters:
             plt.figure(figsize=(10,7))
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
-            plt.errorbar(self.bstart, self.fluen, yerr=self.fluen_err, 
+            plt.errorbar(self.bstart, self.fluen, yerr=self.fluene, 
                 color='black', linestyle='', marker='.', ms=13, label='Observed')
             #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
             if self.train:
