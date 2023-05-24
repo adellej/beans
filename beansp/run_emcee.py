@@ -148,25 +148,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart
                     break
                 old_tau = tau
 
-
-        #tau = sampler.get_autocorr_time()
         print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
-        
-    #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
-
-    # with Pool() as pool:
-    #     print("Beginning sampling..")
-    #     # use emcee backend to save as a HD5 file
-    #     reader = emcee.backends.HDFBackend(f"chains_{run_id}.h5")
-    #     reader.reset(nwalkers, ndim)
-    #     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype)
-    #     start = time.time()
-    #     sampler.run_mcmc(pos, nsteps, progress=True, store=True)
-    #     end = time.time()
-    #     multi_time = end-start
-
-    #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
-
 
     return sampler
 
