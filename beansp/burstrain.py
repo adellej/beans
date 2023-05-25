@@ -269,7 +269,8 @@ def next_burst(
 
 
 def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
-    bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, debug=False):
+    bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, full_model=False, 
+    debug=False):
     """
     This routine generates a simulated burst train based on the model
     input parameters, and the mdot history inferred from the persistent
@@ -290,6 +291,8 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
     :param tobs: times for the persistent flux measurements
     :param numburstssim: number of bursts to simulate (in each direction)
     :param ref_ind: index of reference burst
+    :param full_model: if set to True, include all the parameters in the
+      dict that is returned
     :param debug: set to True to show additional debugging information
 
     :return: a dictionary with the following keys:
@@ -433,45 +436,41 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
 
     result = dict()
 
-    result["base"] = [base]
-    result["z"] = [z]
-    result["x_0"] = [x_0]
-    result["r1"] = [r1]
-    result["r2"] = [r2]
-    result["r3"] = [r3]
+    if full_model:
+        # model parameters are redundant for the model returned
+        result["base"] = [base]
+        result["z"] = [z]
+        result["x_0"] = [x_0]
+        result["r1"] = [r1]
+        result["r2"] = [r2]
+        result["r3"] = [r3]
+
+        result["mdot_max"] = [mdot_max]
+
+        result["mass"] = [mass]
+        result["radius"] =  [radius]
+
+        result["forward"] = forward     # to keep track of the outcome of each direction
+        result["backward"] = backward
+
+    # now the actual predictions
+
     result["time"] = stime
-    result["mdot_max"] = [mdot_max]
     if len(stime) > 0:
         # The simulation might fail to generate any bursts, so only add the arrays if they exist
         result["mdot"] = smdot
-        result["iref"] = iref
+        # this is redundant, can be worked out from the times
+        # result["iref"] = iref
         result["alpha"] = salpha
         result["e_b"] = se_b
         #print(f"In burstrain fluence is {se_b}")
 
-    # result["qnuc"] = sqnuc
-    # result["xbar"] = sxbar
-    result["mass"] = [mass]
-    result["radius"] =  [radius]
-    result["forward"] = forward     # to keep track of the outcome of each direction
-    result["backward"] = backward
 
     return result
 
 
-def burstensemble(
-    base,
-    x_0,
-    z,
-    r1,
-    r2,
-    r3,
-    mass,
-    radius,
-    bstart,
-    pflux,
-    numburstsobs,
-):
+def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bstart, pflux,
+    numburstsobs, full_model=False ):
     """
     This routine generates as many burst predictions as there are burst
     measurements.
@@ -519,24 +518,29 @@ def burstensemble(
 
     result = dict()
 
-    result["base"] = [base]
-    result["z"] = [z]
-    result["x_0"] = [x_0]
-    result["r1"] = [r1]
-    result["r2"] = [r2]
-    result["r3"] = [r3]
-    result["mdot"] = smdot
-    result["mdot_max"] = [mdot_max]
+    if full_model:
+        # model parameters are redundant for the model returned
+        result["base"] = [base]
+        result["z"] = [z]
+        result["x_0"] = [x_0]
+        result["r1"] = [r1]
+        result["r2"] = [r2]
+        result["r3"] = [r3]
+
+        result["mdot_max"] = [mdot_max]
+
+        result["mass"] = [mass]
+        result["radius"] = [radius]
+
+    # now the actual predictions
+
     result["time"] = stime
+    result["mdot"] = smdot
     result["alpha"] = salpha
     result["e_b"] = se_b
-
-    result["mass"] = [mass]
-    result["radius"] = [radius]
 
     # omit the printing for now, as it prevents assessing the progress
     # print('ensemble')
     # print(f"In burstrain fluence is {se_b}")
-
 
     return result

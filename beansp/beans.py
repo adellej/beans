@@ -538,8 +538,6 @@ Initial parameters:
         # Test if the result string is defined here. It is, so we return the selected elements of result
         # instead of the downselection in model
 
-        model2 = str(model2).encode('ASCII')
-
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
 
@@ -571,8 +569,11 @@ Initial parameters:
         if (not np.isfinite(like)):
             return -np.inf, -np.inf, model
 
-        # we return the logprobability as well as the theta parameters at this point so we can extract results later
-        return lp + like, lp, model
+        # encoding below is so we have a suitable object for including in
+        # the blobs (see the dtype specification in runemcee)
+
+        return lp + like, lp, str(model).encode('ASCII')
+
 
 
     def plot_model(self, model=None, mdot=True):
@@ -1046,6 +1047,11 @@ Initial parameters:
             print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
             burnin = 0
 
+        # print ("Reading in flattened samples to show posteriors...")
+        # samples = self.reader.get_chain(flat=True, discard=burnin)
+        self.samples = self.sampler[burnin:,:,:].reshape((-1,10))
+
+        # ---------------------------------------------------------------------#
         if 'autocor' in options:
 
             # plot autocorrelation times
@@ -1059,6 +1065,7 @@ Initial parameters:
 
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
 
+        # ---------------------------------------------------------------------#
         if 'chain' in options:
 
             # plot the chains:
@@ -1084,20 +1091,14 @@ Initial parameters:
             plt.show()
             print ("...done")
 
+        # ---------------------------------------------------------------------#
         if 'posteriors' in options:
 
             # Also read in the "flattened" chain, for the posteriors
 
-            # I think I can get samples from the previously-read in
-            # sampler object, just need to flatten the array
-
-            # print ("Reading in flattened samples to show posteriors...")
-            # samples = self.reader.get_chain(flat=True, discard=burnin)
-            samples = self.sampler[burnin:,:,:].reshape((-1,10))
-
             # make plot of posterior distributions of your parameters:
             cc = ChainConsumer()
-            cc.add_chain(samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+            cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
             if savefig:
                 cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
                     figsize="page", truth=list(self.theta))
@@ -1106,38 +1107,53 @@ Initial parameters:
                 fig.show()
             print ("...done")
 
-        if ('mrcorner' in options) or ('comparison' in options) \
-            or ('fig6' in options) or ('fig8' in options):
+        # ---------------------------------------------------------------------#
+        if (('mrcorner' in options) or ('comparison' in options) \
+            or ('fig6' in options) or ('fig8' in options)):
+            # maybe can try to record that we've already read these
+            # parameters in, like so
+            # and (self.burnin_excluded != burnin):
 
             # and finally read in the model realisations
             # This loop can take a LOOOOOONG time for long runs
             # TODO save this to the Beans object so we only need to read
             # it in once; need to rationalise what arrays are kept etc.
 
-            print ("Reading in and processing blobs, beginning with #{}...".format(burnin))
+            print ("Reading in and processing blobs, ignoring first {}...".format(burnin))
             blobs = self.reader.get_blobs(flat=True)
 
-            data = []
-            for i in range(burnin, len(blobs["model"])):
-                data.append(eval(blobs["model"][i].decode('ASCII', 'replace')))
+            # Get predictions for each model run from the blobs structure:
+
+            time, e_b, alpha, mdot = [], [], [], []
+            # X = [] # just for testing; won't be included in future blobs
+            for i in range(burnin*self.nwalkers, len(blobs["model"])):
+                _model = eval(blobs["model"][i].decode('ASCII', 'replace'))
+                time.append(_model['time'])
+                e_b.append(_model['e_b'])
+                alpha.append(_model['alpha'])
+                mdot.append(_model['mdot'])
+                # X.append(_model['x_0'][0])
             print ("...done")
 
-            # Get parameters for each model run from the blobs structure:
-
-            # get each individual parameter:
-            time = [data[i]['time'] for i in range(len(data))]
-            e_b = [data[i]['e_b'] for i in range(len(data))]
-            alpha = [data[i]['alpha'] for i in range(len(data))]
-            mdot = [data[i]['mdot'] for i in range(len(data))]
-
-            X = [data[i]['x_0'][0] for i in range(len(data))]
-            Z = [data[i]['z'][0] for i in range(len(data))]
-            base = [data[i]['base'][0] for i in range(len(data))]
-            r1 = np.array([data[i]['r1'][0] for i in range(len(data))])
-            r2 = np.array([data[i]['r2'][0] for i in range(len(data))])
-            r3 = np.array([data[i]['r3'][0] for i in range(len(data))])
-            mass = np.array([data[i]['mass'][0] for i in range(len(data))])
-            radius = np.array([data[i]['radius'][0] for i in range(len(data))])
+            # we don't include these in the blobs anymore, to save space
+            # (and they're redundant, as also included in the samples)
+            # X = [data[i]['x_0'][0] for i in range(len(data))]
+            # Z = [data[i]['z'][0] for i in range(len(data))]
+            # base = [data[i]['base'][0] for i in range(len(data))]
+            # r1 = np.array([data[i]['r1'][0] for i in range(len(data))])
+            # r2 = np.array([data[i]['r2'][0] for i in range(len(data))])
+            # r3 = np.array([data[i]['r3'][0] for i in range(len(data))])
+            # mass = np.array([data[i]['mass'][0] for i in range(len(data))])
+            # radius = np.array([data[i]['radius'][0] for i in range(len(data))])
+            # assert np.allclose(X, self.samples[:,0])
+            X = self.samples[:,0]
+            Z = self.samples[:,1]
+            base = self.samples[:,2]
+            r1 = self.samples[:,5]
+            r2 = self.samples[:,6]
+            r3 = self.samples[:,7]
+            mass = self.samples[:,8]
+            radius = self.samples[:,9]
 
             # calculate redshift and gravity from mass and radius:
 	    # keep the parameters that we're going to calculate limits on
@@ -1215,6 +1231,7 @@ Initial parameters:
             gravity = np.array(gravity).ravel()
             redshift = redshift.ravel()
 
+        # ---------------------------------------------------------------------#
         if 'mrcorner' in options:
 
             mrgr = np.column_stack((mass, radius, gravity, redshift))
@@ -1228,6 +1245,7 @@ Initial parameters:
                 fig = cc.plotter.plot(figsize="page")
                 fig.show()
 
+        # ---------------------------------------------------------------------#
         if 'fig6' in options:
 
             # fig6data = np.column_stack((xip, xib, distance, base, Z, X))
@@ -1251,6 +1269,7 @@ Initial parameters:
                 fig = cc.plotter.plot(figsize="page")
                 fig.show()
 
+        # ---------------------------------------------------------------------#
         if 'fig8' in options:
 
             # here we read in data from the anisotropy models. There's
@@ -1315,6 +1334,7 @@ Initial parameters:
             else:
                 plt.show()
 
+        # ---------------------------------------------------------------------#
         if 'comparison' in options:
 
             # make plot of observed burst comparison with predicted bursts:

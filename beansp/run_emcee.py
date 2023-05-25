@@ -64,16 +64,17 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart
     print("# -------------------------------------------------------------------------#")
 
     # define the dtype of the blobs
-    #dtype = [("lnprob", float), ("model", "S1000")]
-    dtype = [("lnprob", float), ("model", h5py.string_dtype(encoding='ascii'))]
+    # this refers to the 2nd and subsequent parameters returned by lnprob;
+    # in our case the prior probability and the full model result, encoded
+    # as ASCII
+
+    dtype = [("lnprior", float), ("model", h5py.string_dtype(encoding='ascii'))]
 
     # use emcee backend to save as a HD5 file
     # see https://emcee.readthedocs.io/en/stable/user/backends
     reader = emcee.backends.HDFBackend(filename=run_id + ".h5")
 
     if restart == True:
-        # don't know why the pos are identical to the restart=False case below;
-        # perhaps they're ignored
         steps_so_far = np.shape(reader.get_chain())[0]
         print('Restarting',run_id,'with',nwalkers,'walkers after',steps_so_far,'steps done')
     else:
