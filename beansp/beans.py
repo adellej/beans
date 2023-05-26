@@ -155,6 +155,24 @@ def calc_dist_anisotropy(r1, r2, r3):
     return distance, xi_b, xi_p
 
 
+def model_str(model):
+    """
+    Prints a compressed string representation of the model dict, with
+    reduced precision to reduce the size of the record saved to the .h5
+    file
+
+    :param model: model dictionary as returned by runmodel
+
+    :return: string representation of the model dict
+    """
+
+    return ("{'time': ["+','.join(['{:.4f}'.format(x) for x in model['time']]) \
+        +"], 'mdot': ["+','.join(['{:.5f}'.format(x) for x in model['mdot']]) \
+        +"], 'alpha': ["+','.join(['{:.3f}'.format(x) for x in model['alpha']]) \
+        +"], 'e_b': ["+','.join(['{:.4f}'.format(x) for x in model['e_b']]) \
+        +"]}").replace(' ','')
+
+
 class Beans:
     """
     The main object class that includes the basic functionality required for
@@ -572,7 +590,7 @@ Initial parameters:
         # encoding below is so we have a suitable object for including in
         # the blobs (see the dtype specification in runemcee)
 
-        return lp + like, lp, str(model).encode('ASCII')
+        return lp + like, lp, model_str(model).encode('ASCII')
 
 
 
@@ -1330,7 +1348,7 @@ Initial parameters:
             plt.yticks(fontsize=14)
 
             if savefig:
-                plt.savefig('test{}_xipvsxib_models_contourlines.pdf'.format(run_id))
+                plt.savefig('{}_xipvsxib_models_contourlines.pdf'.format(self.run_id))
             else:
                 plt.show()
 
