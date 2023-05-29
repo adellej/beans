@@ -4,6 +4,22 @@
 Installation
 ============
 
+BEANSp is on `pyPI`_ so installation is easy - either system-wide or in virtual environment:
+
+.. code-block:: console
+    pip install beansp
+
+And then just import
+
+.. code-block:: console
+
+    from beansp import Beans
+
+(Please refer to `this simple test script`_ as an example.)
+
+.. _pypi: https://pypi.org/project/beansp
+.. _this simple test script: https://github.com/adellej/beans/blob/master/tests/test_sft_beans.py
+
 From source
 ------------
 
@@ -21,65 +37,18 @@ Or download the `tarball`_:
 
     $ curl -OJL https://github.com/adellej/beans/tarball/master
 
-.. Once you have a copy of the source, you can install it with:
-
-.. .. code-block:: console
-
-..     $ python setup.py install
-
-
 .. _Github repo: https://github.com/adellej/beans
 .. _tarball: https://github.com/adellej/beans/tarball/master
 
-The first thing to do is check that you have all of the required python dependencies installed. These are listed below (to install either use conda or pip):
+Once you have a copy of the source, you can install it following the same
+`build instructions`_ as for pySettle.
 
-- emcee v3.0 or above
-- matplotlib
-- numpy 
-- corner
-- random
-- math
-- astropy
-- scipy
-- tables
-- chainconsumer
-- multiprocessing
-- os
-- time
-- h5py v2.10.0 or above. To install h5py v2.10.0 on Ubuntu you will need to use pip wheels, e.g. $ pip install h5py==2.10.0
-- pytest 
-- pickle
--pathlib
+.. _build instructions: https://github.com/adellej/pysettle/blob/master/BUILD.rst
 
-Once you have downloaded the source code, and have all of the dependencies, navigate to beans/settle and you will need to compile settle. Compiling settle requires a different command depending if you are using Mac or Linux. For Mac type:
+Testing
+-------
 
-.. code-block:: console
-
-    $ make mac
-
-For Linux type:
-
-.. code-block:: console
-
-    $ make linux
-
-
-This will create a file called libsettle.so which is a precompiled binary that is used by beans to run settle. The makefile may need to be edited if either of these methods do not compile the code.
-
-I also recommend that you add BEANS to your python path so that you can access it from any location, and so that the test suite will work. You can do this by opening your bashrc or bash_profile file and adding the following line:
-
-.. code-block:: console
-
-    export PYTHONPATH=[PATH TO BEANS]:${PYTHONPATH}
-
-where you replace [PATH TO BEANS] with the path to where you have placed the BEANS directory on your computer. For example, on my computer this becomes:
-
-.. code-block:: console
-
-    export PYTHONPATH=${HOME}/BEANS/beans:${PYTHONPATH}
-
-
-Now that you have compiled settle I recommend you run the test suite to check you have all the required dependencies and the code is operating as expected. To do this navigate to beans/ and type:
+Once you have compiled settle we recommend you run the test suite to check you have all the required dependencies and the code is operating as expected. To do this navigate to the top-level directory and type:
 
 .. code-block:: console
 
