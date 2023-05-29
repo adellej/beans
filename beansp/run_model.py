@@ -5,7 +5,7 @@ import numpy as np
 from .burstrain import *
 
 def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, ref_ind, gti_checking,train,
-             gti_start=None, gti_end=None, debug=False):
+             gti_start=None, gti_end=None, debug=False,**kwargs):
     """
     This routine calls one of two functions that generate the burst model
     predictions, either generate_burst_train or burstensemble, depending on
@@ -83,7 +83,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         #  'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
 
         result = generate_burst_train(
-            Q_b, Z, X, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
+            Q_b, Z, X, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind,**kwargs
         )
 
         tpred = result["time"]
@@ -165,7 +165,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         # If we're not generating a burst train, just run the ensemble
 
         result = burstensemble(
-            Q_b, X, Z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs)
+            Q_b, X, Z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs,**kwargs)
 
         model = np.concatenate((result['time'], result['e_b'], result['alpha']))
 
@@ -179,7 +179,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         # if "st" not in globals():
         if (gti_start is None) or (gti_end is None):
             print ('** WARNING ** can''t access GTI information')
-            return model, valid, result
+            return model, valid
         else:
             st, et = gti_start, gti_end
 
