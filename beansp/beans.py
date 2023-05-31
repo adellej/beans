@@ -278,35 +278,34 @@ class Beans:
             self.nwalkers = nwalkers
             self.nsteps = nsteps
             self.run_id = run_id
-            self.theta = theta
-            self.threads = threads
-            self.numburstssim = numburstssim
-            # number of bursts observed (redundant; set below after reading the data)
-            # self.numburstsobs = numburstsobs
-            self.ref_ind = ref_ind
             self.obsname = obsname
             self.burstname = burstname
             self.gtiname = gtiname
+            self.theta = theta
             self.bc = bc
+            self.ref_ind = ref_ind
+            self.threads = threads
+            self.numburstssim = numburstssim
+            self.restart = restart
+            # number of bursts observed (redundant; set below after reading the data)
+            # self.numburstsobs = numburstsobs
 
         if self.lnprior(self.theta) == -np.inf:
             print ('** ERROR ** supplied parameter vector is excluded by the prior')
             return
 
-        self.restart = restart
-
         # number of dimensions for the parameter array
 
-        self.ndim = len(theta)
+        self.ndim = len(self.theta)
 
-        self.gti_checking = gtiname is not None
+        self.gti_checking = self.gtiname is not None
 
 	# determines whether will run as a train of bursts or non-contiguous
 	# bursts ("ensemble" mode); previously numerical, default is 1 (True),
 	# which means a burst train will be generated; set obsname=None for
 	# non-contiguous (ensemble mode) run
 
-        self.train = (obsname is not None)
+        self.train = (self.obsname is not None)
 
         self.bstart_err = BSTART_ERR.to('d').value
 
