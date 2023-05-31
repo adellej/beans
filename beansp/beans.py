@@ -286,13 +286,17 @@ class Beans:
             self.ref_ind = ref_ind
             self.threads = threads
             self.numburstssim = numburstssim
-            self.restart = restart
             # number of bursts observed (redundant; set below after reading the data)
             # self.numburstsobs = numburstsobs
 
         if self.lnprior(self.theta) == -np.inf:
             print ('** ERROR ** supplied parameter vector is excluded by the prior')
             return
+
+        # below set the parameters which are not part of the config
+        # file
+
+        self.restart = restart
 
         # number of dimensions for the parameter array
 
