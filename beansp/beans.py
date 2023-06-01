@@ -999,12 +999,12 @@ Initial parameters:
 
 
     def do_analysis(self, options=['autocor','posteriors'], 
-                          burnin=2000, savefig=True):
+                          truths=None, burnin=2000, savefig=True):
         """
         This method is for running standard analysis and displaying the
         results.
         Nothing is returned, but by default the method will create several
-        files, labeled by the run_id:
+        files, labeled by the run_id; drawn from
           {}_autocorrelationtimes.pdf (via plot_autocorr)
           {}_predictedburstscomparison.pdf
           {}chain-plot.pdf
@@ -1016,6 +1016,10 @@ Initial parameters:
 
         :param options: array of strings corresponding to various analysis 
             options, listed in the analyses dict below
+        :param truths: parameter vector to overplot on (one of the) corner
+          plots (TODO: need to check if >1 corner plot are selected
+	  +truths, which will likely result in an error due to
+          incompatible number of parameters)
         :param burnin: number of steps to discard when plotting the posteriors
         :param savefig: set to True to save figures to .pdf files, False to skip
 
@@ -1120,11 +1124,15 @@ Initial parameters:
             # make plot of posterior distributions of your parameters:
             cc = ChainConsumer()
             cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+
+            if truths is None:
+                truths = list(self.theta)
+
             if savefig:
                 cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
-                    figsize="page", truth=list(self.theta))
+                    figsize="page", truth=truths)
             else:
-                fig = cc.plotter.plot(figsize="page", truth=list(self.theta))
+                fig = cc.plotter.plot(figsize="page", truth=truths)
                 fig.show()
             print ("...done")
 
@@ -1261,9 +1269,10 @@ Initial parameters:
             cc = ChainConsumer()
             cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
             if savefig:
-                cc.plotter.plot(filename=self.run_id+"_massradius.pdf",figsize="page")
+                cc.plotter.plot(filename=self.run_id+"_massradius.pdf",
+                    truth=truths, figsize="page")
             else:
-                fig = cc.plotter.plot(figsize="page")
+                fig = cc.plotter.plot(figsize="page", truth=truths)
                 fig.show()
 
         # ---------------------------------------------------------------------#
@@ -1285,9 +1294,10 @@ Initial parameters:
                 label_font_size='xx-large',smooth=True, \
                 sigmas=np.linspace(0, 3, 4))
             if savefig:
-                cc.plotter.plot(filename=self.run_id+"_fig6.pdf",figsize="page")
+                cc.plotter.plot(filename=self.run_id+"_fig6.pdf",
+                    truth=truths, figsize="page")
             else:
-                fig = cc.plotter.plot(figsize="page")
+                fig = cc.plotter.plot(figsize="page", truth=truths)
                 fig.show()
 
         # ---------------------------------------------------------------------#
