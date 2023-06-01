@@ -17,7 +17,9 @@ mode.
 
 "Burst train" mode takes an uninterrupted (as much as possible) sequence of X-ray bursts, e.g. from a single outburst of a source. The measured properties of the bursts and the persistent flux covering the outburst are supplied in ascii format files, usually in the beans/data/ folder. There are 3 types of input data files, with only 2 required: persistent flux, burst parameters, and satellite gtis.
 
-"Ensemble" mode takes multiple sets of regular burst measurements, for example as provided in `Galloway et al. (2017) <https://ui.adsabs.harvard.edu/abs/2017PASA...34...19G>`. The burst measurements, along with the persistent flux, are all supplied in the burst parameter file, and the other two files are not required
+"Ensemble" mode takes multiple sets of regular burst measurements, for example as provided in `Galloway et al. (2017)`_.  The burst measurements, along with the persistent flux, are all supplied in the burst parameter file, and the other two files are not required
+
+.. _Galloway et al. (2017): https://ui.adsabs.harvard.edu/abs/2017PASA...34...19G
 
 **Persistent flux history:**
 Required for "burst train" mode, set via the ``obsname`` parameter; set to
