@@ -4,8 +4,7 @@ import numpy as np
 # load local module
 from .burstrain import *
 
-def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs, ref_ind, gti_checking,train,
-             gti_start=None, gti_end=None, debug=False):
+def runmodel(theta_in, bean, debug=False):
     """
     This routine calls one of two functions that generate the burst model
     predictions, either generate_burst_train or burstensemble, depending on
@@ -15,24 +14,9 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
 
     :param theta_in: parameter tuple: X, Z, Q_b, f_a, f_E, r1, r2, r3,
       mass & radius
-    :param y: observation array, comprising burst times, fluences and alpha
-      values
-    :param tref: reference time for bursts and observations, generally the
-      first observed burst
-    :param bstart: start times of observed bursts (MJD), relative to tref
-    :param pflux: persistent flux, used to infer the accretion rate
-    :param pfluxe: uncertainty on persistent flux
-    :param tobs: times of observations for flux measurements (MJD), relative
-      to tref
-    :param numburstssim: number of bursts to simulate, for the "train" mode,
-      both earlier and later than the reference burst
-    :param numburstsobs: number of bursts observed (probably redundant)
-    :param ref_ind: index (pointer to bstart) of reference burst
-    :param gti_checking: flag for GTI checking (probably redundant)
-    :param train: run mode, set to True for "train" (sequential) mode, False
-      otherwise
-    :param gti_start: array of start times for GTIs (good time intervals)
-    :param gti_end: array of end times for GTIs
+    :param bean: Beans object, from which the required parameters are drawn:
+      y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
+      ref_ind, gti_checking,train, gti_start=None, gti_end=None,
     :param debug: set to True to display more diagnostic information
     :return: model array with predicted burst parameters, Boolean giving
       the validity of the solution (i.e. consistent with the GTI information),
@@ -74,7 +58,7 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
 
     valid = True
 
-    if train:
+    if bean.train:
 
         # Now call the function. From the code:
         # This routine generates a simulated burst train. The output is a
@@ -82,16 +66,14 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
         # ['base', 'z', 'x_0', 'r1', 'r2', 'r3', 'time', 'mdot_max', 'mdot',
         #  'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
 
-        result = generate_burst_train(
-            Q_b, Z, X, r1, r2, r3, mass, radius, bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
-        )
+        result = generate_burst_train( Q_b, Z, X, r1, r2, r3, mass, radius, bean )
 
         tpred = result["time"]
 
         # bug testing sample model values
         # model = np.array([-0.04106, 2.77858, 3.99188, 3.73303, 3.68542, 4.16907, 4.71480, 115.000, 126.903, 138.070]) #to test the code we define the model as an array, where the numbers in the array are values for the parameters of y, in the same order as y. Values have been taken from Duncan's example code output
 
-        if (y is not None) & (len(tpred) > 0):
+        if (bean.y is not None) & (len(tpred) > 0):
 
             # Assemble the array for comparison with the data
             # First the burst times; we dynamically determine which
@@ -101,30 +83,30 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
             # this approach is a bit newer and hopefully more robust, also
             # reflects the simulation approach in generate_burst_train
 
-            imatch = [np.argmin(np.abs(tpred - bstart[ref_ind]))]
-            for i in range(1,numburstssim):
+            imatch = [np.argmin(np.abs(tpred - bean.bstart[bean.ref_ind]))]
+            for i in range(1,bean.numburstssim):
                 # now looking for a match for bursts ref_ind-i, ref_ind+i:
                 # (but also want to exclude any that have already been 
                 # matched!)
-                if ref_ind-i >= 0:
+                if bean.ref_ind-i >= 0:
                     # imatch.insert(0,np.argmin(np.abs(tpred-bstart[ref_ind-i])))
-                    imatch.insert(0, next_nearest(bstart[ref_ind-i], tpred, imatch))
-                if ref_ind+i < numburstsobs:
+                    imatch.insert(0, next_nearest(bean.bstart[bean.ref_ind-i], tpred, imatch))
+                if bean.ref_ind+i < bean.numburstsobs:
                     # imatch.append(np.argmin(np.abs(tpred-bstart[ref_ind+i])))
-                    imatch.append(next_nearest(bstart[ref_ind+i], tpred, imatch))
+                    imatch.append(next_nearest(bean.bstart[bean.ref_ind+i], tpred, imatch))
 
             if np.any(np.array(imatch) == None):
                 # Not enough bursts to match, so count model as invalid
                 return None, False, result
 
-            assert len(imatch) == numburstsobs
+            assert len(imatch) == bean.numburstsobs
             # print (imatch)
-            assert len(set(imatch)) == numburstsobs # don't double up on bursts
+            assert len(set(imatch)) == bean.numburstsobs # don't double up on bursts
 
             # We only compare the times of the bursts for the events excluding
             # the reference burst, from which the train is calculated
             itime = imatch.copy()
-            itime.pop(ref_ind)
+            itime.pop(bean.ref_ind)
 
             # We compare the fluences for all the bursts
             # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for
@@ -138,11 +120,11 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
 
             # Now assemble the whole array for comparison with the measurements
             model = []
-            for i in range(0, len(bstart) - 1):
+            for i in range(0, len(bean.bstart) - 1):
                 model.append(result["time"][itime[i]])
-            for i in range(0, len(bstart)):
+            for i in range(0, len(bean.bstart)):
                 model.append(result["e_b"][ie_b[i]])
-            for i in range(0, len(bstart) - 1):
+            for i in range(0, len(bean.bstart) - 1):
                 model.append(result["alpha"][ialpha[i]])
 
             model = np.array(model)
@@ -164,31 +146,28 @@ def runmodel(theta_in, y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numbu
     else:
         # If we're not generating a burst train, just run the ensemble
 
-        result = burstensemble(
-            Q_b, X, Z, r1,r2,r3,mass,radius,bstart,pflux,numburstsobs)
+        result = burstensemble( Q_b, X, Z, r1,r2,r3,mass,radius, bean)
 
         model = np.concatenate((result['time'], result['e_b'], result['alpha']))
 
     # Check here if the model instance is valid, i.e. the bursts that are NOT
     # matched with the observed ones must fall in gaps
     # Originally we used the (global) arrays st, et defined by 1808-match, to
-    # avoid copying them over from IDL each time; but now these are passed
-    # as parameters gti_start, gti_end
+    # avoid copying them over from IDL each time; but now these are stored
+    # with the Beans object
 
-    if gti_checking:
+    if bean.gti_checking:
         # if "st" not in globals():
-        if (gti_start is None) or (gti_end is None):
+        if (bean.st is None) or (bean.et is None):
             print ('** WARNING ** can''t access GTI information')
             return model, valid, result
-        else:
-            st, et = gti_start, gti_end
 
         for index, rt in enumerate(tpred):
             if index not in imatch:
                 # ok, not one of the known bursts. Is it an excluded time?#
-                for i in range(len(st)):
+                for i in range(len(bean.st)):
 
-                    if rt >= st[i] and rt <= et[i] - 10.0 / 86400.0:
+                    if rt >= bean.st[i] and rt <= bean.et[i] - 10.0 / 86400.0:
 
                         return model, False, result
 
