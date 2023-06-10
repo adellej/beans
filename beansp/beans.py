@@ -4,21 +4,13 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
 import emcee
-import corner
-import random
-import math
-import subprocess
 from astropy.io import ascii
 import astropy.units as u
 import astropy.constants as const
-import pickle
 from matplotlib.ticker import MaxNLocator
-import sys
 from scipy.stats import gaussian_kde
 # import scipy.stats as stats
-import matplotlib.mlab as mlab
-import tables
-from scipy.interpolate import interp1d
+from scipy.interpolate import splrep, BSpline, splint
 from chainconsumer import ChainConsumer
 from multiprocessing import Pool
 import os
@@ -40,7 +32,7 @@ BSTART_ERR = 10*u.min # Default uncertainty for burst start times
 # -------------------------------------------------------------------------#
 ## load local  modules
 from .settle import settle
-from .burstrain import generate_burst_train, next_burst, get_a_b, mean_flux, burstensemble
+from .burstrain import generate_burst_train, next_burst, burstensemble
 from .run_model import runmodel
 from .get_data import get_obs
 from .mrprior import mr_prior
@@ -173,6 +165,123 @@ def model_str(model):
         +"]}").replace(' ','')
 
 
+def mean_flux_spline(t1, t2, bean):
+    """
+    Calculates the mean flux between t1 and t2 from the spline set up at
+    the __init__ phase
+
+    :param t1: start time for averaging
+    :param t2: end time for averaging
+    :param bean: Beans object, from which the remaining parameters are drawn:
+      tck_s
+
+    :result: mean flux
+    """
+
+    return splint(t1,t2,bean.tck_s)/(t2-t1)
+
+
+def mean_flux_linear(t1, t2, bean):
+    """
+    Calculates the mean flux between t1 and t2 from the piecewise linear
+    interpolation of tobs,a,b
+
+    :param t1: start time for averaging
+    :param t2: end time for averaging
+    :param bean: Beans object, from which the remaining parameters are drawn:
+      tobs, a, b
+
+    :result: mean flux
+    """
+
+    tobs, a, b = bean.tobs, bean.a, bean.b
+    na = len(a)
+
+    if len(tobs) != na + 1 or len(b) != na:
+        print("** ERROR ** some problem with tobs, a, b arrays")
+        return -1
+    # i1 is max of where t1 > tobs
+
+    i1 = max(np.where(t1 > tobs))
+    if len(i1) == 0:
+        i1 = -1
+    else:
+        i1 = max(i1)
+
+    i2 = max(np.where(t2 > tobs))
+    if len(i2) == 0:
+        i2 = -1
+    else:
+        i2 = max(i2)
+
+    sum = 0.0
+    if (i1 < 0) and (i2 < 0):
+
+        # Modified this section to just report the flux from the first measurement
+
+        sum += (t2 - t1) * (a[0] + b[0] * tobs[0])
+    else:
+
+        # Add the contribution from the start time through to tobs[0], using the
+        # gradient between the first pair of observations
+
+        if i1 < 0:
+            sum = sum + (tobs[0] - t1) * np.mean(
+                [a[0] + b[0] * t1, a[0] + b[0] * tobs[0]]
+            )
+
+        # Add the contributions between each pair of observations
+
+        for i in range(max([0, i1]), min([i2, na - 1]) + 1):
+            sum = sum + (min([t2, tobs[i + 1]]) - max([t1, tobs[i]])) * np.mean(
+                [a[i] + b[i] * max([t1, tobs[i]]), a[i] + b[i] * min([t2, tobs[i + 1]])]
+            )
+
+        # Add the contribution for the last section which overlaps with the
+        # observation times
+
+        if i1 < na and i2 == na:
+            sum = sum + (t2 - tobs[i2]) * np.mean(
+                [a[i2 - 1] + b[i2 - 1] * tobs[i2], t2]
+            )
+
+        # Now add any contribution *completely* beyond the observations. Previously
+        # this gave an exception
+
+        if i1 == na and i2 == na:
+            sum = sum + (t2 - t1) * np.mean(
+                [a[na - 1] + b[na - 1] * t1, a[na - 1] + b[na - 1] * t2]
+            )
+
+    return sum / (t2 - t1)
+
+
+def get_a_b(pflux, pfluxe, tobs):
+    """
+    Do piecewise continuous fits to the flux evolution, to determine the
+    appropriate parameters for each interval for use by mean_flux_linear:
+
+    :param pflux: persistent flux measurements to interpolate
+    :param pfluxe: uncertainty on persistent flux (not used)
+    :param tobs: time (midpoint of observation extent) for flux measurement
+    :result: a, b arrays for use with mean_flux
+    """
+
+    # Now actually calculate the coefficients for the flux fit
+
+    # Linear fit
+    ng = len(tobs)
+
+    b0 = np.zeros(ng - 1)
+    a0 = np.zeros(ng - 1)
+
+    for i in range(1, ng):
+        b0[i - 1] = (pflux[i] - pflux[i - 1]) / (tobs[i] - tobs[i - 1])
+        a0[i - 1] = pflux[i - 1] - b0[i - 1] * tobs[i - 1]
+
+    return a0, b0
+
+
 class Beans:
     """
     The main object class that includes the basic functionality required for
@@ -197,7 +306,8 @@ class Beans:
                  run_id="test", obsname=None, burstname=None, gtiname=None,
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
-                 threads = 4, test_model=True, restart=False, **kwargs):
+                 threads = 4, test_model=True, restart=False, 
+                 interp='linear', smooth=0.02, **kwargs):
         """
         Initialise a Beans object
 
@@ -230,6 +340,9 @@ class Beans:
           cores your computer has). Set to None to use all available
         :param test_model: flag to test the model during the setup process
         :param restart: set to True to continue a previously interrupted run
+        :param interp: interpolation mode for the flux; possible values are
+          'linear', or 'spline'
+        :param smooth: smoothing factor for spline interpolation
         :result: Beans object including all the required data
         """
 
@@ -326,6 +439,21 @@ class Beans:
 
         self.numburstsobs = len(self.fluen)
 
+        # Set interpolation mode, and define averaging function
+
+        if not hasattr(self, 'interp'):
+            self.interp = interp
+        assert self.interp in ('linear','spline')
+        if self.interp == 'linear':
+            self.a, self.b = get_a_b(self.pflux, self.pfluxe, self.tobs)
+            self.mean_flux = mean_flux_linear
+        else:
+            if not hasattr(self, 'smooth'):
+                self.smooth = smooth
+            self.tck_s = splrep(self.tobs, self.pflux, s=self.smooth)
+            self.mean_flux = mean_flux_spline
+
+
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
         # # -------------------------------------------------------------------------#
@@ -337,10 +465,7 @@ class Beans:
             print("Testing the model works..")
 
 
-            test, valid, test2 = runmodel(self.theta, self.y, self.tref, self.bstart,
-                                   self.pflux, self.pfluxe, self.tobs, self.numburstssim,self.numburstsobs, self.ref_ind,
-                                   self.gti_checking, self.train,self.st, self.et,
-                                   debug=False) # set debug to True for testing
+            test, valid, test2 = runmodel(self.theta, self, debug=False) # set debug to True for testing
             print("result: ", test, valid)
 
             # MCU Note: commented out - no interactive windows for automated testing
@@ -434,6 +559,9 @@ Initial parameters:
            Config.set("data", "ref_ind", str(self.ref_ind))
            Config.set("data", "gtiname", str(self.gtiname))
            Config.set("data", "bc", str(self.bc))
+           Config.set("data", "interp", str(self.interp))
+           if self.interp == 'spline':
+               Config.set("data", "smooth", str(self.smooth))
 
            Config.add_section("emcee")
            Config.set("emcee", "theta", str(self.theta))
@@ -460,6 +588,7 @@ Initial parameters:
             run_id = os.path.join(data_path, 'beans.ini')
 
         int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
+        float_params = ('bc', 'smooth')
 
         if not os.path.isfile(file):
             print ('** ERROR ** config file not found')
@@ -479,7 +608,7 @@ Initial parameters:
                 if option == 'theta':
                     setattr(self, option, 
                         tuple(map(float, config.get(section, option)[1:-1].split(', '))))
-                elif option == 'bc':
+                elif option in float_params:
                     setattr(self, option, config.getfloat(section, option))
                 elif option =='prior':
                     function_name = config.get(section, option).split(' ')[1]
@@ -526,10 +655,8 @@ Initial parameters:
 	# the corresponding IDL function was defined as
         # modeldata(base, z, x, r1, r2 ,r3)
 
-        model, valid, model2 = runmodel(
-            theta_in, y, self.tref, self.bstart, self.pflux, self.pfluxe, self.tobs,self.numburstssim,self.numburstsobs, self.ref_ind, self.gti_checking,self.train,
-             self.st, self.et
-        )
+        assert np.allclose(y, self.y)
+        model, valid, model2 = runmodel( theta_in, self)
         if not valid:
             return -np.inf, model
 
@@ -597,7 +724,7 @@ Initial parameters:
 
 
 
-    def plot_model(self, model=None, mdot=True):
+    def plot_model(self, model=None, mdot=True, title=None):
         """
 	Display a plot of the model results, for a burst train calculated
 	with generate_burst_train Adapted from the example at
@@ -607,16 +734,25 @@ Initial parameters:
           model results
         :param mdot: flag to show mdot rather than flux (only possible if
           you're passing the full model)
+        :param title: add a title, if required
         """
+
         tobs = self.bstart
         ebobs = self.fluen
 
+        # for the default linear interpolation connect the flux
+        # measurements by lines
+
+        ls = '-'
+        if self.interp == 'spline':
+            ls = ''
+
+        # the ratios are no longer part of the model, so extract them from the param array here
+
+        r1, r2, r3 = self.theta[5:8]
+
         if model is None:
-            test, valid, model = runmodel(self.theta, self.y, self.tref,
-                self.bstart, self.pflux, self.pfluxe, self.tobs,
-                self.numburstssim, self.numburstsobs, self.ref_ind,
-                self.gti_checking, self.train,self.st, self.et,
-                debug=False)
+            test, valid, model = runmodel(self.theta, self, debug=False)
 
         full_model = False  # Flag to remember whether we're plotting the full model output of
                             # generate burst train or the packed output array
@@ -627,13 +763,13 @@ Initial parameters:
             if len(timepred) == 0:
                 print ('** ERROR ** no predicted times to show')
                 return
-            ebpred = np.array(model["e_b"])*np.array(model["r3"])
+            # ebpred = np.array(model["e_b"])*np.array(model["r3"])
+            ebpred = np.array(model["e_b"])*np.array(r3)
         else:
             # The other way to return the model is as an array with the burst times, fluences
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
-            # Don't have access to the r3 value to scale, as we did for ebpred above
-            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])*self.theta[6]
+            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])*r3
 
         fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
@@ -645,18 +781,25 @@ Initial parameters:
         if mdot and full_model:
             ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
             if self.train:
-                ax1.errorbar(self.tobs, self.pflux*model['r1'], self.pfluxe*model['r1'], marker='.',
-                         color=flux_color, label='mdot')
+                ax1.errorbar(self.tobs, self.pflux*r1, self.pfluxe*r1, 
+                    marker='.', ls=ls, color=flux_color, label='mdot')
+                if self.interp == 'spline':
+                    t = np.arange(min(self.tobs), max(self.tobs), 0.1)
+                    ax1.plot(t, BSpline(*self.tck_s)(t)*r1, color=flux_color)
                 # show the time of the "reference" burst
-                ax2.axvline(timepred[model["iref"]], c='k')
+                # ax2.axvline(timepred[self.iref], c='k')
+                ax2.axvline(self.bstart[self.ref_ind], c='k')
             else:
-                ax1.errorbar(self.bstart, self.pflux*model['r1'], self.pfluxe*model['r1'], fmt='.',
+                ax1.errorbar(self.bstart, self.pflux*r1, self.pfluxe*r1, fmt='.',
                          color=flux_color, label='mdot')
         else:
             ax1.set_ylabel('Persistent flux', color=flux_color)
             if self.train:
-                ax1.errorbar(self.tobs, self.pflux, self.pfluxe, marker = '.',color=flux_color,
-                         label = 'pflux')
+                ax1.errorbar(self.tobs, self.pflux, self.pfluxe,  
+                    marker = '.', ls=ls, color=flux_color, label = 'pflux')
+                if self.interp == 'spline':
+                    t = np.arange(min(self.tobs), max(self.tobs), 0.1)
+                    ax1.plot(t, BSpline(*self.tck_s)(t)*r1, color=flux_color)
                 ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
                 ax1.set_xlabel("Time (days after start of outburst)")
             else:
@@ -674,16 +817,25 @@ Initial parameters:
                 # Plot the observed bursts, if available
                 ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+            # and the averaged mdot over the burst interval (predicted)
+            av_mdot = []
+            for i in range(len(timepred)-1):
+                av_mdot.append(self.mean_flux(timepred[i], timepred[i+1], self)*r1)
+            av_mdot.insert(0, av_mdot[0])
+            ax1.step(timepred, av_mdot, where='pre', color=flux_color)
         else:
             ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
 
         ax2.tick_params(axis='y', labelcolor=bursts_color)
 
+        ax1.set_xlabel("Time (days after outburst start)")
+        if title is not None:
+            plt.title(title)
+
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-        # fig.title("Initial guess of parameters")
-        fig.legend(loc=2)
+        fig.legend(loc=1)
         fig.show()
 
     # -------------------------------------------------------------- #
@@ -825,38 +977,8 @@ Initial parameters:
         if plot:
             print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
             # make plot of observed burst comparison with predicted bursts:
-            # TODO: this section can presumably be replaced by the plot_model
-            # method, which also produces a plot at this point
-            # get the observed bursts for comparison:
-            X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = self.theta
-            print(self.train)
-            if self.train:
-                model = generate_burst_train(
-                    Q_b,Z,X,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.pfluxe,self.tobs,self.numburstssim,self.ref_ind
-                )
-            else:
-                model = burstensemble(Q_b,X,Z,r1,r2,r3,mass,radius,self.bstart,self.pflux,self.numburstsobs)
-            timepred = model["time"]
-            ebpred = np.array(model["e_b"])*np.array(model["r3"])
-    
-            # Display initial model
-            tobs = self.bstart
-            ebobs = self.fluen
-            plt.figure(figsize=(10,7))
-            plt.scatter(tobs,ebobs, color = 'black', marker = '.', label='Observed', s =200)
-            if self.train:
-                plt.scatter(timepred[1:], ebpred, marker = '*',color='darkgrey',s = 100, label = 'Predicted')
-            else:
-                # No predicted time in "ensemble" mode so we just plot the
-                # fluences, predicted and observed, as a function of epoch
-                plt.scatter(tobs, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-            #plt.errorbar(timepred[1:], ebpred, yerr=[ebpred_errup, ebpred_errlow], xerr=[timepred_errup[1:],timepred_errlow[1:]], fmt='.', color='darkgrey')
-            #plt.errorbar(tobs, ebobs, fmt='.',color='black')
-            plt.xlabel("Time (days after start of outburst)")
-            plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
-            plt.title("Initial guess of parameters")
-            plt.legend(loc=2)
-            plt.show()
+            self.plot_model(title='Initial guess of parameters')
+            value = input('Press [RETURN] to continue: ')
 
         _start = time.time()
 

@@ -7,115 +7,6 @@ import matplotlib.pyplot as plt
 # load local  modules
 from .settle import settle
 
-def mean_flux(t1, t2, tobs, a, b):
-    """
-    Calculates the mean flux between t1 and t2 from the piecewise linear
-    interpolation of tobs,a,b
-
-    :param t1: start time for averaging
-    :param t2: end time for averaging
-    :param tobs: observation times
-    :param a, b: coefficients for pw continuous fit between measurements,
-      calculated by get_a_b
-    :result: mean flux
-    """
-
-    na = len(a)
-
-    if len(tobs) != na + 1 or len(b) != na:
-        print("** ERROR ** some problem with tobs, a, b arrays")
-        return -1
-    # i1 is max of where t1 > tobs
-
-    i1 = max(np.where(t1 > tobs))
-    if len(i1) == 0:
-        i1 = -1
-    else:
-        i1 = max(i1)
-
-    i2 = max(np.where(t2 > tobs))
-    if len(i2) == 0:
-        i2 = -1
-    else:
-        i2 = max(i2)
-
-    sum = 0.0
-    if (i1 < 0) and (i2 < 0):
-
-        # Modified this section to just report the flux from the first measurement
-
-        sum += (t2 - t1) * (a[0] + b[0] * tobs[0])
-    else:
-
-        # Add the contribution from the start time through to tobs[0], using the
-        # gradient between the first pair of observations
-
-        if i1 < 0:
-            sum = sum + (tobs[0] - t1) * np.mean(
-                [a[0] + b[0] * t1, a[0] + b[0] * tobs[0]]
-            )
-
-        # Add the contributions between each pair of observations
-
-        for i in range(max([0, i1]), min([i2, na - 1]) + 1):
-            sum = sum + (min([t2, tobs[i + 1]]) - max([t1, tobs[i]])) * np.mean(
-                [a[i] + b[i] * max([t1, tobs[i]]), a[i] + b[i] * min([t2, tobs[i + 1]])]
-            )
-
-        # Add the contribution for the last section which overlaps with the
-        # observation times
-
-        if i1 < na and i2 == na:
-            sum = sum + (t2 - tobs[i2]) * np.mean(
-                [a[i2 - 1] + b[i2 - 1] * tobs[i2], t2]
-            )
-
-        # Now add any contribution *completely* beyond the observations. Previously
-        # this gave an exception
-
-        if i1 == na and i2 == na:
-            sum = sum + (t2 - t1) * np.mean(
-                [a[na - 1] + b[na - 1] * t1, a[na - 1] + b[na - 1] * t2]
-            )
-
-    return sum / (t2 - t1)
-
-
-# ------------------------------------------------------------------------- #
-
-# ------------------------------------------------------------------------- #
-# To account for the uncertainty in the persistent flux observations, we re-calculate the fit to the flux evolution each time,
-# and vary the persistent flux by a random amount within the uncertainty of the measurement.
-
-
-def get_a_b(pflux, pfluxe, tobs):
-    """
-    Do piecewise continuous fits to the flux evolution, here
-    determine the appropriate parameters for each interval:
-
-    :param pflux: persistent flux measurements to interpolate
-    :param pfluxe: uncertainty on persistent flux (not used)
-    :param tobs: time (midpoint of observation extent) for flux measurement
-    :result: a, b arrays for use with mean_flux
-    """
-
-    # Now actually calculate the coefficients for the flux fit
-
-    # Linear fit
-    ng = len(tobs)
-
-    b0 = np.zeros(ng - 1)
-    a0 = np.zeros(ng - 1)
-
-    for i in range(1, ng):
-        b0[i - 1] = (pflux[i] - pflux[i - 1]) / (tobs[i] - tobs[i - 1])
-        a0[i - 1] = pflux[i - 1] - b0[i - 1] * tobs[i - 1]
-
-    return a0, b0
-
-
-# ------------------------------------------------------------------------- #
-
 # Next we define the different functions that will generate the burst train: generate_burst_train and next_burst
 
 # ------------------------------------------------------------------------- #
@@ -123,24 +14,28 @@ def get_a_b(pflux, pfluxe, tobs):
 run=1
 debug=0
 
-def next_burst(
-    base,
-    z,
-    x_0,
-    t1,
-    tobs,
-    a,
-    b,
-    r1,
-    cfac,
-    mass,
-    radius,
-    direction=1,
-    debug=False ):
+def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
+    direction=1, debug=False ):
     """
     Routine to find the next burst in the series and return its properties
     Adapted from sim_burst.pro
+
+    :param base: base flux [MeV/nucleon]
+    :param z: accreted CNO metallicity
+    :param x_0: accreted H-fraction
+    :param t1: time to start burst search at
+    :param bean: Beans object, from which the other inputs are read in:
+      tobs, a, b,
+    :param r1: scaling factor for mdot
+    :param cfac:
+    :param mass: NS mass (M_sun)
+    :param radius: NS radius (km)
+    :param direction: forward (+1) or backward (-1) in time
+    :param debug: set to True to show additional debugging information
+    :return:
     """
+
+    tobs = bean.tobs
 
     mdot_res = 1e-6
     fn = "next_burst"
@@ -161,8 +56,11 @@ def next_burst(
         # itobs = [-1]
         itobs = [0]
     # i0=max([0,min([len(a)-1,max([i for i, value in enumerate(tobs) if value < t1])])])
-    i0 = max([0, min([len(a) - 1, max(itobs)])])
-    mdot0 = ( (0.67 / 8.8) * (a[i0] + b[i0] * t1) * r1 )
+    # Now that we have a couple of options for interpolation, need to
+    # remove the reliance on the linear interpolation parameters
+    # i0 = max([0, min([len(a) - 1, max(itobs)])])
+    # mdot0 = ( (0.67 / 8.8) * (a[i0] + b[i0] * t1) * r1 )
+    mdot0 = (0.67 / 8.8) * bean.pflux[itobs[0]] * r1 
     if debug:
         print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
 
@@ -175,9 +73,9 @@ def next_burst(
     # Now update the mdot with the value averaged over the trial interval
     # not sure why trial.tdel has suddenly become a vector
     if direction == 1:
-        mdot = (0.67 / 8.8) * mean_flux(t1, t1 + trial.tdel[0] / 24.0, tobs, a, b) * r1
+        mdot = (0.67 / 8.8) * bean.mean_flux(t1, t1 + trial.tdel[0] / 24.0, bean) * r1
     else:
-        mdot = (0.67 / 8.8) * mean_flux(t1 - trial.tdel[0] / 24.0, t1, tobs, a, b) * r1
+        mdot = (0.67 / 8.8) * bean.mean_flux(t1 - trial.tdel[0] / 24.0, t1, bean) * r1
 
     # Now retain the entire history of this iteration, so we can check for loops
     mdot_hist = [mdot0]
@@ -198,10 +96,10 @@ def next_burst(
         tdel_hist.append(trial.tdel[0]/24.)
 
         if direction == 1:
-            mdot = (0.67 / 8.8) * mean_flux(t1, t1 + (trial.tdel[0] / 24.0), tobs, a, b) * r1
+            mdot = (0.67 / 8.8) * bean.mean_flux(t1, t1 + (trial.tdel[0] / 24.0), bean) * r1
 
         else:
-            mdot = (0.67 / 8.8) * mean_flux(t1 - (trial.tdel[0] / 24.0), t1, tobs, a, b) * r1
+            mdot = (0.67 / 8.8) * bean.mean_flux(t1 - (trial.tdel[0] / 24.0), t1, bean) * r1
 
         # Break out of the loop here, if necessary
         if nreturn > 10:
@@ -231,7 +129,7 @@ def next_burst(
         m_arr = [0]
         t_arr2 = [t1]
         for t in t_arr[1:]:
-            _mdot = (0.67 / 8.8) * mean_flux(t1, t, tobs, a, b) * r1
+            _mdot = (0.67 / 8.8) * bean.mean_flux(t1, t, bean) * r1
             _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius)
             t_arr2.append(t1+_tmp.tdel[0]/24.)
             m_arr.append(_mdot)
@@ -269,8 +167,7 @@ def next_burst(
 
 
 def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
-    bstart, pflux, pfluxe, tobs, numburstssim, ref_ind, full_model=False, 
-    debug=False):
+    bean, full_model=False, debug=False):
     """
     This routine generates a simulated burst train based on the model
     input parameters, and the mdot history inferred from the persistent
@@ -284,13 +181,9 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
     :param r3: scaling factor for fluence
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
+    :param bean: Beans object, from which the remaining parameters are drawn:
+      bstart, pflux, pfluxe, tobs, numburstssim, ref_ind,
     # Now all the parameters below can be passed from a Beans object
-    :param bstart: burst start times
-    :param pflux: persistent flux measurements
-    :param pfluxe: uncertainty on persistent flux
-    :param tobs: times for the persistent flux measurements
-    :param numburstssim: number of bursts to simulate (in each direction)
-    :param ref_ind: index of reference burst
     :param full_model: if set to True, include all the parameters in the
       dict that is returned
     :param debug: set to True to show additional debugging information
@@ -319,28 +212,22 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
     # and three preceding. However, the last burst in the train (the 8th) for
     # runs test17 were wildly variable, so now restrict the extent by one
 
-    if bstart is not None:
-        sbt = bstart[ref_ind]
+    if bean.bstart is not None:
+        sbt = bean.bstart[bean.ref_ind]
     else:
         # In the absence of any bursts, set the reference time to ref_ind (can be
         # any time within the outburst)
         # sbt = 0.0
-        sbt = ref_ind
+        sbt = bean.ref_ind
 
     salpha = -1
     flag = 1  # Initially OK
-
-    # Get a and b for varying persistent flux:
-    # dkg: I don't think we *ever* vary the persistent flux, so I think we can
-    # TODO skip recalculating the a,b arrays at every step
-
-    a, b = get_a_b(pflux, pfluxe, tobs)# , n_burst, bstart)
 
     stime = []  # initialise array to store simulated times
     earliest = sbt  # this is the earliest burst in the train
     latest = sbt    # this is the time of the latest burst in the train
     # for i in range (0,2*(1+double)+1): # Do the 5th burst also, forward only
-    for i in range(0, numburstssim):  # Do the 5th burst also, forward only
+    for i in range(0, bean.numburstssim):  # Do the 5th burst also, forward only
 
         # Here we adopted recurrence time corrections for SAX
 	# J1808.4--3658 ,since the accretion rate is not constant over the
@@ -371,12 +258,12 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
 
         if backward:
             # Find the time for the *previous* burst in the train
-            result2 = next_burst( base, z, x_0, earliest, tobs, a, b,
+            result2 = next_burst( base, z, x_0, earliest, bean,
                 r1, 1.0, mass, radius, direction=-1, debug=debug)
 
         if forward:
             # Also find the time for the *next* burst in the train
-            result3 = next_burst( base, z, x_0, latest, tobs, a, b,
+            result3 = next_burst( base, z, x_0, latest, bean,
                 r1, 1.0, mass, radius, direction=1, debug=debug)
 
         if result2 is not None:
@@ -469,25 +356,35 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
     return result
 
 
-def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bstart, pflux,
-    numburstsobs, full_model=False ):
+def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=False ):
     """
     This routine generates as many burst predictions as there are burst
     measurements.
     Written initially by Luke Waterson, 2021
+
+    :param base: base flux [MeV/nucleon]
+    :param z: accreted CNO metallicity
+    :param x_0: accreted H-fraction
+    :param r1: scaling factor for mdot
+    :param r2: scaling factor for alpha
+    :param r3: scaling factor for fluence
+    :param mass: NS mass (M_sun)
+    :param radius: NS radius (km)
+    :param bean: Beans object, from which the remaining parameters are drawn:
+      bstart, pflux, numburstsobs
     """
 
     minmdot = 0.0
     maxmdot = 1.0
     mdot_res = 1e-6
-    sbt = bstart
+    sbt = bean.bstart
     salpha = []
     stime = []
     smdot = []
     se_b = []
-    for i in range(0, numburstsobs):
+    for i in range(0, bean.numburstsobs):
 
-        mdot = (0.67 / 8.8) * pflux[i] * r1
+        mdot = (0.67 / 8.8) * bean.pflux[i] * r1
         tmp = settle(base, z, x_0, mdot, 1.0, mass, radius)
 
         mdot_hist = [mdot]
