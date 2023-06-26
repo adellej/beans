@@ -7,16 +7,14 @@ import sys
 
 def get_obs(bean):
     """
-    Reads data in from ascii files and returns the data structures
-    required for emcee Requires persistent burst observations and,
-    optionally, flux observations & satellite telescope GTIs; or just
-    persistent flux measurements and GTIs.
+    Reads data in from ascii files and returns the data structures required for emcee
+    Requires persistent burst observations and, optionally, flux observations & satellite
+    telescope GTIs; or just persistent flux measurements and GTIs.
 
-    The following data is required, in tab-separated ascii format, with
-    columns in the given order: burst observations:
-        time (MJD), fluence (in 1e-9 erg/cm^2/s) fluence error, alpha, alpha error
-    and optionally for ensemble mode,
-        persistent flux (in 1e-9 erg/cm^2/s) and error, and recurrence time (hr) and error
+    The following data is required, in tab-separated ascii format, with columns in the given order:
+    burst observations:
+        time (MJD), fluence (in 1e-9 erg/cm^2/s) fluence error, alpha, alpha error; and optionally for ensemble mode,
+            persistent flux (in 1e-9 erg/cm^2/s) and error, and recurrence time (hr) and error
 
     observations:
         start time (MJD), stop time (MJD) persistent flux measurements (in 3-25keV 1e-9 erg/cm^2/s), pflux error
@@ -24,8 +22,7 @@ def get_obs(bean):
     satellite gti observing data:
         start time of obs, stop time of obs (both in MJD)
 
-    bc is the bolometric correction to convert the persistent fluxes (e.g.
-    from the 3-25keV range used for MINBAR) into bolometric estimates.
+    bc is the bolometric correction to convert the persistent fluxes from 3-25keV into bolometric fluxes.
 
     Example screenshots of how to generate this ascii format using the
     MINBAR web interface for SAX J1808.4-3658 is included in this directory.
@@ -41,6 +38,9 @@ def get_obs(bean):
 
     :return: nothing
     """
+
+    # Is this statement redundant? st and et are returned when the GTI file is read in
+    global st, et
 
     print("Reading input data files ...")
 
@@ -101,7 +101,7 @@ def get_obs(bean):
             pfluxe = pfluxe[_i]
 
         # Bolometric correction:
-
+        
         bean.pflux = pflux * bean.bc
         bean.pfluxe = pfluxe * bean.bc
 
@@ -117,8 +117,7 @@ def get_obs(bean):
             # Define reference burst:
             tref = bean.bstart[bean.ref_ind]
 
-	    # Set the y and yerr arrays (previously obs, obs_err), which
-	    # are what the MCMC code uses for comparison
+            # Set the obs and obs_err arrays, which are what the MCMC code uses for comparison
 
             bean.y = np.concatenate((bean.bstart, bean.fluen, alpha[1:]), axis=0)
             # always exclude the first alpha because we do not know
@@ -136,10 +135,7 @@ def get_obs(bean):
 
     else:
         # If there's no observation data that indicates an "ensemble" mode run
-	# Here we define some additional/alternate parameters for the
-	# "ensemble" mode run
-        # Note that no bolometric correction is applied to the persistent
-        # fluxes
+        # Here we define some additional/alternate parameters for the "ensemble" mode run
 
         tobs = burstdata['col1']
         tobs_err = np.ones(len(tobs)) * 0.5
@@ -148,8 +144,7 @@ def get_obs(bean):
         tdel = np.array(burstdata['col8'])
         tdele = np.array(burstdata['col9'])
 
-	# Set the y and yerr arrays (previously obs and obs_err), which
-	# are what the MCMC code uses for comparison
+        # Set the obs and obs_err arrays, which are what the MCMC code uses for comparison
 
         bean.y = np.concatenate((tdel, bean.fluen, alpha), axis=0)
         bean.yerr = np.concatenate((tdele, bean.fluene, alphae), axis=0)
@@ -195,7 +190,7 @@ Observations found:
 GTI checking will be performed""")
 
         # not sure if you need to return st, et if they're also global variables (defined at start)
-        return # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs, st, et
+        return bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs, st, et
 
     else:
         if bean.burstname is None:
@@ -214,4 +209,4 @@ You have not supplied a GTI file, so no GTI checking will be performed.""")
 
         bean.st, bean.et = None, None
 
-    return # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs
+    return bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs

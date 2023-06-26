@@ -5,7 +5,7 @@ import random
 import matplotlib.pyplot as plt
 
 # load local  modules
-from .settle import settle
+from settle import settle
 
 # Next we define the different functions that will generate the burst train: generate_burst_train and next_burst
 
@@ -15,7 +15,7 @@ run=1
 debug=0
 
 def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
-    direction=1, debug=False ):
+    direction=1, debug=False, **kwargs ):
     """
     Routine to find the next burst in the series and return its properties
     Adapted from sim_burst.pro
@@ -65,7 +65,7 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
         print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
 
     # Calculate the burst properties for the trial mdot value
-    trial = settle(base, z, x_0, mdot0, cfac, mass, radius)
+    trial = settle(base, z, x_0, mdot0, cfac, mass, radius,**kwargs)
 
     if debug:
         print ('{}: initial guess mdot0={} @ t1={}, tdel={}, direction={}'.format(fn,mdot0,t1,trial.tdel,direction))
@@ -88,7 +88,7 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
             or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
         and (mdot > minmdot and mdot < maxmdot):
 
-        trial = settle(base, z, x_0, mdot, cfac, mass, radius)
+        trial = settle(base, z, x_0, mdot, cfac, mass, radius, **kwargs)
         nreturn = nreturn + 1
         nreturn_total = nreturn_total + 1
 
@@ -130,7 +130,7 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
         t_arr2 = [t1]
         for t in t_arr[1:]:
             _mdot = (0.67 / 8.8) * bean.mean_flux(t1, t, bean) * r1
-            _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius)
+            _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius, **kwargs)
             t_arr2.append(t1+_tmp.tdel[0]/24.)
             m_arr.append(_mdot)
         plt.plot(t_arr, np.array(t_arr2), '-', label='tdel')
@@ -167,7 +167,7 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
 
 
 def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
-    bean, full_model=False, debug=False):
+    bean, full_model=False, debug=False, **kwargs):
     """
     This routine generates a simulated burst train based on the model
     input parameters, and the mdot history inferred from the persistent
@@ -233,7 +233,7 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
 	# J1808.4--3658 ,since the accretion rate is not constant over the
 	# extrapolated time, resulting in the recurrence time being
 	# underestimated by settle. Correction factors are from Zac
-	# Johnston, calculated using KEPLER 
+	# Johnston, calculated using KEPLER
 
 	# if i == 0:  # This is observed burst at 1.89 cfac1 = 1.02041
         #     cfac2 = 1.02041
@@ -259,12 +259,12 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
         if backward:
             # Find the time for the *previous* burst in the train
             result2 = next_burst( base, z, x_0, earliest, bean,
-                r1, 1.0, mass, radius, direction=-1, debug=debug)
+                r1, 1.0, mass, radius, direction=-1, debug=debug, **kwargs)
 
         if forward:
             # Also find the time for the *next* burst in the train
             result3 = next_burst( base, z, x_0, latest, bean,
-                r1, 1.0, mass, radius, direction=1, debug=debug)
+                r1, 1.0, mass, radius, direction=1, debug=debug, **kwargs)
 
         if result2 is not None:
             # we have a result from the next_burst call going backward, so add its properties to the arrays
@@ -323,40 +323,33 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
 
     result = dict()
 
-    if full_model:
-        # model parameters are redundant for the model returned
-        result["base"] = [base]
-        result["z"] = [z]
-        result["x_0"] = [x_0]
-        result["r1"] = [r1]
-        result["r2"] = [r2]
-        result["r3"] = [r3]
-
-        result["mdot_max"] = [mdot_max]
-
-        result["mass"] = [mass]
-        result["radius"] =  [radius]
-
-        result["forward"] = forward     # to keep track of the outcome of each direction
-        result["backward"] = backward
-
-    # now the actual predictions
-
+    result["base"] = [base]
+    result["z"] = [z]
+    result["x_0"] = [x_0]
+    result["r1"] = [r1]
+    result["r2"] = [r2]
+    result["r3"] = [r3]
     result["time"] = stime
+    result["mdot_max"] = [mdot_max]
     if len(stime) > 0:
         # The simulation might fail to generate any bursts, so only add the arrays if they exist
         result["mdot"] = smdot
-        # this is redundant, can be worked out from the times
-        # result["iref"] = iref
+        result["iref"] = iref
         result["alpha"] = salpha
         result["e_b"] = se_b
         #print(f"In burstrain fluence is {se_b}")
 
+    # result["qnuc"] = sqnuc
+    # result["xbar"] = sxbar
+    result["mass"] = [mass]
+    result["radius"] =  [radius]
+    result["forward"] = forward     # to keep track of the outcome of each direction
+    result["backward"] = backward
 
     return result
 
 
-def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=False ):
+def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=False, **kwargs ):
     """
     This routine generates as many burst predictions as there are burst
     measurements.
@@ -385,7 +378,7 @@ def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=Fals
     for i in range(0, bean.numburstsobs):
 
         mdot = (0.67 / 8.8) * bean.pflux[i] * r1
-        tmp = settle(base, z, x_0, mdot, 1.0, mass, radius)
+        tmp = settle(base, z, x_0, mdot, 1.0, mass, radius, **kwargs)
 
         mdot_hist = [mdot]
         while abs(mdot - mdot_hist[len(mdot_hist) - 1]) > mdot_res / 2.0 and (
@@ -415,29 +408,24 @@ def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=Fals
 
     result = dict()
 
-    if full_model:
-        # model parameters are redundant for the model returned
-        result["base"] = [base]
-        result["z"] = [z]
-        result["x_0"] = [x_0]
-        result["r1"] = [r1]
-        result["r2"] = [r2]
-        result["r3"] = [r3]
-
-        result["mdot_max"] = [mdot_max]
-
-        result["mass"] = [mass]
-        result["radius"] = [radius]
-
-    # now the actual predictions
-
-    result["time"] = stime
+    result["base"] = [base]
+    result["z"] = [z]
+    result["x_0"] = [x_0]
+    result["r1"] = [r1]
+    result["r2"] = [r2]
+    result["r3"] = [r3]
     result["mdot"] = smdot
+    result["mdot_max"] = [mdot_max]
+    result["time"] = stime
     result["alpha"] = salpha
     result["e_b"] = se_b
+
+    result["mass"] = [mass]
+    result["radius"] = [radius]
 
     # omit the printing for now, as it prevents assessing the progress
     # print('ensemble')
     # print(f"In burstrain fluence is {se_b}")
+
 
     return result

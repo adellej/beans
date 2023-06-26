@@ -5,7 +5,6 @@ sys.path.insert(0, myPath + '../beans')
 from beansp.burstrain import *
 from beansp.run_model import runmodel
 import numpy as np
-from beansp import Beans
 from beansp.get_data import get_obs
 import pathlib
 
@@ -30,18 +29,14 @@ def test_run_model():
         )
 
 
-    # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind=1, bc=2.21, obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts, gtiname=path_to_data_file_gti)
-    B = Beans(ref_ind=1, bc=2.21, obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts)#, gtiname=path_to_data_file_gti)
+    bstart0, bstart, fluen, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind=1, bc=2.21, gti_checking=1, obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts, gtiname=path_to_data_file_gti)
 
     ref_ind = 1
-    # tref = bstart[ref_ind]
-    tref = B.tref
+    tref = bstart[ref_ind]
     gti_checking =0
     # this is for emcee:
-    y = B.y
-    yerr = B.yerr
-    # y = obs
-    # yerr = obs_err
+    y = obs
+    yerr = obs_err
     x = 0 # in our case, we do not require x (independent variables), however for input into MCMC we need to define a x
 
     # updated call to include the train, numburstsobs parameter, and add the

@@ -2,9 +2,9 @@
 import numpy as np
 
 # load local module
-from .burstrain import *
+from burstrain import *
 
-def runmodel(theta_in, bean, debug=False):
+def runmodel(theta_in, bean, debug=False,**kwargs):
     """
     This routine calls one of two functions that generate the burst model
     predictions, either generate_burst_train or burstensemble, depending on
@@ -53,7 +53,7 @@ def runmodel(theta_in, bean, debug=False):
     #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
 
     # by default we assume the model is valid, i.e. has sufficient bursts
-    # to match the observations, AND doesn't violate the GTI conditions 
+    # to match the observations, AND doesn't violate the GTI conditions
     # (if we are checking those)
 
     valid = True
@@ -66,7 +66,7 @@ def runmodel(theta_in, bean, debug=False):
         # ['base', 'z', 'x_0', 'r1', 'r2', 'r3', 'time', 'mdot_max', 'mdot',
         #  'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
 
-        result = generate_burst_train( Q_b, Z, X, r1, r2, r3, mass, radius, bean )
+        result = generate_burst_train( Q_b, Z, X, r1, r2, r3, mass, radius, bean,**kwargs )
 
         tpred = result["time"]
 
@@ -86,7 +86,7 @@ def runmodel(theta_in, bean, debug=False):
             imatch = [np.argmin(np.abs(tpred - bean.bstart[bean.ref_ind]))]
             for i in range(1,bean.numburstssim):
                 # now looking for a match for bursts ref_ind-i, ref_ind+i:
-                # (but also want to exclude any that have already been 
+                # (but also want to exclude any that have already been
                 # matched!)
                 if bean.ref_ind-i >= 0:
                     # imatch.insert(0,np.argmin(np.abs(tpred-bstart[ref_ind-i])))
@@ -131,7 +131,7 @@ def runmodel(theta_in, bean, debug=False):
         else:
 	    # If you're not comparing to observed bursts, just return the
 	    # result of generate_burst_train
-            # This loop will (also?) be triggered if the call to 
+            # This loop will (also?) be triggered if the call to
             # generate_burst_train results in no bursts. That can happen if
             # the model parameters are nonsensical - e.g. Z<0. An "unhashable
             # type" error will then be triggered - dkg
@@ -146,7 +146,7 @@ def runmodel(theta_in, bean, debug=False):
     else:
         # If we're not generating a burst train, just run the ensemble
 
-        result = burstensemble( Q_b, X, Z, r1,r2,r3,mass,radius, bean)
+        result = burstensemble( Q_b, X, Z, r1,r2,r3,mass,radius, bean, **kwargs)
 
         model = np.concatenate((result['time'], result['e_b'], result['alpha']))
 
