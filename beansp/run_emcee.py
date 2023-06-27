@@ -6,7 +6,36 @@ from multiprocessing import Pool
 import time
 import h5py
 
-def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threads):
+def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
+    '''
+    Distribute the initial positions for the walkers around the supplied theta value, 
+    making sure they're consistent with the prior
+
+    :param theta: desired centroid for walker parameters
+    :param nwalkers: number of initial positions to generate
+    :param prior: prior function adopted
+    :param scale: Gaussian spread of the values in each dimension
+
+    :return: list of nwalkers positions
+    '''
+    
+    ndim = len(theta)
+    pos = np.array([theta + scale*np.random.randn(ndim) for i in range(nwalkers)])
+    
+    valid = np.array([prior(pos[i]) != -np.inf for i in range(nwalkers)])
+    
+    print ('Initial walker positions within {} of supplied parameter vector, checking for consistency with prior...'.format(scale))
+
+    # print (len(np.where(~valid)[0]))
+    while (len(np.where(~valid)[0])) > 0:
+        pos[~valid] = [theta + scale*np.random.randn(ndim) for i in range(len(np.where(~valid)[0]))]
+        valid = np.array([prior(pos[i]) != -np.inf for i in range(nwalkers)])
+        # print (len(np.where(~valid)[0]))                                                                     
+
+    return list(pos)
+
+
+def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart, threads):
     """
     Function to initilise and run emcee.
     Removed the redundant parameter ndim, which can be determined from the
@@ -17,6 +46,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threa
     :param theta: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1, r2, r3,
       mass & radius
     :param lnprob: log-probability function to use with emcee
+    :param prior: prior function to use with emcee, used to check the initial walker positions
     :param x: the "independent" variable, passed to lnlike
     :param y: the "dependent" variable (i.e. measurements), passed to lnlike
     :param yerr: erorr estimates on y
@@ -34,22 +64,25 @@ def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threa
     print("# -------------------------------------------------------------------------#")
 
     # define the dtype of the blobs
-    #dtype = [("lnprob", float), ("model", "S1000")]
-    dtype = [("lnprob", float), ("model", h5py.string_dtype(encoding='ascii'))]
+    # this refers to the 2nd and subsequent parameters returned by lnprob;
+    # in our case the prior probability and the full model result, encoded
+    # as ASCII
+
+    dtype = [("lnprior", float), ("model", h5py.string_dtype(encoding='ascii'))]
 
     # use emcee backend to save as a HD5 file
     # see https://emcee.readthedocs.io/en/stable/user/backends
     reader = emcee.backends.HDFBackend(filename=run_id + ".h5")
 
     if restart == True:
-        # don't know why the pos are identical to the restart=False case below;
-        # perhaps they're ignored
         steps_so_far = np.shape(reader.get_chain())[0]
         print('Restarting',run_id,'with',nwalkers,'walkers after',steps_so_far,'steps done')
     else:
         reader.reset(nwalkers, ndim)
         # set the intial position of the walkers
-        pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        # pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+        pos = set_initial_positions(theta,  nwalkers, prior)
+
         print('Ready to run',run_id,'with',nwalkers,'walkers')
             
     print("Beginning sampling..")
@@ -116,25 +149,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, x, y, yerr, run_id, restart, threa
                     break
                 old_tau = tau
 
-
-        #tau = sampler.get_autocorr_time()
         print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
-        
-    #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
-
-    # with Pool() as pool:
-    #     print("Beginning sampling..")
-    #     # use emcee backend to save as a HD5 file
-    #     reader = emcee.backends.HDFBackend(f"chains_{run_id}.h5")
-    #     reader.reset(nwalkers, ndim)
-    #     sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), pool=pool, backend=reader, blobs_dtype=dtype)
-    #     start = time.time()
-    #     sampler.run_mcmc(pos, nsteps, progress=True, store=True)
-    #     end = time.time()
-    #     multi_time = end-start
-
-    #     print('Samples complete. Took {0:.1f} seconds'.format(multi_time))
-
 
     return sampler
 
