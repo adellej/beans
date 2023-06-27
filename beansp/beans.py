@@ -71,24 +71,24 @@ def lnZprior(z):
 def prior_func(theta_in):
     """
     This function implements a simple box prior for all the parameters 
-    excluding mass and radius, which comes instead from a separate mr_prior
-    function
 
     :param theta_in: parameter vector
     """
 
-    X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
+    f_a, f_E = 1.0, 1.0
+    X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
+    if len(theta_in) == 10:
+        f_a, f_E = theta_in[8:]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
     # reasonable limits.
     if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
-        (0.000001 <= Q_b < 5.0) and (1 <= f_a < 100) and (1 <= f_E < 100) and \
-        (0.005 < r1 < 1.0) and (0.005 < r2 < 3.0) and \
-        (0 < r3 * 1e3 < 1000) \
-        and (1.15 < mass < 2.5) and (9 < radius < 17):
-        #return 0.0 + lnZprior(Z) + mr_prior(mass, radius) #use this option for 1808 prior
-        return 0.0 + mr_prior(mass, radius)
+        (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1.15 < mass < 2.5) and (9 < radius < 17):
+        return 0.0
     else:
         return -np.inf
 
@@ -105,46 +105,22 @@ def prior_1808(theta_in):
     :param theta_in: parameter vector
     """
 
-    X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
+    f_a, f_E = 1.0, 1.0
+    X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
+    if len(theta_in) == 10:
+        f_a, f_E = theta_in[8:]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
     # reasonable limits.
-    if (0.00001 < X < 0.76) and (Z > 0.00001) and\
-        (0.000001 <= Q_b < 5.0) and (1 <= f_a < 100) and (1 <= f_E < 100) and \
-        (0.005 < r1 < 1.0) and (0.005 < r2 < 3.0) and \
-        (0 < r3 * 1e3 < 1000) \
-        and (1.15 < mass < 2.5) and (9 < radius < 17):
+    if (0.00001 < X < 0.76) and (Z > 0.00001) and \
+        (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (1 <= f_a < 100) and (1 <= f_E < 100):
 
         return 0.0 + lnZprior(Z) + mr_prior(mass, radius) 
     else:
         return -np.inf
-
-
-def calc_dist_anisotropy(r1, r2, r3):
-    '''
-    Calculate distance and inclincation from scaling factors.  These
-    functions are taken (more or less) from Goodwin et al. 2019, eq.  18-20, 
-    but there seem to be some slight differences
-
-    TODO also infer the inclination, which will depend on the model
-    adopted for the anisotropy; because the burst and persistent emission
-    anisotropy are free to vary independently, there is no guarantee there
-    would be an inclination value consistent with every pair of values for
-    a given model
-
-    :param r1: ratio of mdot to bolometric (isotropic) fluence (eq. 12)
-    :param r2: ratio of observed to predicted alpha (eq. 13)
-    :param r3: ratio of fluence to isotropic burst energy (eq. 14)
-
-    :return: distance, xi_b, xi_p
-    '''
-
-    xi_p = np.power( (r1*r2*r3*1e3)/(63.23*0.74816), 0.5)
-    xi_b = (0.74816*xi_p)/r2
-    distance = 10*np.power((r1/xi_p), 0.5) #kpc
-
-    return distance, xi_b, xi_p
 
 
 def model_str(model):
@@ -304,7 +280,7 @@ class Beans:
 
     def __init__(self, config_file=None, nwalkers=200, nsteps=100,
                  run_id="test", obsname=None, burstname=None, gtiname=None,
-                 theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
+                 theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
                  threads = 4, test_model=True, restart=False, 
                  interp='linear', smooth=0.02, **kwargs):
@@ -324,7 +300,7 @@ class Beans:
         :param burstname: name of the burst data file, listing the bursts
         :param gtiname: name of the GTI file, set to None to turn off checking
         :param theta: initial centroid values for walker model parameters, with
-          X, Z, Q_b, f_a, f_E, r1, r2, r3, mass & radius
+          X, Z, Q_b, d, xi_b, xi_p, mass, radius, and (optionally) f_a & f_E 
         :param numburstssim: number of bursts to simulate, for the "train" mode,
           both earlier and later than the reference burst; i.e. set to half
           the total number of bursts you want to simulate. Don't forget to
@@ -354,6 +330,24 @@ class Beans:
             print ('** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
         if 'gti_checking' in kwargs.keys():
             print ('** WARNING ** parameter gti_checking is redundant (ignored), setting from value of gtiname param')
+
+        # Conversion factor between model predicted burst energy and
+	# observed fluence. Multiply by this value to convert the burst
+	# energy from settle (in 1e39, the observer frame) to fluence at 1
+	# kpc in units of 1e-6 erg/cm^2
+
+        self.fluen_fac = ((1e39*u.erg/(4*np.pi*u.kpc**2)) 
+            / (1e-6*u.erg/u.cm**2)).decompose()
+
+        # Conversion factor between persistent flux (in units of 1e-9
+        # erg/cm^2/s) and the accretion rate in units of Eddington
+
+        self.r1 = ((1e-9*u.erg/u.cm**2/u.s)*(u.kpc)**2/(u.km**2*const.c**2)
+            / (1.7*8.8e4*u.g/u.cm**2/u.s)).decompose()
+
+        # Conversion factor for redshift, GM/Rc^2 
+
+        self.gmrc2 = (2.*const.G*const.M_sun/(const.c**2*u.km)).decompose()
 
         # MCU: this is a solution to load packaged data compatible
         # with python 3.6 - 3.10
@@ -412,8 +406,17 @@ class Beans:
         self.restart = restart
 
         # number of dimensions for the parameter array
+        # working towards being able to include the systematic errors or
+        # not, but not quite there yet
 
         self.ndim = len(self.theta)
+        if self.ndim == 8:
+            self.has_systematic = False
+        elif self.ndim == 10:
+            self.has_systematic = True
+        else:
+            print ('** ERROR ** number of dimensions of input parameter vector should be 8/10')
+            return
 
         self.gti_checking = self.gtiname is not None
 
@@ -512,20 +515,25 @@ Initial parameters:
         :param indent: number of characters to indent the string from the left
         """
 
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta
+        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta[:8]
+        if self.has_systematic:
+            f_a, f_E = theta[8:]
 
-        dist, xi_b, xi_p = calc_dist_anisotropy(r1, r2, r3)
-
-        return """#X = {} \\ hydrogen mass fraction
+        result = """#X = {} \\ hydrogen mass fraction
 #Z = {} \\ CNO mass fraction
 #Q_b = {} \\ base flux [MeV/nucleon]
 #M_NS = {} M_sun \\ neutron star mass
 #R_NS = {} km \\ neutron star radius
-#f_a, f_E = {}, {} \\ systematic error terms for alpha, fluence
-#r_1, r_2, r_3 = {}, {}, {} \\ scaling factors to convert predictions
-#  (equivalent to d = {:.2f} kpc, xi_b = {:.3f}, xi_p = {:.3f})""".format(
-    X, Z, Q_b, mass, radius, f_a, f_E, r1, r2, r3, dist, xi_b, xi_p).replace(
-    '#',' '*indent)
+#d = {:.2f} kpc \\ source distance
+#xi_b = {:.3f} \\ anisotropy factor for burst emission
+#xi_p = {:.3f} \\ anisotropy factor for persistent emission""".format(
+    X, Z, Q_b, mass, radius, dist, xi_b, xi_p)
+        if self.has_systematic:
+            return (result+"""
+#f_a, f_E = {}, {} \\ systematic error terms for alpha, fluence""".format(
+    f_a, f_E)).replace('#',' '*indent)
+        
+        return result.replace('#', ' '*indent)
 
 
     def save_config(self, file=None, clobber=True):
@@ -628,6 +636,32 @@ Initial parameters:
                         setattr(self, option, _value)
 
 
+    def flux_to_mdot(self, X, dist, xi_p, mass, radius, flux=None):
+        """
+        Function to convert fluxes to accretion rate, in units of the
+        Eddington rate, here taken as 8.8e4*1.7/(1+X) g/cm^2/s in the NS frame 
+        This routine uses the precise calculation of Q_grav, i.e.  c^2z/(1+z)
+
+        :param X: accreted H-fraction
+        :param dist: source distance (kpc)
+        :param xi_p: anisotropy of persistent emission
+        :param mass: NS mass (M_sun)
+        :param radius: NS radius (km)
+        :param flux: flux value or array to convert. If None, then we just
+          return the observed persistent flux and error
+
+        :return: mdot, mdot_err OR individual flux values
+        """
+
+        if flux is None:
+            return self.flux_to_mdot(X, dist, xi_p, mass, radius, self.pflux), \
+                self.flux_to_mdot(X, dist, xi_p, mass, radius, self.pfluxe)
+
+        opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
+
+        return (self.r1 * dist**2*xi_p*opz**2*(1+X)/(radius**2*(opz-1)) * flux).value
+
+
     def lnlike(self, theta_in, x, y, yerr):
         """
         Calculate the "model" likelihood for the current walker position
@@ -638,8 +672,8 @@ Initial parameters:
         to get the model, so as to be able to return it to the calling function;
         this step is totally redundant
 
-        :param theta_in: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1,
-          r2, r3, mass & radius
+        :param theta_in: model parameter tuple, with X, Z, Q_b, dist, xi_b,
+          xi_p, mass, radius, f_a, f_E 
         :param x: the "independent" variable, passed to lnlike
         :param y: the "dependent" variable (i.e. measurements), passed to lnlike
         :param yerr: erorr estimates on y
@@ -648,7 +682,10 @@ Initial parameters:
 
         # define theta = model parameters, which we define priors for
 
-        X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
+        f_a, f_E = 1.0, 1.0
+        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
+        if self.has_systematic:
+            f_a, f_E = theta[8:]
 
 	# call model (function runmodel, in run_model.py) to generate the burst
 	# train, or the set of bursts (for "ensemble" mode. In earlier versions
@@ -660,16 +697,30 @@ Initial parameters:
         if not valid:
             return -np.inf, model
 
-        # multiplying by scaling factors to match with the data
+        # Here we convert the model-predicted values to observational
+        # quantities, for comparison with the observations. Previously
+        # this was achieved via the "ratios" of the mdot/luminosity,
+        # fluence and alphas
+        # The times are already relative to the reference bursts, so
+        # nothing needs to be done to those
+
         # indices for the fluence and the alphas are shifted by one
         # if we're doing a "train" run, hence the int(self.train) (=1 if
         # self.train == True
 
+        # Convert burst energy (in observer frame) to fluence
+
         ato = int(self.train) # array "train" offset
         # special to trap "unhashable type" error
         # print (model, ato, len(self.bstart), len(self.fluen))
-        model[self.numburstsobs-ato:len(self.fluen)+self.numburstsobs-ato] *= r3
-        model[len(self.fluen)+self.numburstsobs-ato:] *= r2
+
+        model[self.numburstsobs-ato:len(self.fluen)+self.numburstsobs-ato] *= \
+           self.fluen_fac/xi_b/dist**2
+
+        # Convert burst alpha to observed value (incorporating
+        # anisotropies)
+
+        model[len(self.fluen)+self.numburstsobs-ato:] *= xi_b/xi_p
 
 	# To simplify final likelihood expression we define inv_sigma2 for each
 	# data parameter that describe the error.  The variance (eg sEb0) is
@@ -747,10 +798,7 @@ Initial parameters:
         if self.interp == 'spline':
             ls = ''
 
-        # the ratios are no longer part of the model, so extract them from the param array here
-
-        r1, r2, r3 = self.theta[5:8]
-
+        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
         if model is None:
             test, valid, model = runmodel(self.theta, self, debug=False)
 
@@ -764,12 +812,12 @@ Initial parameters:
                 print ('** ERROR ** no predicted times to show')
                 return
             # ebpred = np.array(model["e_b"])*np.array(model["r3"])
-            ebpred = np.array(model["e_b"])*np.array(r3)
+            ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
         else:
             # The other way to return the model is as an array with the burst times, fluences
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
-            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)])*r3
+            ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)]) * self.fluen_fac/xi_b/dist**2
 
         fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
@@ -779,18 +827,20 @@ Initial parameters:
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
         if mdot and full_model:
+            _mdot, _mdot_err = self.flux_to_mdot(X, dist, xi_p, mass, radius)
             ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
             if self.train:
-                ax1.errorbar(self.tobs, self.pflux*r1, self.pfluxe*r1, 
+                ax1.errorbar(self.tobs, _mdot, _mdot_err,
                     marker='.', ls=ls, color=flux_color, label='mdot')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
-                    ax1.plot(t, BSpline(*self.tck_s)(t)*r1, color=flux_color)
+                    ax1.plot(t, self.flux_to_mdot(X, dist, xi_p, mass, radius,
+                        BSpline(*self.tck_s)(t)), color=flux_color)
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
                 ax2.axvline(self.bstart[self.ref_ind], c='k')
             else:
-                ax1.errorbar(self.bstart, self.pflux*r1, self.pfluxe*r1, fmt='.',
+                ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
                          color=flux_color, label='mdot')
         else:
             ax1.set_ylabel('Persistent flux', color=flux_color)
@@ -799,7 +849,7 @@ Initial parameters:
                     marker = '.', ls=ls, color=flux_color, label = 'pflux')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
-                    ax1.plot(t, BSpline(*self.tck_s)(t)*r1, color=flux_color)
+                    ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_color)
                 ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
                 ax1.set_xlabel("Time (days after start of outburst)")
             else:
@@ -820,7 +870,8 @@ Initial parameters:
             # and the averaged mdot over the burst interval (predicted)
             av_mdot = []
             for i in range(len(timepred)-1):
-                av_mdot.append(self.mean_flux(timepred[i], timepred[i+1], self)*r1)
+                av_mdot.append(self.flux_to_mdot(X, dist, xi_p, mass, radius,
+                    self.mean_flux(timepred[i], timepred[i+1], self)))
             av_mdot.insert(0, av_mdot[0])
             ax1.step(timepred, av_mdot, where='pre', color=flux_color)
         else:
@@ -1084,8 +1135,9 @@ Initial parameters:
 
         f = plt.figure(figsize=figsize)
 
-        param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$", "$r{\mathrm{1}}$",\
-                "$r{\mathrm{2}}$", "$r{\mathrm{3}}$", "$M$", "$R$"]
+        param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$d$", "$\\xi_b$",
+            "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$"]
+                
         for j in range(10):
             chain = sampler[:, :, j].T
             # print(np.shape(sampler))
@@ -1218,7 +1270,7 @@ Initial parameters:
             # plot the chains:
 
             print ("Plotting the chains...")
-            labels = ["$X$","$Z$","$Q_b$","$f_a$","$f_E$","$r1$","$r2$","$r3$", "$M$", "$R$"]
+            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$", "$f_a$","$f_E$"]
             # plt.clf()
             fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
 
@@ -1245,7 +1297,7 @@ Initial parameters:
 
             # make plot of posterior distributions of your parameters:
             cc = ChainConsumer()
-            cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "fa", "fE", "r1", "r2", "r3", "M", "R"])
+            cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "d", "xi_b", "xi_p", "M", "R", "fa", "fE"])
 
             if truths is None:
                 truths = list(self.theta)
@@ -1300,11 +1352,11 @@ Initial parameters:
             X = self.samples[:,0]
             Z = self.samples[:,1]
             base = self.samples[:,2]
-            r1 = self.samples[:,5]
-            r2 = self.samples[:,6]
-            r3 = self.samples[:,7]
-            mass = self.samples[:,8]
-            radius = self.samples[:,9]
+            distance = self.samples[:,3]
+            xib = self.samples[:,4]
+            xip = self.samples[:,5]
+            mass = self.samples[:,6]
+            radius = self.samples[:,7]
 
             # calculate redshift and gravity from mass and radius:
 	    # keep the parameters that we're going to calculate limits on
@@ -1318,10 +1370,6 @@ Initial parameters:
 	    # arrays here
             redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
             gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
-
-            # calculate distance and inclincation from scaling factors:
-
-            distance, xib, xip = calc_dist_anisotropy(r1, r2, r3)
 
             cosi_2 = 1/(2*xip)
             cosi = 0.5/(2*(xip/xib)-1)
@@ -1338,10 +1386,16 @@ Initial parameters:
             timepred_errup = [x[1] for x in times]
             timepred_errlow = [x[2] for x in times]
 
+            # Here we calculate the parameter uncertainties on the
+            # predcted fluences, for comparison with the observations
+            # TODO really want to convert to observed quantities here with
+            # the appropriate distance & xi_b at that step
+
+            fpred = np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2
             if self.train:
-                ebs = get_param_uncert_obs(e_b, self.numburstssim*2)
+                ebs = get_param_uncert_obs(fpred, self.numburstssim*2)
             else:
-                ebs = get_param_uncert_obs(e_b, self.numburstsobs)
+                ebs = get_param_uncert_obs(fpred, self.numburstsobs)
             ebpred = [x[0] for x in ebs]
             ebpred_errup = [x[1] for x in ebs]
             ebpred_errlow = [x[2] for x in ebs]
@@ -1361,18 +1415,10 @@ Initial parameters:
             radiuspred = get_param_uncert(radius)
             gravitypred = get_param_uncert(gravity)
             redshiftpred = get_param_uncert(redshift)
-            r1pred = get_param_uncert(r1)
-            r2pred = get_param_uncert(r2)
-            r3pred = get_param_uncert(r3)
-
-            # scale fluences by scaling factor:
-            ebpred = np.array(ebpred)*np.array(r3pred[0])
-            ebpred_errup = np.array(ebpred_errup)*np.array(r3pred[0])
-            ebpred_errlow = np.array(ebpred_errlow)*np.array(r3pred[0])
 
             # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
 
-            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred, r1pred, r2pred, r3pred \n value, upper uncertainty, lower uncertainty')
+            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred\n value, upper uncertainty, lower uncertainty')
 
 	    # make plot of posterior distributions of the mass, radius,
 	    # surface gravity, and redshift: stack data for input to
