@@ -70,7 +70,7 @@ def lnZprior(z):
 
 def prior_func(theta_in):
     """
-    This function implements a simple box prior for all the parameters 
+    This function implements a simple box prior for all the parameters
     excluding mass and radius, which comes instead from a separate mr_prior
     function
 
@@ -95,7 +95,7 @@ def prior_func(theta_in):
 
 def prior_1808(theta_in):
     """
-    This function implements a simple box prior for all the parameters 
+    This function implements a simple box prior for all the parameters
     excluding mass, radius, and the metallicity, which come instead from
     separate functions
 
@@ -116,7 +116,7 @@ def prior_1808(theta_in):
         (0 < r3 * 1e3 < 1000) \
         and (1.15 < mass < 2.5) and (9 < radius < 17):
 
-        return 0.0 + lnZprior(Z) + mr_prior(mass, radius) 
+        return 0.0 + lnZprior(Z) + mr_prior(mass, radius)
     else:
         return -np.inf
 
@@ -124,7 +124,7 @@ def prior_1808(theta_in):
 def calc_dist_anisotropy(r1, r2, r3):
     '''
     Calculate distance and inclincation from scaling factors.  These
-    functions are taken (more or less) from Goodwin et al. 2019, eq.  18-20, 
+    functions are taken (more or less) from Goodwin et al. 2019, eq.  18-20,
     but there seem to be some slight differences
 
     TODO also infer the inclination, which will depend on the model
@@ -288,7 +288,7 @@ class Beans:
     beans. The code will read in burst (and observation) data and attempt to
     simulate bursts to match the observed burst properties. There are two
     principle modes; the original function generates a "train" of individual
-    bursts, observed (for example) during a transient outburst, as for the 
+    bursts, observed (for example) during a transient outburst, as for the
     original application to the 2002 outburst of SAX J1808.4-3658, observed
     with RXTE/PCA. The alternative is to match to a set of non-contiguous
     bursts ("ensemble" mode)
@@ -306,7 +306,7 @@ class Beans:
                  run_id="test", obsname=None, burstname=None, gtiname=None,
                  theta= (0.44, 0.01, 0.18, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
-                 threads = 4, test_model=True, restart=False, 
+                 threads = 4, test_model=True, restart=False,
                  interp='linear', smooth=0.02, **kwargs):
         """
         Initialise a Beans object
@@ -365,7 +365,7 @@ class Beans:
         print("data_path = " + data_path)
 
         # Only want to set the default values if both obsname and burstname
-        # are not set (indicating a default run). This because setting 
+        # are not set (indicating a default run). This because setting
         # obsname=None is also how we indicate an "ensemble" mode run
         if (obsname is None) & (burstname is None):
             obsname = os.path.join(data_path, '1808_obs.txt')
@@ -429,7 +429,7 @@ class Beans:
         # Read in all the measurements and set up all the parameters
         # This function now operates on the Beans object directly, and the
         # required attributes:
-        # x, y, yerr, tref, bstart, pflux, pfluxe, tobs, fluen, fluen_err, 
+        # x, y, yerr, tref, bstart, pflux, pfluxe, tobs, fluen, fluen_err,
         #     st, et
         # are set in that routine
         # bypasses the earlier init function, and instead calls get_obs
@@ -453,6 +453,7 @@ class Beans:
             self.tck_s = splrep(self.tobs, self.pflux, s=self.smooth)
             self.mean_flux = mean_flux_spline
 
+        self.numburstsobs = len(self.fluen)
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -493,12 +494,12 @@ Burst data file: {}
 No. of bursts to simulate: {} ({} mode)
   with {} walkers, {} steps, {} threads{}
 Initial parameters:
-{} 
+{}
 ==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
             self.numburstsobs, self.ref_ind,
             self.train+self.numburstssim*(1+self.train), mode[self.train],
             self.nwalkers, self.nsteps,
-            self.threads, restart[int(self.restart)], 
+            self.threads, restart[int(self.restart)],
             self.theta_table(self.theta, indent=2) )
 
 
@@ -596,7 +597,7 @@ Initial parameters:
 
         config = ConfigParser(allow_no_value=True)
         config.read(file)
-        
+
         # Loop over sections, attributes
 
         for section in config.sections():
@@ -606,7 +607,7 @@ Initial parameters:
                 #     "x %s:::%s:::%s"
                 #     % (option, config.get(section, option), str(type(option))))
                 if option == 'theta':
-                    setattr(self, option, 
+                    setattr(self, option,
                         tuple(map(float, config.get(section, option)[1:-1].split(', '))))
                 elif option in float_params:
                     setattr(self, option, config.getfloat(section, option))
@@ -631,7 +632,7 @@ Initial parameters:
     def lnlike(self, theta_in, x, y, yerr):
         """
         Calculate the "model" likelihood for the current walker position
-        Calls runmodel which actually runs the model, either generating a 
+        Calls runmodel which actually runs the model, either generating a
         burst train, or a set of runs for "ensemble" mode. Then extracts the
         relevant model outputs and calculates the likelihood.
         Includes an *additional* call to generate_burst_train/burstensemble
@@ -690,9 +691,13 @@ Initial parameters:
         return -0.5 * np.sum(cpts), model2
 
 
+    # -------------------------------------------------------------------------#
+    # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
+
+    # define lnprob, which is the full log-probability function
     def lnprob(self, theta_in, x, y, yerr):
         """
-        The full log-probability function incorporating the priors (via 
+        The full log-probability function incorporating the priors (via
         lnprior), and and model likelihood (via lnlike), that is passed to
         runemcee when creating the sampler (in the do_run method).
 
@@ -703,7 +708,7 @@ Initial parameters:
         :return: total (prior+model) likelihood, prior likelihood, model array
           (from lnlike)
         """
-   
+
         lp = self.lnprior(theta_in)
         # Check if the parameters are consistent with the prior, and skip
         # the model run it if not
@@ -781,7 +786,7 @@ Initial parameters:
         if mdot and full_model:
             ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
             if self.train:
-                ax1.errorbar(self.tobs, self.pflux*r1, self.pfluxe*r1, 
+                ax1.errorbar(self.tobs, self.pflux*r1, self.pfluxe*r1,
                     marker='.', ls=ls, color=flux_color, label='mdot')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
@@ -795,7 +800,7 @@ Initial parameters:
         else:
             ax1.set_ylabel('Persistent flux', color=flux_color)
             if self.train:
-                ax1.errorbar(self.tobs, self.pflux, self.pfluxe,  
+                ax1.errorbar(self.tobs, self.pflux, self.pfluxe,
                     marker = '.', ls=ls, color=flux_color, label = 'pflux')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
@@ -878,7 +883,7 @@ Initial parameters:
                     # Run for just one burst to get the initial interval
                     # Set ref_ind to be zero, will subsequently distribute the start burst times
                     # between up to the simulated interval
-                    test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
+                    test, valid, result = runmodel(theta_1, self.y, 0.0, self.bstart,
                                            self.pflux, self.pfluxe, self.tobs, 1,1, 0.0,
                                            0, self.train, debug=False)
                     print("result: ", test, valid)
@@ -912,9 +917,10 @@ Initial parameters:
                             # Set nburstssim to 100 below, just need to make sure it's sufficient to cover
                             # the whole outburst. Replace ref_ind with trial, as the starting burst time
                             # (ref_ind is meaningless if there's no bursts)
-                            test, valid, test2 = runmodel(theta_1, self.y, 0.0, self.bstart,
+                            test, valid, result = runmodel(theta_1, self.y, 0.0, self.bstart,
                                                    self.pflux, self.pfluxe, self.tobs, 100,100, trial,
                                                    1,self.train, gti_start=self.st, gti_end=self.et, debug=False)
+
                             # for debugging
                             # self.plot_model(test)
                             # breakpoint()
@@ -942,7 +948,7 @@ Initial parameters:
           seems redundant since it's also plotted at the __init__ stage
         :param analyse: set to True to call do_analysis automatically once the
           chains finish
-        :param burnin: number of steps to ignore at the start of the run, 
+        :param burnin: number of steps to ignore at the start of the run,
           passed to do_analysis
 
         :return:
@@ -983,7 +989,7 @@ Initial parameters:
         _start = time.time()
 
         # run the chains and save the output as a h5 file
-        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.lnprior, 
+        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.lnprior,
             None, self.y, self.yerr, self.run_id, self.restart, self.threads)
         print(f"...sampling complete!")
 
@@ -1069,7 +1075,7 @@ Initial parameters:
         tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
         thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
         print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
-        print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau), 
+        print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau),
           min(tau), max(tau)))
 
         # alternate method of checking if the chains are converged:
@@ -1120,7 +1126,7 @@ Initial parameters:
         plt.show()
 
 
-    def do_analysis(self, options=['autocor','posteriors'], 
+    def do_analysis(self, options=['autocor','posteriors'],
                           truths=None, burnin=2000, savefig=True):
         """
         This method is for running standard analysis and displaying the
@@ -1136,7 +1142,7 @@ Initial parameters:
 
         TODO: need to reorganise a bit, and add more options
 
-        :param options: array of strings corresponding to various analysis 
+        :param options: array of strings corresponding to various analysis
             options, listed in the analyses dict below
         :param truths: parameter vector to overplot on (one of the) corner
           plots (TODO: need to check if >1 corner plot are selected
@@ -1429,25 +1435,25 @@ Initial parameters:
             # probably a better way to do this, via concord (if it's
             # available)
 
-            counts, ybins, xbins, image = plt.hist2d(np.array(xip), 
+            counts, ybins, xbins, image = plt.hist2d(np.array(xip),
                 np.array(xib), bins=500, norm=LogNorm(), cmap='OrRd')
 
             xi_p_model2 = np.arange(0, 2.5, 0.01)
             xi_b_model2 = np.empty(len(xi_p_model2))
 
             for i in range(0,250):
-    
+
                 xi_b_model2[i] = 1./((1./(2*xi_p_model2[i])) + 0.5)
-    
+
             # overplot the various models
 
-            plt.plot(xi_p_model2, xi_b_model2, color = 'black',ls='-', label = 'Fujimoto (1988)')  
+            plt.plot(xi_p_model2, xi_b_model2, color = 'black',ls='-', label = 'Fujimoto (1988)')
 
             if Beans.HAS_CONCORD:
                 # setup dict with list of models, legend labels and linestyles
                 he16_models = {'he16_a': ('He & Keek (2016) model A', '--'),
                                'he16_b': ('model B', '-.'),
-                               'he16_c': ('model C', (0, (3, 5, 1, 5))), 
+                               'he16_c': ('model C', (0, (3, 5, 1, 5))),
                                'he16_d': ('model D', (0, (1, 5))) }
 
                 for model in he16_models.keys():
@@ -1464,7 +1470,7 @@ Initial parameters:
                     model_xip = 1./model_xip1
 
                     #modela:
-                    plt.plot(model_xip, model_xib, color='darkblue', 
+                    plt.plot(model_xip, model_xib, color='darkblue',
                         ls=he16_models[model][1], label=he16_models[model][0])
 
             else:
@@ -1495,15 +1501,15 @@ Initial parameters:
             plt.figure(figsize=(10,7))
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
-            plt.errorbar(self.bstart, self.fluen, yerr=self.fluene, 
+            plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
                 color='black', linestyle='', marker='.', ms=13, label='Observed')
             #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
             if self.train:
                 # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-                plt.errorbar(timepred[1:], ebpred, 
+                plt.errorbar(timepred[1:], ebpred,
                     yerr=[ebpred_errup, ebpred_errlow],
-                    xerr=[timepred_errup[1:], timepred_errlow[1:]], 
-                    marker='*', ms=11, color='darkgrey', linestyle='', 
+                    xerr=[timepred_errup[1:], timepred_errlow[1:]],
+                    marker='*', ms=11, color='darkgrey', linestyle='',
                     label='Predicted')
             else:
                 plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')

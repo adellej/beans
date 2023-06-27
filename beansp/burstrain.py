@@ -60,7 +60,7 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
     # remove the reliance on the linear interpolation parameters
     # i0 = max([0, min([len(a) - 1, max(itobs)])])
     # mdot0 = ( (0.67 / 8.8) * (a[i0] + b[i0] * t1) * r1 )
-    mdot0 = (0.67 / 8.8) * bean.pflux[itobs[0]] * r1 
+    mdot0 = (0.67 / 8.8) * bean.pflux[itobs[0]] * r1
     if debug:
         print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
 
@@ -233,7 +233,7 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
 	# J1808.4--3658 ,since the accretion rate is not constant over the
 	# extrapolated time, resulting in the recurrence time being
 	# underestimated by settle. Correction factors are from Zac
-	# Johnston, calculated using KEPLER 
+	# Johnston, calculated using KEPLER
 
 	# if i == 0:  # This is observed burst at 1.89 cfac1 = 1.02041
         #     cfac2 = 1.02041
