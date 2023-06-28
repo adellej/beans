@@ -680,12 +680,12 @@ Initial parameters:
         :return: likelihood, model result array
         """
 
-        # define theta = model parameters, which we define priors for
+        # define theta_in = model parameters, which we define priors for
 
         f_a, f_E = 1.0, 1.0
         X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
         if self.has_systematic:
-            f_a, f_E = theta[8:]
+            f_a, f_E = theta_in[8:]
 
 	# call model (function runmodel, in run_model.py) to generate the burst
 	# train, or the set of bursts (for "ensemble" mode. In earlier versions
