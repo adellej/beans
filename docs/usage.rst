@@ -4,28 +4,30 @@ Usage
 
 To use beans, there are a few steps you need to follow ::
 
-1. Collect all of the required data in the correct format and put it in beans/data folder.
+1. Collect all of the required observational data in the correct format and put it in beans/data folder.
 2. Choose all of the initial conditions and initialise the class object Beans.
 3. Run the code!
+4. Analyse the results
 
 
-Observations
-------------
+1. Observational data
+------------------
 
 The code has two modes of operation: "burst train" mode, and "ensemble"
 mode.
 
-"Burst train" mode takes an uninterrupted (as much as possible) sequence of X-ray bursts, e.g. from a single outburst of a source. The measured properties of the bursts and the persistent flux covering the outburst are supplied in ascii format files, usually in the beans/data/ folder. There are 3 types of input data files, with only 2 required: persistent flux, burst parameters, and satellite gtis.
+"Burst train" mode takes an uninterrupted (as much as possible) sequence
+of X-ray bursts, e.g. from a single outburst of a source. The measured
+properties of the bursts and the persistent flux covering the outburst are
+supplied in ascii format files, usually in the beans/data/ folder. There
+are 3 types of input data files, with only 2 required: persistent flux,
+burst properties, and satellite gtis.
 
-"Ensemble" mode takes multiple sets of regular burst measurements, for example as provided in `Galloway et al. (2017)`_.  The burst measurements, along with the persistent flux, are all supplied in the burst parameter file, and the other two files are not required
+"Ensemble" mode takes multiple sets of regular burst measurements, for
+example as provided in `Galloway et al. (2017)`_.  The burst measurements,
+along with the persistent flux, are all supplied in the burst properties file, and the other two files are not required
 
 .. _Galloway et al. (2017): https://ui.adsabs.harvard.edu/abs/2017PASA...34...19G
-
-**Persistent flux history:**
-Required for "burst train" mode, set via the ``obsname`` parameter; set to
-``None`` for "ensemble" mode runs.
-Ascii format, with columns in the following order:
-start time (MJD), stop time (MJD) persistent flux measurements (in 1e-9 erg/cm^2/s), pflux error
 
 **Burst observations:**
 Required for both modes, and set via the ``burstname`` parameter; for "burst train" mode, ascii format, with columns in the following order:
@@ -34,52 +36,78 @@ error. For "ensemble" mode, the columns are
 time (MJD), fluence (in 1e-6 erg/cm^2/s) fluence error, alpha, alpha
 error, (bolometric) persistent flux (1e-9 erg/cm^2/s), persistent flux error, recurrence time (hr), recurrence time error
 
+**Persistent flux history:**
+Required for "burst train" mode, set via the ``obsname`` parameter; set to
+``None`` for "ensemble" mode runs.
+Ascii format, with columns in the following order:
+start time (MJD), stop time (MJD) persistent flux measurements (in 1e-9 erg/cm^2/s), pflux error
+
 
 
 **Satellite gtis:**
-These are the satellite telescope "good time intervals" (GTIs), specifying
+(optional) These are the satellite telescope "good time intervals" (GTIs), specifying
 intervals when the telescope was actually observing the source, and so
 (for example) can be used to rule out the presence of predicted bursts
-within those intervals in which bursts were not observed. The GTIs are
+within those intervals in which no bursts were detected. The GTIs are
 only used for "burst train" mode, and the file should be specified via the
 ``gtiname`` parameter. The GTIs should be available from the raw telescope data. The file format should be a tab-separated file with 2 columns: start time of obs, stop time of obs (both in MJD).
 
 Once you have collected the required data in the correct format and placed it in the beans/data/ folder, you can move on to initialisation.
 
 
-Initialisation
+2. Initialisation
 --------------
 
-Initialisation is done by instantiating a Beans object. The parameters you
-need to specify are listed below. Example iniitlisation would be something like:
+Initialisation is done by instantiating a Beans object (a "bean", why
+not). The parameters you might normally
+need to specify are listed below.
+
+Example initialisation would be something like:
 
 .. code-block:: console
 
     from beansp import Beans
 
-    B = Beans(nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, bc=2.21, ref_ind=1, threads = 4, restart=False)
+    B = Beans(nwalkers=200, nsteps=100, run_id="1808/test1", 
+        obsname='1808_obs.txt', burstname='1808_bursts.txt', 
+        theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0), 
+        numburstssim=3, bc=2.21, ref_ind=1, threads = 4, restart=False)
 
-The code should display some information to the terminal that will tell you if reading in the observation data and testing the model was successful. If there are no errors here, move on to running the code.
+The code should display some information to the terminal that will tell you if reading in the observation data and testing the model was successful. 
+
+**It is important to choose good starting parameters** Ideally you want to
+start with a set of parameters for your ``theta`` that roughly replicates
+the burst observations, including the number, fluence, and recurrence
+times. For the 'train' mode, the number of bursts simulated can be
+adjusted with the ``numburstssim`` and ``ref_ind`` parameters, remembering
+that the simulation is performed in both directions (forward and backward
+in time) from the reference burst.
+The recurrence time (and fluence) can be adjusted by
+modifying the distance (larger distance implies larger accretion rate at
+the same flux, and hence more frequent bursts). You can test the effect of
+your trial parameters with the :meth:`.Beans.plot_model` method.
+
+If there are no errors or other issues here, move on to running the code.
 
 
 - **nwalkers**
-``nwalkers`` is the number of walkers you want the MCMC algorithm to use. Something around 200 should be fine. If you are having convergence issues try doubling the number of walkers - check out the emcee documentation for more information.
+The number of walkers you want the MCMC algorithm to use. Something around 200 should be fine. If you are having convergence issues try doubling the number of walkers - check out the emcee documentation for more information.
 
 - **nsteps**
 The desired number of steps the MCMC algorithm will take. Every 100 steps the code checks the autocorrelation time for convergence and will terminate the run if things are converged. So you can set nsteps to something quite large (maybe 10000), but if things are not converging the code will take a very long time to run.
 
 - **theta**
-This sets the initial location of your walkers in parameter space.  ``theta`` includes each of the input parameters to the model:
+Sets the initial location of your walkers in parameter space.  ``theta`` includes each of the input parameters to the model:
 
 .. code-block:: console
 
-    theta = X, Z, Q_b, f_a, f_E, r1, r2, r3, M, R
+    theta = X, Z, Q_b, d, xi_b, xi_p, M, R, f_a, f_E
 
 So an example set of starting conditions would be:
 
 .. code-block::
 
-    theta = 0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2
+    theta = 0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0
 
 See parameters for a description of each of the parameters.
 
@@ -87,12 +115,18 @@ See parameters for a description of each of the parameters.
 A string identifier to label each code run you do.
 It can include the location that the chains and analysis are saved. E.g.
 if I were modelling SAX J1808.4--3658 I would choose something like
-``run_id = "1808/test1"``. If the package is installed as recommended, you
+``run_id = "1808/test1"``.
+
+If the package is installed as recommended, you
 can run the code from within the directory in which you wish to store the
 output
 
+The ``run_id`` will also specify the name of the ``.ini`` file that will be
+saved as a record of the run parameters, and can be used to restart/redo
+the run by initialising a new Beans object via the ``config_file`` parameter
+
 - **threads**
-This is required because emcee runs in parallel, so needs to know how many threads (or how many cores your computer has) that it can run on. This is usually 4 for a standard computer.
+This is required because emcee runs in parallel, so needs to know how many threads (or how many cores your computer has) that it can run on. 
 
 - **ref_ind**
 Index of the adopted reference burst, for "burst train" mode. In this mode the code simulates the burst train both forward and backward in time, so the reference burst should be in the middle of predicted burst train; don't forgot Python indexing starts at 0. This burst will not be simulated but will be used as a reference to predict the times of other bursts.
@@ -102,11 +136,14 @@ In "burst train" mode, this is the number of bursts to simulate *in each
 direction*. I.e. set to roughly half the number of bursts you want to
 simulate, to cover your entire observed train. Don't forget to account for missed bursts!
 
+In "burst ensemble" mode this is just the number of bursts, so set as
+equal to the number of bursts observed.
+
 - **obsname**
 Path to observation data file. Should be a string, e.g.  '/Users/adelle/Documents/beans/data/1808_obs.txt'. Set to ``None`` to trigger an "ensemble" run
 
 - **burstname**
-Path to burst data file. Should be a string, e.g. '/Users/adelle/Documents/beans/data/1808_bursts.txt'
+(required) Path to burst data file. Should be a string, e.g. '/Users/adelle/Documents/beans/data/1808_bursts.txt'
 
 - **gtiname**
 Path to GTI data file. Should be a string, e.g.
@@ -120,7 +157,7 @@ Bolometric correction to apply to the persistent flux measurements, in "burst tr
 If your run is interrrupted and you would like to restart from the save file of a previous run with the ``run_id`` set above, set this to True.  Can also be used if your max step number was not high enough and the chains did not converge before the run finished if you want to start where it finished last time. If this is a new run, set this to ``False``.
 
 
-Running the Code
+3. Running the Code
 ----------------
 
 Once you have initialised the ``Beans`` object and ensured all the data is
@@ -140,7 +177,7 @@ are not converged.`` This means the run finished but reached the maximum
 number of steps ``nsteps`` without converging.
 
 
-Analysing the Results
+4. Analysing the Results
 ---------------------
 
 The output of the MCMC algorithm is saved in HDF5 format, and will be
@@ -205,9 +242,6 @@ the distributions. The analysis code in ``do_analysis`` does this one way,
 but you should always check multiple methods and see if the results are
 significantly different.
 
-The walker position are converted to give two additional parameters,
-distance *d*, burst emission anisotropy *xi_b*, and persistent emission
-anisotropy *xi_p*.
 The central values of these and 1 sigma
 uncertainties are saved in the text file
 ``(run_id)_parameterconstraints_pred.txt``.

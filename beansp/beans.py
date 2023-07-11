@@ -293,14 +293,15 @@ class Beans:
         :param nsteps: number of MCMC steps to run
         :param run_id: string identifier for the run, used to label all the
           result files, and where you want output to be saved
-        :param obsname: name of observation file, which includes the flux
-          history, from which the mdot is estimated to generate to generate
-          the burst train (set obsname=None for a non-contiguous, or "ensemble"
-          mode run)
+        :param obsname: name of the file including the flux history, from which
+	  the mdot is estimated to generate to generate the burst train
+          (set ``obsname=None`` for a non-contiguous, or "ensemble" mode run)
         :param burstname: name of the burst data file, listing the bursts
-        :param gtiname: name of the GTI file, set to None to turn off checking
+	:param gtiname: name of the GTI file, set to ``None`` to turn off
+          checking
         :param theta: initial centroid values for walker model parameters, with
-          X, Z, Q_b, d, xi_b, xi_p, mass, radius, and (optionally) f_a & f_E 
+          *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
+          (optionally) *f_a* & *f_E* 
         :param numburstssim: number of bursts to simulate, for the "train" mode,
           both earlier and later than the reference burst; i.e. set to half
           the total number of bursts you want to simulate. Don't forget to
@@ -313,9 +314,9 @@ class Beans:
           simulated but will be used as a reference to predict the other bursts.
         :param prior: prior function to use
         :param threads: number of threads for emcee to use (e.g. number of
-          cores your computer has). Set to None to use all available
+          cores your computer has). Set to ``None`` to use all available
         :param test_model: flag to test the model during the setup process
-        :param restart: set to True to continue a previously interrupted run
+        :param restart: set to ``True`` to continue a previously interrupted run
         :param interp: interpolation mode for the flux; possible values are
           'linear', or 'spline'
         :param smooth: smoothing factor for spline interpolation
@@ -749,15 +750,17 @@ Initial parameters:
     def lnprob(self, theta_in, x, y, yerr):
         """
         The full log-probability function incorporating the priors (via
-        lnprior), and and model likelihood (via lnlike), that is passed to
-        runemcee when creating the sampler (in the do_run method).
+	the ``Beans.lnprior`` attribute), and model likelihood (via
+	:meth:`Beans.lnlike`), that is passed to ``runemcee`` when creating
+        the sampler (in the :meth:`Beans.do_run` method).
 
-        :param theta_in:
-        :param x: the "independent" variable, passed to lnlike
-        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+        :param theta_in: parameter vector
+        :param x: the "independent" variable, passed to :meth:`Beans.lnlike`
+        :param y: the "dependent" variable (i.e. measurements), passed to 
+          :meth:`Beans.lnlike`
         :param yerr: erorr estimates on y
         :return: total (prior+model) likelihood, prior likelihood, model array
-          (from lnlike)
+          (from :meth:`Beans.lnlike`)
         """
 
         lp = self.lnprior(theta_in)
@@ -1185,12 +1188,13 @@ Initial parameters:
         results.
         Nothing is returned, but by default the method will create several
         files, labeled by the run_id; drawn from
-          {}_autocorrelationtimes.pdf (via plot_autocorr)
-          {}_predictedburstscomparison.pdf
-          {}chain-plot.pdf
-          {}_massradius.pdf
-          {}_posteriors.pdf
-          {}_parameterconstraints_pred.txt
+
+        | {}_autocorrelationtimes.pdf (via plot_autocorr)
+        | {}_predictedburstscomparison.pdf
+        | {}chain-plot.pdf
+        | {}_massradius.pdf
+        | {}_posteriors.pdf
+        | {}_parameterconstraints_pred.txt
 
         TODO: need to reorganise a bit, and add more options
 

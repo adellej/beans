@@ -33,23 +33,28 @@ The code is written in Python 3, except for settle which is a C++ code with a py
 Credits
 -------
 
-Software written by Adelle Goodwin; for a full description see Goodwin et al. (2019, https://doi.org/10.1093/mnras/stz2638 or preprint at https://arxiv.org/pdf/1907.00996).
+Software written by Adelle Goodwin and Duncan Galloway; for a full description see Goodwin et al. (2019, https://doi.org/10.1093/mnras/stz2638 or preprint at https://arxiv.org/pdf/1907.00996).
 
-The algorithm is based on code written by Duncan Galloway, and depends on pySettle (https://github.com/adellej/pysettle), which was forked from the original settle written by Andrew Cumming.
+The original algorithm is described in Galloway & Cumming (2006, 
+https://iopscience.iop.org/article/10.1086/507598).
+
+pySettle was forked from the original settle written by Andrew Cumming and
+available at https://github.com/andrewcumming/settle
 
 Package installation and usage
 ------------------------------
-BEANSp is on pyPI (https://pypi.org/project/beansp/) so installation is easy - either straight or in virtual environment:
+BEANSp is on pyPI (https://pypi.org/project/beansp/) so installation is
+easy - either system-wide, or in virtual environment:
 
    .. code-block::
    
       pip install beansp
   
-   .. ::
+You can then import the main ``Beans`` module as follows:
    
    .. code-block::
    
-      from beansp.beans import Beans 
+      from beansp import Beans 
 
 (Please refer to `this simple test script <https://github.com/adellej/beans/blob/master/tests/test_sft_beans.py>`_ as an example.)
 

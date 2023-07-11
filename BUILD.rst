@@ -1,6 +1,6 @@
-========
-BEANSp
-========
+===============
+Building BEANSp
+===============
 
 Build and installation from this github repository
 --------------------------------------------------
@@ -62,6 +62,15 @@ Build and installation from this github repository
    (See `test_sft_beans.py <tests/test_sft_beans.py>`_.)
 
 
+Testing
+-------
+
+Once you have compiled settle we recommend you run the test suite to check you have all the required dependencies and the code is operating as expected. To do this navigate to the top-level directory and type:
+
+.. code-block:: console
+
+    $ pytest
+
 Run short functional test (SFT) manually
 ----------------------------------------
 
@@ -71,30 +80,5 @@ Run short functional test (SFT) manually
    python ./test_sft_beans.py
  
 
-Publish package on PyPI
-----------------------------------------
 
-.. code-block::
-
-   python3 -m pip install twine
-
-.. ::
-
-**Test PyPI** : for testing that all works, but not yet really publishing to a place where all the world is searching for python packages.
-
-.. code-block::
-
-   python3 -m twine upload --repository testpypi dist/*
-
-.. ::
-
-**The Real PyPI**
-
-.. code-block::
-
-   python3 -m twine upload dist/*
-
-.. ::
-
-
-`BEANSp on PyPI:  https://pypi.org/project/beansp <https://pypi.org/project/beansp>`_
+If the tests all pass then you are good to go!
