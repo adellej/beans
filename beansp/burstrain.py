@@ -14,7 +14,7 @@ from .settle import settle
 run=1
 debug=0
 
-def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
+def next_burst( base, z, x_0, t1, bean, dist, xi_p, cfac, mass, radius,
     direction=1, debug=False ):
     """
     Routine to find the next burst in the series and return its properties
@@ -26,7 +26,8 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
     :param t1: time to start burst search at
     :param bean: Beans object, from which the other inputs are read in:
       tobs, a, b,
-    :param r1: scaling factor for mdot
+    :param dist: source distance (kpc)
+    :param xi_p: anisotropy of persistent emission
     :param cfac:
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
@@ -59,8 +60,8 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
     # Now that we have a couple of options for interpolation, need to
     # remove the reliance on the linear interpolation parameters
     # i0 = max([0, min([len(a) - 1, max(itobs)])])
-    # mdot0 = ( (0.67 / 8.8) * (a[i0] + b[i0] * t1) * r1 )
-    mdot0 = (0.67 / 8.8) * bean.pflux[itobs[0]] * r1
+    # mdot0 = (0.67 / 8.8) * bean.pflux[itobs[0]] * r1 
+    mdot0 = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, bean.pflux[itobs[0]])
     if debug:
         print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
 
@@ -73,9 +74,11 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
     # Now update the mdot with the value averaged over the trial interval
     # not sure why trial.tdel has suddenly become a vector
     if direction == 1:
-        mdot = (0.67 / 8.8) * bean.mean_flux(t1, t1 + trial.tdel[0] / 24.0, bean) * r1
+        mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius,
+            bean.mean_flux(t1, t1 + trial.tdel[0] / 24.0, bean) )
     else:
-        mdot = (0.67 / 8.8) * bean.mean_flux(t1 - trial.tdel[0] / 24.0, t1, bean) * r1
+        mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius,
+            bean.mean_flux(t1 - trial.tdel[0] / 24.0, t1, bean) )
 
     # Now retain the entire history of this iteration, so we can check for loops
     mdot_hist = [mdot0]
@@ -96,10 +99,12 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
         tdel_hist.append(trial.tdel[0]/24.)
 
         if direction == 1:
-            mdot = (0.67 / 8.8) * bean.mean_flux(t1, t1 + (trial.tdel[0] / 24.0), bean) * r1
+            mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, 
+                bean.mean_flux(t1, t1 + (trial.tdel[0] / 24.0), bean) )
 
         else:
-            mdot = (0.67 / 8.8) * bean.mean_flux(t1 - (trial.tdel[0] / 24.0), t1, bean) * r1
+            mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, 
+                bean.mean_flux(t1 - (trial.tdel[0] / 24.0), t1, bean) )
 
         # Break out of the loop here, if necessary
         if nreturn > 10:
@@ -129,7 +134,8 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
         m_arr = [0]
         t_arr2 = [t1]
         for t in t_arr[1:]:
-            _mdot = (0.67 / 8.8) * bean.mean_flux(t1, t, bean) * r1
+            _mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius,
+                bean.mean_flux(t1, t, bean) )
             _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius)
             t_arr2.append(t1+_tmp.tdel[0]/24.)
             m_arr.append(_mdot)
@@ -152,7 +158,9 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
     )
     # assign elements
     result.t2 = t1 + direction * trial.tdel / 24.0
-    result.e_b = trial.E_b # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
+    # at one point we were multiplying eb by 0.8 to account for incomlpete
+    # burning of fuel, as in Goodwin et al (2018).
+    result.e_b = trial.E_b
     result.alpha = trial.alpha
     # result.qnuc = tmp.Q_nuc
     # result.xbar = tmp.xbar
@@ -166,7 +174,7 @@ def next_burst( base, z, x_0, t1, bean, r1, cfac, mass, radius,
 # -------------------------------------------------------------------------#
 
 
-def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
+def generate_burst_train( base, z, x_0, dist, xi_p, mass, radius,
     bean, full_model=False, debug=False):
     """
     This routine generates a simulated burst train based on the model
@@ -176,9 +184,8 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
     :param base: base flux [MeV/nucleon]
     :param z: accreted CNO metallicity
     :param x_0: accreted H-fraction
-    :param r1: scaling factor for mdot
-    :param r2: scaling factor for alpha
-    :param r3: scaling factor for fluence
+    :param dist: source distance (kpc)
+    :param xi_p: anisotropy of persistent emission
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
     :param bean: Beans object, from which the remaining parameters are drawn:
@@ -189,7 +196,7 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
     :param debug: set to True to show additional debugging information
 
     :return: a dictionary with the following keys:
-    ['base', 'z', 'x_0', 'r1', 'r2', 'r3', 'time', 'mdot_max', 'mdot',
+    ['base', 'z', 'x_0', 'dist', 'xi_p', 'time', 'mdot_max', 'mdot',
     'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
     We have one more element of the time array than the other arrays, because
     we can't determine the properties for that burst, as we don't have
@@ -259,12 +266,12 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
         if backward:
             # Find the time for the *previous* burst in the train
             result2 = next_burst( base, z, x_0, earliest, bean,
-                r1, 1.0, mass, radius, direction=-1, debug=debug)
+                dist, xi_p, 1.0, mass, radius, direction=-1, debug=debug)
 
         if forward:
             # Also find the time for the *next* burst in the train
             result3 = next_burst( base, z, x_0, latest, bean,
-                r1, 1.0, mass, radius, direction=1, debug=debug)
+                dist, xi_p, 1.0, mass, radius, direction=1, debug=debug)
 
         if result2 is not None:
             # we have a result from the next_burst call going backward, so add its properties to the arrays
@@ -328,9 +335,8 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
         result["base"] = [base]
         result["z"] = [z]
         result["x_0"] = [x_0]
-        result["r1"] = [r1]
-        result["r2"] = [r2]
-        result["r3"] = [r3]
+        result["dist"] = [dist]
+        result["xi_p"] = [xi_p]
 
         result["mdot_max"] = [mdot_max]
 
@@ -356,7 +362,7 @@ def generate_burst_train( base, z, x_0, r1, r2, r3, mass, radius,
     return result
 
 
-def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=False ):
+def burstensemble( base, x_0, z, dist, xi_p, mass, radius, bean, full_model=False ):
     """
     This routine generates as many burst predictions as there are burst
     measurements.
@@ -365,9 +371,8 @@ def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=Fals
     :param base: base flux [MeV/nucleon]
     :param z: accreted CNO metallicity
     :param x_0: accreted H-fraction
-    :param r1: scaling factor for mdot
-    :param r2: scaling factor for alpha
-    :param r3: scaling factor for fluence
+    :param dist: source distance (kpc)
+    :param xi_p: anisotropy of persistent emission
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
     :param bean: Beans object, from which the remaining parameters are drawn:
@@ -382,16 +387,12 @@ def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=Fals
     stime = []
     smdot = []
     se_b = []
+
+    mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, bean.pflux)
+
     for i in range(0, bean.numburstsobs):
 
-        mdot = (0.67 / 8.8) * bean.pflux[i] * r1
-        tmp = settle(base, z, x_0, mdot, 1.0, mass, radius)
-
-        mdot_hist = [mdot]
-        while abs(mdot - mdot_hist[len(mdot_hist) - 1]) > mdot_res / 2.0 and (
-            mdot > minmdot and mdot < maxmdot
-        ):
-            mdot_hist.append(mdot)
+        tmp = settle(base, z, x_0, mdot[i], 1.0, mass, radius)
 
         res = np.recarray(
             (1,), dtype=[("tdel", np.float64), ("e_b", np.float64), ("alpha", np.float64), ("mdot", np.float64)]
@@ -420,9 +421,8 @@ def burstensemble( base, x_0, z, r1, r2, r3, mass, radius, bean, full_model=Fals
         result["base"] = [base]
         result["z"] = [z]
         result["x_0"] = [x_0]
-        result["r1"] = [r1]
-        result["r2"] = [r2]
-        result["r3"] = [r3]
+        result["dist"] = [dist]
+        result["xi_p"] = [xi_p]
 
         result["mdot_max"] = [mdot_max]
 

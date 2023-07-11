@@ -12,8 +12,8 @@ def runmodel(theta_in, bean, debug=False):
     It then assembles the predictions from the model into a form that can
     be compared to the observations (with appropriate scaling)
 
-    :param theta_in: parameter tuple: X, Z, Q_b, f_a, f_E, r1, r2, r3,
-      mass & radius
+    :param theta_in: parameter tuple: X, Z, Q_b, dist, xi_b, xi_p, mass,
+      radius, and (optionally) f_a & f_E
     :param bean: Beans object, from which the required parameters are drawn:
       y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
       ref_ind, gti_checking,train, gti_start=None, gti_end=None,
@@ -49,8 +49,7 @@ def runmodel(theta_in, bean, debug=False):
         return isort[i]
 
 
-    X, Z, Q_b, f_a, f_E, r1, r2, r3, mass, radius = theta_in
-    #    X, Z, Q_b, s_t, f_a, f_E, r1, r2, r3 = theta
+    X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
 
     # by default we assume the model is valid, i.e. has sufficient bursts
     # to match the observations, AND doesn't violate the GTI conditions
@@ -62,11 +61,10 @@ def runmodel(theta_in, bean, debug=False):
 
         # Now call the function. From the code:
         # This routine generates a simulated burst train. The output is a
-        # dict with the following keys:
-        # ['base', 'z', 'x_0', 'r1', 'r2', 'r3', 'time', 'mdot_max', 'mdot',
-        #  'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
+        # dict with keys corresponding to the model parameters and
+        # predicted values.
 
-        result = generate_burst_train( Q_b, Z, X, r1, r2, r3, mass, radius, bean )
+        result = generate_burst_train( Q_b, Z, X, dist, xi_p, mass, radius, bean )
 
         tpred = result["time"]
 
