@@ -5,7 +5,7 @@ Usage
 To use beans, there are a few steps you need to follow ::
 
 1. Collect all of the required data in the correct format and put it in beans/data folder.
-2. Choose all of the initial conditions and initialise the class object Beans. 
+2. Choose all of the initial conditions and initialise the class object Beans.
 3. Run the code!
 
 
@@ -23,14 +23,14 @@ mode.
 
 **Persistent flux history:**
 Required for "burst train" mode, set via the ``obsname`` parameter; set to
-``None`` for "ensemble" mode runs. 
+``None`` for "ensemble" mode runs.
 Ascii format, with columns in the following order:
 start time (MJD), stop time (MJD) persistent flux measurements (in 1e-9 erg/cm^2/s), pflux error
 
 **Burst observations:**
 Required for both modes, and set via the ``burstname`` parameter; for "burst train" mode, ascii format, with columns in the following order:
 time (MJD), fluence (in 1e-6 erg/cm^2/s) fluence error, alpha, alpha
-error. For "ensemble" mode, the columns are 
+error. For "ensemble" mode, the columns are
 time (MJD), fluence (in 1e-6 erg/cm^2/s) fluence error, alpha, alpha
 error, (bolometric) persistent flux (1e-9 erg/cm^2/s), persistent flux error, recurrence time (hr), recurrence time error
 
@@ -56,10 +56,10 @@ need to specify are listed below. Example iniitlisation would be something like:
 .. code-block:: console
 
     from beansp import Beans
-    
+
     B = Beans(nwalkers=200, nsteps=100, run_id="1808/test1", obsname='1808_obs.txt', burstname='1808_bursts.txt', gtiname='1808_gti.txt', theta= (0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2), numburstssim=3, bc=2.21, ref_ind=1, threads = 4, restart=False)
 
-The code should display some information to the terminal that will tell you if reading in the observation data and testing the model was successful. If there are no errors here, move on to running the code. 
+The code should display some information to the terminal that will tell you if reading in the observation data and testing the model was successful. If there are no errors here, move on to running the code.
 
 
 - **nwalkers**
@@ -77,14 +77,14 @@ This sets the initial location of your walkers in parameter space.  ``theta`` in
 
 So an example set of starting conditions would be:
 
-.. code-block:: 
+.. code-block::
 
     theta = 0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2
 
 See parameters for a description of each of the parameters.
 
 - **run_id**
-A string identifier to label each code run you do. 
+A string identifier to label each code run you do.
 It can include the location that the chains and analysis are saved. E.g.
 if I were modelling SAX J1808.4--3658 I would choose something like
 ``run_id = "1808/test1"``. If the package is installed as recommended, you
@@ -129,15 +129,15 @@ available, you are ready to go. Running the code is done with the following comm
 .. code-block:: console
 
     B.do_run()
-    
 
-If all is well you will see a progress bar appear which will give you an idea of how long the run is going to take. 
 
-When you see ``Complete! Chains are converged`` this means the run finished, and the chains were converged. 
+If all is well you will see a progress bar appear which will give you an idea of how long the run is going to take.
+
+When you see ``Complete! Chains are converged`` this means the run finished, and the chains were converged.
 
 When you see ``Complete! WARNING max number of steps reached but chains
 are not converged.`` This means the run finished but reached the maximum
-number of steps ``nsteps`` without converging. 
+number of steps ``nsteps`` without converging.
 
 
 Analysing the Results
@@ -152,13 +152,13 @@ located in whichever folder you chose when you set ``run_id``. For initial analy
 
 And it will create a plot showing the estimated autocorrelation times
 throughout the run, as well as the posterior distributions of your
-parameters. 
+parameters.
 
 Typically you will omit the initial "burn-in" phase and only use the
 walker positions in the later part of the run; you can specify how many
 steps to skip with the ``burnin`` parameter.
 
-The model predictions at each step are saved in the "blobs" part of the sampler, which are used together with the parameter values to display the various plots below. For compatibility with the HDF5 format the model prediction dictionary must be converted to a string, and so it needs to be turned back into a dictionary item-by-item (e.g. with ``eval``) when you read in the save file. 
+The model predictions at each step are saved in the "blobs" part of the sampler, which are used together with the parameter values to display the various plots below. For compatibility with the HDF5 format the model prediction dictionary must be converted to a string, and so it needs to be turned back into a dictionary item-by-item (e.g. with ``eval``) when you read in the save file.
 
 Several other options are possible for built-in analysis, and can be
 specified via the ``options`` keyword to ``do_analysis``, which accepts a
@@ -190,14 +190,14 @@ by specifying ``savefig=True`` in the call to ``do_analysis``.
 
 **Checking Chain Convergence**
 
-There are two main methods of checking the convergence and behaviour of your MCMC chains. One is the autocorrelation time, which ``emcee`` conveniently calculates for you, and the other is the acceptance fraction. Goodman and Weare (2010) provide a good discussion on what these are and why they are important. Running ``analyse.py`` will print these to the terminal for you to check. 
+There are two main methods of checking the convergence and behaviour of your MCMC chains. One is the autocorrelation time, which ``emcee`` conveniently calculates for you, and the other is the acceptance fraction. Goodman and Weare (2010) provide a good discussion on what these are and why they are important. Running ``analyse.py`` will print these to the terminal for you to check.
 
 **Obtaining Parameter Constraints**
 
 The model parameter posterior distributions are the most detailed
 constraints on your parameters provided by the  MCMC algorithm. However,
 you may wish to summarise by giving central values with uncertainties to
-report for the parameters. There are a few ways this can be done; e.g. 
+report for the parameters. There are a few ways this can be done; e.g.
 take the maximum likelihood value and the upper and lower limits
 encompassing the desired confidence fraction, or you could take the 50th
 percentile value of
@@ -212,4 +212,4 @@ The central values of these and 1 sigma
 uncertainties are saved in the text file
 ``(run_id)_parameterconstraints_pred.txt``.
 
-The  model predictions include the burst time, fluence, and alpha, which are stored as arrays containing an entry for each of the predicted bursts. These arrays will include as many elements as are chosen via the ``numburstssim`` parameter on initialisation.  The time array has 1 extra element than the fluence and alpha arrays, because the latter parameters do not include predictions for the reference burst (with index ``ref_ind``). 
+The  model predictions include the burst time, fluence, and alpha, which are stored as arrays containing an entry for each of the predicted bursts. These arrays will include as many elements as are chosen via the ``numburstssim`` parameter on initialisation.  The time array has 1 extra element than the fluence and alpha arrays, because the latter parameters do not include predictions for the reference burst (with index ``ref_ind``).

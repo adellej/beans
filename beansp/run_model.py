@@ -52,7 +52,7 @@ def runmodel(theta_in, bean, debug=False):
     X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
 
     # by default we assume the model is valid, i.e. has sufficient bursts
-    # to match the observations, AND doesn't violate the GTI conditions 
+    # to match the observations, AND doesn't violate the GTI conditions
     # (if we are checking those)
 
     valid = True
@@ -84,7 +84,7 @@ def runmodel(theta_in, bean, debug=False):
             imatch = [np.argmin(np.abs(tpred - bean.bstart[bean.ref_ind]))]
             for i in range(1,bean.numburstssim):
                 # now looking for a match for bursts ref_ind-i, ref_ind+i:
-                # (but also want to exclude any that have already been 
+                # (but also want to exclude any that have already been
                 # matched!)
                 if bean.ref_ind-i >= 0:
                     # imatch.insert(0,np.argmin(np.abs(tpred-bstart[ref_ind-i])))
@@ -129,7 +129,7 @@ def runmodel(theta_in, bean, debug=False):
         else:
 	    # If you're not comparing to observed bursts, just return the
 	    # result of generate_burst_train
-            # This loop will (also?) be triggered if the call to 
+            # This loop will (also?) be triggered if the call to
             # generate_burst_train results in no bursts. That can happen if
             # the model parameters are nonsensical - e.g. Z<0. An "unhashable
             # type" error will then be triggered - dkg

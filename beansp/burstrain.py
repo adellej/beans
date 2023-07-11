@@ -240,7 +240,7 @@ def generate_burst_train( base, z, x_0, dist, xi_p, mass, radius,
 	# J1808.4--3658 ,since the accretion rate is not constant over the
 	# extrapolated time, resulting in the recurrence time being
 	# underestimated by settle. Correction factors are from Zac
-	# Johnston, calculated using KEPLER 
+	# Johnston, calculated using KEPLER
 
 	# if i == 0:  # This is observed burst at 1.89 cfac1 = 1.02041
         #     cfac2 = 1.02041
