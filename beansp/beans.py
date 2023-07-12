@@ -875,6 +875,8 @@ Initial parameters:
                 # Plot the observed bursts, if available
                 ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+            # we have time but not fluence for the first burst
+            ax2.axvline(timepred[0], color=bursts_color, ls='--')
             # and the averaged mdot over the burst interval (predicted)
             av_mdot = []
             for i in range(len(timepred)-1):
