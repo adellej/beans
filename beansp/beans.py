@@ -1149,11 +1149,11 @@ Initial parameters:
         param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$d$", "$\\xi_b$",
             "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$"]
                 
-        for j in range(10):
+        for j in range(self.ndim):
             chain = sampler[:, :, j].T
             # print(np.shape(sampler))
 
-            N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), 10)).astype(int)
+            N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), self.ndim)).astype(int)
             # print(N)
             gw2010 = np.empty(len(N))
             new = np.empty(len(N))
@@ -1260,7 +1260,7 @@ Initial parameters:
 
         # print ("Reading in flattened samples to show posteriors...")
         # samples = self.reader.get_chain(flat=True, discard=burnin)
-        self.samples = self.sampler[burnin:,:,:].reshape((-1,10))
+        self.samples = self.sampler[burnin:,:,:].reshape((-1,self.ndim))
 
         # ---------------------------------------------------------------------#
         if 'autocor' in options:
@@ -1287,7 +1287,10 @@ Initial parameters:
             fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
 
             for i in range(self.ndim):
-                axes[i].plot(self.sampler[:,:,i].T, color="k", alpha=0.4)
+                # Previously the transposed sampler object below meant
+                # that we were plotting with walker number on the x-axis,
+                # instead of step. Now fixed
+                axes[i].plot(self.sampler[:,:,i], color="k", alpha=0.4)
                 axes[i].yaxis.set_major_locator(MaxNLocator(5))
                 axes[i].set_ylabel(labels[i])
 
@@ -1309,7 +1312,7 @@ Initial parameters:
 
             # make plot of posterior distributions of your parameters:
             cc = ChainConsumer()
-            cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "d", "xi_b", "xi_p", "M", "R", "fa", "fE"])
+            cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "d", "xi_b", "xi_p", "M", "R", "fa", "fE"][:self.ndim])
 
             if truths is None:
                 truths = list(self.theta)
