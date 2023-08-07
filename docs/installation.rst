@@ -10,13 +10,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/adellej/beans
+    git clone git://github.com/adellej/beans
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/adellej/beans/tarball/master
+    curl -OJL https://github.com/adellej/beans/tarball/master
 
 .. _Github repo: https://github.com/adellej/beans
 .. _tarball: https://github.com/adellej/beans/tarball/master

@@ -7,7 +7,7 @@ Build and installation from this github repository
 
 #. Clone the beans repository
 
-   .. code-block::
+   .. code-block:: console
     
       git clone https://github.com/adellej/beans
       cd beans
@@ -17,7 +17,7 @@ Build and installation from this github repository
 
    The example is for python 3.8, but should work for any version 3.6 to 3.11 as well.
 
-   .. code-block::
+   .. code-block:: console
     
       # optional: remove existing environment if needed - to start from scratch
       conda remove -n beans-3.8 --all
@@ -28,12 +28,12 @@ Build and installation from this github repository
       
 #. Install/upgarde pip, build and local install
 
-   .. code-block::
+   .. code-block:: console
   
       python3 -m pip install --upgrade pip
       python3 -m pip install --upgrade build
 
-   .. code-block::
+   .. code-block:: console
   
       # test build & local install
       # The "-e" install does not seem to be reliable for re-install on Linux
@@ -47,7 +47,7 @@ Build and installation from this github repository
    
    *Note: when workinng on the code, in case of doubts that recent changes got propagated, uninstall & purge the installed module _before_* ``pip install`` *to ensure the installed version has all the recent modifications.*
 
-   .. code-block::
+   .. code-block:: console
      
       python3 -m pip -v uninstall beansp
       python3 -m pip -v cache purge
@@ -55,7 +55,7 @@ Build and installation from this github repository
    After this, in that enviroment, beansp just works from every directorty, providing the conda environment is activated.
    Imports like:
 
-   .. code-block::
+   .. code-block:: python
    
       from beansp.beans import Beans 
 
@@ -69,12 +69,12 @@ Once you have compiled settle we recommend you run the test suite to check you h
 
 .. code-block:: console
 
-    $ pytest
+    pytest
 
 Run short functional test (SFT) manually
 ----------------------------------------
 
-.. code-block::
+.. code-block:: console
 
    cd tests
    python ./test_sft_beans.py

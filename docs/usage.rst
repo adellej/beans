@@ -64,7 +64,7 @@ need to specify are listed below.
 
 Example initialisation would be something like:
 
-.. code-block:: console
+.. code-block:: python
 
     from beansp import Beans
 
@@ -99,13 +99,13 @@ The desired number of steps the MCMC algorithm will take. Every 100 steps the co
 - **theta**
 Sets the initial location of your walkers in parameter space.  ``theta`` includes each of the input parameters to the model:
 
-.. code-block:: console
+.. code-block:: python
 
     theta = X, Z, Q_b, d, xi_b, xi_p, M, R, f_a, f_E
 
 So an example set of starting conditions would be:
 
-.. code-block:: console
+.. code-block:: python
 
     theta = 0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0
 
@@ -163,7 +163,7 @@ If your run is interrrupted and you would like to restart from the save file of 
 Once you have initialised the ``Beans`` object and ensured all the data is
 available, you are ready to go. Running the code is done with the following command:
 
-.. code-block:: console
+.. code-block:: python
 
     B.do_run()
 
@@ -183,7 +183,7 @@ number of steps ``nsteps`` without converging.
 The output of the MCMC algorithm is saved in HDF5 format, and will be
 located in whichever folder you chose when you set ``run_id``. For initial analysis of the chains you can run:
 
-.. code-block:: console
+.. code-block:: python
 
     B.do_analysis()
 
