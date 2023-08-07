@@ -105,7 +105,7 @@ Sets the initial location of your walkers in parameter space.  ``theta`` include
 
 So an example set of starting conditions would be:
 
-.. code-block::
+.. code-block:: console
 
     theta = 0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0
 

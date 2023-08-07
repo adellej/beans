@@ -46,13 +46,13 @@ Package installation and usage
 BEANSp is on pyPI (https://pypi.org/project/beansp/) so installation is
 easy - either system-wide, or in virtual environment:
 
-.. code-block::
+.. code-block:: console
    
     pip install beansp
   
 You can then import the main ``Beans`` module as follows:
    
-.. code-block::
+.. code-block:: python
    
     from beansp import Beans 
 
