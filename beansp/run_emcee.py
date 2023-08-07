@@ -106,13 +106,15 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart
                 if sampler.iteration % 100:
                     continue
     
+                # accumulate the acceptance fraction in the file
+                accept_frac = np.mean(sampler.acceptance_fraction)
+                with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
+                    np.savetxt(f, np.c_[float(sampler.iteration),accept_frac],
+                        fmt='%1.4e, %1.4f')
+    
                 # Compute the autocorrelation time so far
                 # Using tol=0 means that we'll always get an estimate even
                 # if it isn't trustworthy
-                accept_frac = np.mean(sampler.acceptance_fraction)
-                with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
-                    np.savetxt(f, [[float(sampler.iteration)],[accept_frac]], delimiter=',', newline='\n') 
-    
                 tau = sampler.get_autocorr_time(tol=0)
                 autocorr[index] = np.mean(tau)
                 index += 1
