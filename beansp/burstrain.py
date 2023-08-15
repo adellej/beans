@@ -402,7 +402,7 @@ def burstensemble( base, x_0, z, dist, xi_p, mass, radius, bean, full_model=Fals
         res.e_b = tmp.E_b*0.8  # multiply eb by 0.8 to account for incomlpete burning of fuel, as in Goodwin et al (2018).
         alpha = tmp.alpha
         alpha = alpha[0]
-        res.mdot = mdot
+        res.mdot = mdot[i]
         _e_b = res.e_b
         _e_b = _e_b[0]
         se_b.append(_e_b)
