@@ -144,7 +144,7 @@ def runmodel(theta_in, bean, debug=False):
     else:
         # If we're not generating a burst train, just run the ensemble
 
-        result = burstensemble( Q_b, X, Z, r1,r2,r3,mass,radius, bean)
+        result = burstensemble( Q_b, X, Z, dist, xi_p, mass, radius, bean)
 
         model = np.concatenate((result['time'], result['e_b'], result['alpha']))
 
