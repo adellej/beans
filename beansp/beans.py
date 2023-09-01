@@ -283,7 +283,7 @@ class Beans:
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
                  threads = 4, test_model=True, restart=False,
-                 interp='linear', smooth=0.02, **kwargs):
+                 interp='linear', smooth=0.02, alpha=True, **kwargs):
         """
         Initialise a Beans object
 
@@ -320,6 +320,8 @@ class Beans:
         :param interp: interpolation mode for the flux; possible values are
           'linear', or 'spline'
         :param smooth: smoothing factor for spline interpolation
+        :param alpha: set to True (default) to include the alphas in the
+          data for comparison, or False to omit
         :result: Beans object including all the required data
         """
 
@@ -372,16 +374,24 @@ class Beans:
             burstname = os.path.join(data_path, '1808_bursts.txt')
 
         self.lnprior = prior
+        self.bc = bc
+        self.ref_ind = ref_ind
 
         # Set up initial conditions:
 
-        if config_file is not None:
-            if not os.path.exists(config_file):
-                print ('** ERROR ** config file not found, applying keywords')
+        if (config_file is not None) & (os.path.exists(config_file)):
+            alpha = True
             print ('Reading run params from {} ...'.format(config_file))
             self.read_config(config_file)
             print ("...done")
+            # special here for the alpha parameter, which is replaced by
+            # the actual alphas (if the option is True):
+            # (pre-v2.10 config files don't list alpha)
+            if hasattr(self, 'alpha'):
+                alpha = not (self.alpha is None)
         else:
+            if (config_file is not None) & (not os.path.exists(config_file)):
+                print ('\n** ERROR ** config file not found, applying keywords\n')
             # apply the keyword values or defaults
             self.nwalkers = nwalkers
             self.nsteps = nsteps
@@ -390,8 +400,6 @@ class Beans:
             self.burstname = burstname
             self.gtiname = gtiname
             self.theta = theta
-            self.bc = bc
-            self.ref_ind = ref_ind
             self.threads = threads
             self.numburstssim = numburstssim
             # number of bursts observed (redundant; set below after reading the data)
@@ -439,7 +447,7 @@ class Beans:
         # bypasses the earlier init function, and instead calls get_obs
         # directly
 
-        get_obs(self)
+        get_obs(self, alpha=alpha)
 
         self.numburstsobs = len(self.fluen)
 
@@ -484,8 +492,6 @@ class Beans:
         already been done
         """
 
-        mode = ('ensemble', 'train')
-        restart = ('', ', resuming')
         return """== beans dataset =============================================================
 See https://beans-7.readthedocs.io
 
@@ -494,16 +500,20 @@ Observation data file: {}
   bolometric correction: {}
 GTI data file: {}
 Burst data file: {}
-  comprising {} observed bursts, ref. to #{}
+  comprising {} observed bursts, {}including alphas{}
 No. of bursts to simulate: {} ({} mode)
   with {} walkers, {} steps, {} threads{}
 Initial parameters:
 {}
 ==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
-            self.numburstsobs, self.ref_ind,
-            self.train+self.numburstssim*(1+self.train), mode[self.train],
+            self.numburstsobs, 
+            'not ' if self.alpha is None else '',
+            '' if self.obsname is None else ', ref. to #{}'.format(self.ref_ind),
+            self.train+self.numburstssim*(1+self.train),
+            'train' if self.train else 'ensemble',
             self.nwalkers, self.nsteps,
-            self.threads, restart[int(self.restart)],
+            self.threads, 
+            ', resuming' if self.restart else '',
             self.theta_table(self.theta, indent=2) )
 
 
@@ -566,12 +576,18 @@ Initial parameters:
            Config.add_section("data")
            Config.set("data", "obsname", str(self.obsname))
            Config.set("data", "burstname", self.burstname)
-           Config.set("data", "ref_ind", str(self.ref_ind))
            Config.set("data", "gtiname", str(self.gtiname))
-           Config.set("data", "bc", str(self.bc))
-           Config.set("data", "interp", str(self.interp))
-           if self.interp == 'spline':
-               Config.set("data", "smooth", str(self.smooth))
+           if self.alpha is None:
+               Config.set("data", "alpha", str(self.alpha))
+           else:
+               Config.set("data", "alpha", "True")
+           if self.obsname is not None:
+               # These parameters only used for "train" mode
+               Config.set("data", "ref_ind", str(self.ref_ind))
+               Config.set("data", "bc", str(self.bc))
+               Config.set("data", "interp", str(self.interp))
+               if self.interp == 'spline':
+                   Config.set("data", "smooth", str(self.smooth))
 
            Config.add_section("emcee")
            Config.set("emcee", "theta", str(self.theta))
@@ -634,6 +650,8 @@ Initial parameters:
                     _value = config.get(section, option)
                     if _value == 'None':
                         setattr(self, option, None)
+                    elif _value == 'True':
+                        setattr(self, option, True)
                     else:
                         setattr(self, option, _value)
 
@@ -664,7 +682,7 @@ Initial parameters:
         return (self.r1 * dist**2*xi_p*opz**2*(1+X)/(radius**2*(opz-1)) * flux).value
 
 
-    def lnlike(self, theta_in, x, y, yerr):
+    def lnlike(self, theta_in, x, y, yerr, components=False):
         """
         Calculate the "model" likelihood for the current walker position
         Calls runmodel which actually runs the model, either generating a
@@ -731,10 +749,19 @@ Initial parameters:
 
         err_fac = np.concatenate(( np.full(self.numburstsobs-ato,1.),
             np.full(self.numburstsobs,f_E), np.full(self.numburstsobs-ato,f_a)))
-        inv_sigma2 = 1./(yerr*err_fac)**2
+        inv_sigma2 = 1./(yerr[:self.ly]*err_fac[:self.ly])**2
 
         # Final likelihood expression
-        cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
+        # Because the y (observed value) vector may or may not include the
+        # alpha values, we need to truncate the other vectors here
+
+        # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
+        cpts = (self.y - model[:self.ly]) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
+
+        # if the components flag is set, also add those to the model dict
+
+        if components:
+            model2['cpts'] = cpts
 
         # Test if the result string is defined here. It is, so we return the selected elements of result
         # instead of the downselection in model
@@ -1062,7 +1089,9 @@ Initial parameters:
     def plot_autocorr(self, reader=None, savefile=None, figsize=(8,5) ):
         """
         This method shows the estimated autocorrelation time for the run
-        Extracted from do_analysis
+        Extracted from do_analysis, and originally based on the analysis
+        described in the example for emcee:
+        https://emcee.readthedocs.io/en/stable/tutorials/autocorr
 
         :param savefile: name of file to save as (skip if None)
         :param figsize: size for the figure, (tuple, in inches)
@@ -1104,6 +1133,7 @@ Initial parameters:
                 return np.argmin(m)
             return len(taus) - 1
 
+
         def autocorr_gw2010(y, c=5.0):
             """
             Following the suggestion from Goodman & Weare (2010)
@@ -1114,6 +1144,7 @@ Initial parameters:
             window = auto_window(taus, c)
             return taus[window]
 
+
         def autocorr_new(y, c=5.0):
             f = np.zeros(y.shape[1])
             for yy in y:
@@ -1122,6 +1153,7 @@ Initial parameters:
             taus = 2.0*np.cumsum(f)-1.0
             window = auto_window(taus, c)
             return taus[window]
+
 
         if reader is None:
             # load in sampler:
@@ -1226,6 +1258,9 @@ Initial parameters:
                     'fig8': 'xi_b vs. xi_p and models for comparison',
                     'comparison': 'observed and predicted burst times, fluences' }
 
+        if options == 'all':
+            options = analyses.keys()
+
         # check the chosen option is one of those implemented
 
         for option in options:
@@ -1253,8 +1288,11 @@ Initial parameters:
             print ("... done. Got {} steps completed".format(self.nsteps_completed))
 
         # moved burnin to be a parameter, so we can pass that from do_run
+        # want to make sure we're using at least about 1000 samples for
+        # our statistics
 
-        if burnin >= self.nsteps_completed*0.9:
+        # if burnin >= self.nsteps_completed*0.9:
+        if self.nsteps_completed-burnin < 1000:
             print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
             burnin = 0
 
@@ -1556,22 +1594,27 @@ Initial parameters:
             plt.figure(figsize=(10,7))
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
-            plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
-                color='black', linestyle='', marker='.', ms=13, label='Observed')
-            #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
             if self.train:
+                plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
+                    color='black', linestyle='', marker='.', ms=13, label='Observed')
+            #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
                 # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
                 plt.errorbar(timepred[1:], ebpred,
                     yerr=[ebpred_errup, ebpred_errlow],
                     xerr=[timepred_errup[1:], timepred_errlow[1:]],
                     marker='*', ms=11, color='darkgrey', linestyle='',
                     label='Predicted')
+                plt.xlabel("Time (days after start of outburst)")
             else:
+                # different style plot for the ensemble mode; the bstart
+                # still records the burst time (epoch) but now we prefer
+                # to plot vs. recurrence time
+                plt.errorbar(self.tdel, self.fluen, yerr=self.fluene,
+                    color='black', linestyle='', marker='.', ms=13, label='Observed')
                 plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
                 plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color='darkgrey')
-                plt.errorbar(self.bstart,  self.fluen, fmt='.', color='black')
+                plt.xlabel("Recurrence time (hr)")
 
-            plt.xlabel("Time (days after start of outburst)")
             plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
             plt.legend(loc=2)
 
