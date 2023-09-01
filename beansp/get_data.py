@@ -5,7 +5,7 @@ import numpy as np
 from os.path import exists
 import sys
 
-def get_obs(bean):
+def get_obs(bean, alpha=True):
     """
     Reads data in from ascii files and returns the data structures
     required for emcee Requires persistent burst observations and,
@@ -38,8 +38,10 @@ def get_obs(bean):
 
     :param bean: Beans object from which ref_ind, bc, obsname,
       burstname & gtiname will be used to find the input data
+    :param alpha: set to True (default) to include the alphas in the
+      data for comparison, or False to omit
 
-    :return: nothing
+    :return: nothing (everything comes back via the Beanobject)
     """
 
     print("Reading input data files ...")
@@ -61,8 +63,11 @@ def get_obs(bean):
         bean.bstart = np.array(burstdata['col1'])
         bean.fluen = np.array(burstdata['col2'])
         bean.fluene = np.array(burstdata['col3'])
-        alpha = np.array(burstdata['col4'])
-        alphae = np.array(burstdata['col5'])
+        if alpha:
+            bean.alpha = np.array(burstdata['col4'])
+            bean.alphae = np.array(burstdata['col5'])
+        else:
+            bean.alpha = None
 
         # Define reference time as start of first burst/epoch
         # bstart0 = bstart[0]
@@ -119,11 +124,14 @@ def get_obs(bean):
 
 	    # Set the y and yerr arrays (previously obs, obs_err), which
 	    # are what the MCMC code uses for comparison
-
-            bean.y = np.concatenate((bean.bstart, bean.fluen, alpha[1:]), axis=0)
             # always exclude the first alpha because we do not know
             # the recurrence time of the first burst to calculate this
-            bean.yerr = np.concatenate((bstart_err, bean.fluene, alphae[1:]), axis=0)
+
+            bean.y = np.concatenate((bean.bstart, bean.fluen), axis=0)
+            bean.yerr = np.concatenate((bstart_err, bean.fluene), axis=0)
+            if alpha:
+                bean.y = np.concatenate((bean.y, bean.alpha[1:]), axis=0)
+                bean.yerr = np.concatenate((bean.yerr, bean.alphae[1:]), axis=0)
 
             bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
             bean.yerr = np.delete(bean.yerr, bean.ref_ind)
@@ -145,14 +153,20 @@ def get_obs(bean):
         tobs_err = np.ones(len(tobs)) * 0.5
         bean.pflux = np.array(burstdata['col6'])
         bean.pfluxe = np.array(burstdata['col7'])
-        tdel = np.array(burstdata['col8'])
-        tdele = np.array(burstdata['col9'])
+        bean.tdel = np.array(burstdata['col8'])
+        bean.tdele = np.array(burstdata['col9'])
 
 	# Set the y and yerr arrays (previously obs and obs_err), which
 	# are what the MCMC code uses for comparison
 
-        bean.y = np.concatenate((tdel, bean.fluen, alpha), axis=0)
-        bean.yerr = np.concatenate((tdele, bean.fluene, alphae), axis=0)
+        bean.y = np.concatenate((bean.tdel, bean.fluen), axis=0)
+        bean.yerr = np.concatenate((bean.tdele, bean.fluene), axis=0)
+        if alpha:
+            bean.y = np.concatenate((bean.y, bean.alpha), axis=0)
+            bean.yerr = np.concatenate((bean.yerr, bean.alphae), axis=0)
+
+    bean.ly = len(bean.y)
+    assert bean.ly == len(bean.yerr)
 
     # -------------------------------------------------------------------------#
 
@@ -189,7 +203,7 @@ GTI checking will be performed""")
 Observations found:
   burst times = {bean.bstart}
   fluences = {bean.fluen}
-  alphas = {alpha}
+  alphas = {bean.alpha}
   persistent fluxes = {bean.pflux}
   gti data file = {bean.gtiname}
 GTI checking will be performed""")
@@ -208,7 +222,7 @@ You have not supplied a GTI file, so no GTI checking will be performed.""")
 Observations found:
   burst times = {bean.bstart}
   fluences = {bean.fluen}
-  alphas = {alpha}
+  alphas = {bean.alpha}
   persistent fluxes = {bean.pflux}
 You have not supplied a GTI file, so no GTI checking will be performed.""")
 
