@@ -379,19 +379,24 @@ class Beans:
 
         # Set up initial conditions:
 
-        if (config_file is not None) & (os.path.exists(config_file)):
-            alpha = True
-            print ('Reading run params from {} ...'.format(config_file))
-            self.read_config(config_file)
-            print ("...done")
-            # special here for the alpha parameter, which is replaced by
-            # the actual alphas (if the option is True):
-            # (pre-v2.10 config files don't list alpha)
-            if hasattr(self, 'alpha'):
-                alpha = not (self.alpha is None)
-        else:
-            if (config_file is not None) & (not os.path.exists(config_file)):
+        config_file_exists = None
+        if (config_file is not None):
+            if (os.path.exists(config_file)):
+                config_file_exists = True
+                alpha = True
+                print ('Reading run params from {} ...'.format(config_file))
+                self.read_config(config_file)
+                print ("...done")
+                # special here for the alpha parameter, which is replaced by
+                # the actual alphas (if the option is True):
+                # (pre-v2.10 config files don't list alpha)
+                if hasattr(self, 'alpha'):
+                    alpha = not (self.alpha is None)
+            else:
                 print ('\n** ERROR ** config file not found, applying keywords\n')
+                config_file_exists = False
+
+        if (not config_file_exists):
             # apply the keyword values or defaults
             self.nwalkers = nwalkers
             self.nsteps = nsteps
