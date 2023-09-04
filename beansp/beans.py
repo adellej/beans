@@ -294,10 +294,10 @@ class Beans:
         :param run_id: string identifier for the run, used to label all the
           result files, and where you want output to be saved
         :param obsname: name of the file including the flux history, from which
-	  the mdot is estimated to generate to generate the burst train
+          the mdot is estimated to generate to generate the burst train
           (set ``obsname=None`` for a non-contiguous, or "ensemble" mode run)
         :param burstname: name of the burst data file, listing the bursts
-	:param gtiname: name of the GTI file, set to ``None`` to turn off
+        :param gtiname: name of the GTI file, set to ``None`` to turn off
           checking
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
@@ -335,18 +335,18 @@ class Beans:
             print ('** WARNING ** parameter gti_checking is redundant (ignored), setting from value of gtiname param')
 
         # Conversion factor between model predicted burst energy and
-	# observed fluence. Multiply by this value to convert the burst
-	# energy from settle (in 1e39, the observer frame) to fluence at 1
-	# kpc in units of 1e-6 erg/cm^2
+        # observed fluence. Multiply by this value to convert the burst
+        # energy from settle (in 1e39, the observer frame) to fluence at 1
+        # kpc in units of 1e-6 erg/cm^2
 
         self.fluen_fac = ((1e39*u.erg/(4*np.pi*u.kpc**2)) 
             / (1e-6*u.erg/u.cm**2)).decompose()
 
         # Conversion factor between persistent flux (in units of 1e-9
-        # erg/cm^2/s) and the accretion rate in units of Eddington
+        # erg/cm^2/s) and the accretion rate 
 
-        self.r1 = ((1e-9*u.erg/u.cm**2/u.s)*(u.kpc)**2/(u.km**2*const.c**2)
-            / (1.7*8.8e4*u.g/u.cm**2/u.s)).decompose()
+        self.r1 = (1e-9*u.erg/u.cm**2/u.s*u.kpc**2
+            / (u.km*const.c)**2).decompose()
 
         # Conversion factor for redshift, GM/Rc^2 
 
@@ -434,10 +434,10 @@ class Beans:
 
         self.gti_checking = self.gtiname is not None
 
-	# determines whether will run as a train of bursts or non-contiguous
-	# bursts ("ensemble" mode); previously numerical, default is 1 (True),
-	# which means a burst train will be generated; set obsname=None for
-	# non-contiguous (ensemble mode) run
+        # determines whether will run as a train of bursts or non-contiguous
+        # bursts ("ensemble" mode); previously numerical, default is 1 (True),
+        # which means a burst train will be generated; set obsname=None for
+        # non-contiguous (ensemble mode) run
 
         self.train = (self.obsname is not None)
 
@@ -553,6 +553,24 @@ Initial parameters:
         return result.replace('#', ' '*indent)
 
 
+    def mdot_Edd(self):
+        """
+        Calculate the Eddington accretion rate (per unit area) as used
+        by Settle, for converting to physical units. The Eddington rate is
+        (1.75*(1.7/(1+G.X))*(1e-8)*(5.01837638e24))/(G.R*G.R)
+        (settle.cc, line 131) where G.X is the hydrogen mass fraction, and
+        G.R is the radius in cm; the constant is  M_sun/(4*365.25×86400)
+        (i.e. the conversion of  M_sun /yr to g/s) to better than 1 part
+        in 1000) in the NS frame 
+
+        :return: accretion rate in g/cm^2/s
+        """
+
+        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
+
+        return (1.75e-8*1.7/(1+X)*5.01837638e24)/(radius*1e5)**2 * u.g/u.cm**2/u.s
+
+
     def save_config(self, file=None, clobber=True):
         """
         Routine to write all the configuration parameters to a file, as a
@@ -664,7 +682,8 @@ Initial parameters:
     def flux_to_mdot(self, X, dist, xi_p, mass, radius, flux=None):
         """
         Function to convert fluxes to accretion rate, in units of the
-        Eddington rate, here taken as 8.8e4*1.7/(1+X) g/cm^2/s in the NS frame 
+        Eddington rate, calculated using the mdot_Edd function
+
         This routine uses the precise calculation of Q_grav, i.e.  c^2z/(1+z)
 
         :param X: accreted H-fraction
@@ -684,7 +703,8 @@ Initial parameters:
 
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
 
-        return (self.r1 * dist**2*xi_p*opz**2*(1+X)/(radius**2*(opz-1)) * flux).value
+        return (self.r1*flux*self.bc*dist**2*xi_p*opz**2
+            / (radius**2*(opz-1)) / self.mdot_Edd() ).decompose().value
 
 
     def lnlike(self, theta_in, x, y, yerr, components=False):
@@ -702,6 +722,7 @@ Initial parameters:
         :param x: the "independent" variable, passed to lnlike
         :param y: the "dependent" variable (i.e. measurements), passed to lnlike
         :param yerr: erorr estimates on y
+
         :return: likelihood, model result array
         """
 
@@ -712,9 +733,9 @@ Initial parameters:
         if self.has_systematic:
             f_a, f_E = theta_in[8:]
 
-	# call model (function runmodel, in run_model.py) to generate the burst
-	# train, or the set of bursts (for "ensemble" mode. In earlier versions
-	# the corresponding IDL function was defined as
+        # call model (function runmodel, in run_model.py) to generate the burst
+        # train, or the set of bursts (for "ensemble" mode. In earlier versions
+        # the corresponding IDL function was defined as
         # modeldata(base, z, x, r1, r2 ,r3)
 
         assert np.allclose(y, self.y)
@@ -747,10 +768,10 @@ Initial parameters:
 
         model[len(self.fluen)+self.numburstsobs-ato:] *= xi_b/xi_p
 
-	# To simplify final likelihood expression we define inv_sigma2 for each
-	# data parameter that describe the error.  The variance (eg sEb0) is
-	# underestimated by some fractional amount, f, for each set of
-	# parameters.
+        # To simplify final likelihood expression we define inv_sigma2 for each
+        # data parameter that describe the error.  The variance (eg sEb0) is
+        # underestimated by some fractional amount, f, for each set of
+        # parameters.
 
         err_fac = np.concatenate(( np.full(self.numburstsobs-ato,1.),
             np.full(self.numburstsobs,f_E), np.full(self.numburstsobs-ato,f_a)))
@@ -782,8 +803,8 @@ Initial parameters:
     def lnprob(self, theta_in, x, y, yerr):
         """
         The full log-probability function incorporating the priors (via
-	the ``Beans.lnprior`` attribute), and model likelihood (via
-	:meth:`Beans.lnlike`), that is passed to ``runemcee`` when creating
+        the ``Beans.lnprior`` attribute), and model likelihood (via
+        :meth:`Beans.lnlike`), that is passed to ``runemcee`` when creating
         the sampler (in the :meth:`Beans.do_run` method).
 
         :param theta_in: parameter vector
@@ -817,8 +838,8 @@ Initial parameters:
 
     def plot_model(self, model=None, mdot=True, title=None):
         """
-	Display a plot of the model results, for a burst train calculated
-	with generate_burst_train Adapted from the example at
+        Display a plot of the model results, for a burst train calculated
+        with generate_burst_train Adapted from the example at
         https://matplotlib.org/gallery/api/two_scales.html
 
         :param model: array of packed model prediction, OR dict giving full
@@ -1241,7 +1262,7 @@ Initial parameters:
             options, listed in the analyses dict below
         :param truths: parameter vector to overplot on (one of the) corner
           plots (TODO: need to check if >1 corner plot are selected
-	  +truths, which will likely result in an error due to
+          +truths, which will likely result in an error due to
           incompatible number of parameters)
         :param burnin: number of steps to discard when plotting the posteriors
         :param savefig: set to True to save figures to .pdf files, False to skip
@@ -1417,24 +1438,24 @@ Initial parameters:
             radius = self.samples[:,7]
 
             # calculate redshift and gravity from mass and radius:
-	    # keep the parameters that we're going to calculate limits on
-	    # below, dimensionless
+            # keep the parameters that we're going to calculate limits on
+            # below, dimensionless
 
             R = np.array(radius)*1e5*u.cm #cgs
             M = np.array(mass)*const.M_sun.to('g') #cgs
 
-	    # ChainConsumer's plot method can't handle Quantity objects,
-	    # so we need to convert gravity and redshift back to numpy
-	    # arrays here
+            # ChainConsumer's plot method can't handle Quantity objects,
+            # so we need to convert gravity and redshift back to numpy
+            # arrays here
             redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
             gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
             cosi_2 = 1/(2*xip)
             cosi = 0.5/(2*(xip/xib)-1)
 
-	    # to get the parameter middle values and uncertainty use the
-	    # functions get_param_uncert_obs and get_param_uncert_pred,
-	    # e.g.
+            # to get the parameter middle values and uncertainty use the
+            # functions get_param_uncert_obs and get_param_uncert_pred,
+            # e.g.
 
             if self.train:
                 times = get_param_uncert_obs(time, self.numburstssim*2+1)
@@ -1478,9 +1499,9 @@ Initial parameters:
 
             np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred\n value, upper uncertainty, lower uncertainty')
 
-	    # make plot of posterior distributions of the mass, radius,
-	    # surface gravity, and redshift: stack data for input to
-	    # chainconsumer:
+            # make plot of posterior distributions of the mass, radius,
+            # surface gravity, and redshift: stack data for input to
+            # chainconsumer:
             mass = mass.ravel()
             radius = radius.ravel()
             gravity = np.array(gravity).ravel()
