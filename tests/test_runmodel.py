@@ -32,7 +32,6 @@ def test_run_model():
             pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_gti.txt"
         )
 
-
     # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind=1, bc=2.21, obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts, gtiname=path_to_data_file_gti)
     B = Beans(ref_ind=1, bc=2.21, obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts)#, gtiname=path_to_data_file_gti)
 
@@ -50,7 +49,6 @@ def test_run_model():
 
     result = np.allclose(test, exp)#, rtol=1e-4)
 
-    breakpoint()
     assert result
 
     return
