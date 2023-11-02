@@ -35,7 +35,8 @@ def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
     return list(pos)
 
 
-def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart, threads):
+def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
+    restart, threads, **kwargs):
     """
     Function to initilise and run emcee.
     Removed the redundant parameter ndim, which can be determined from the
@@ -101,7 +102,8 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart
         # This will be useful to testing convergence
         old_tau = np.inf
         if restart == False:
-            for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
+            for sample in sampler.sample(pos, iterations=nsteps, progress=True,
+                **kwargs):
                 # Only check convergence every 100 steps
                 if sampler.iteration % 100:
                     continue
@@ -128,7 +130,8 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart
                 old_tau = tau
         else:
             pos = sampler.get_last_sample()
-            for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
+            for sample in sampler.sample(pos, iterations=nsteps, progress=True,
+                **kwargs):
                 if sampler.iteration % 100:
                     continue
                 # Compute the autocorrelation time so far

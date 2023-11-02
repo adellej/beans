@@ -126,8 +126,8 @@ def prior_1808(theta_in):
 def model_str(model):
     """
     Prints a compressed string representation of the model dict, with
-    reduced precision to reduce the size of the record saved to the .h5
-    file
+    selected parameters and reduced precision to reduce the size of the
+    record saved to the .h5 file
 
     :param model: model dictionary as returned by runmodel
 
@@ -282,8 +282,8 @@ class Beans:
                  run_id="test", obsname=None, burstname=None, gtiname=None,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
-                 threads = 4, test_model=True, restart=False,
-                 interp='linear', smooth=0.02, alpha=True, **kwargs):
+                 corr=None, threads = 4, test_model=True, restart=False,
+                 interp='linear', smooth=0.02, fluen=True, alpha=True, **kwargs):
         """
         Initialise a Beans object
 
@@ -313,6 +313,7 @@ class Beans:
           middle of the predicted burst train. This burst will not be
           simulated but will be used as a reference to predict the other bursts.
         :param prior: prior function to use
+        :param corr: correction function for bursts, or None
         :param threads: number of threads for emcee to use (e.g. number of
           cores your computer has). Set to ``None`` to use all available
         :param test_model: flag to test the model during the setup process
@@ -321,6 +322,8 @@ class Beans:
           'linear', or 'spline'
         :param smooth: smoothing factor for spline interpolation
         :param alpha: set to True (default) to include the alphas in the
+          data for comparison, or False to omit
+        :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
         :result: Beans object including all the required data
         """
@@ -373,42 +376,51 @@ class Beans:
         if burstname is None:
             burstname = os.path.join(data_path, '1808_bursts.txt')
 
-        self.lnprior = prior
-        self.bc = bc
-        self.ref_ind = ref_ind
+        # apply the keyword values or defaults
 
-        # Set up initial conditions:
+        self.run_id = run_id
+        self.obsname = obsname
+        self.burstname = burstname
+        self.gtiname = gtiname
+        self.ref_ind = ref_ind
+        self.bc = bc
+        
+        self.theta = theta
+        self.numburstssim = numburstssim
+        self.lnprior = prior
+        self.nwalkers = nwalkers
+        self.nsteps = nsteps
+        self.threads = threads
+
+        # check for the config_file, and if detected read in (will
+        # override the defaults above):
 
         config_file_exists = None
         if (config_file is not None):
             if (os.path.exists(config_file)):
                 config_file_exists = True
-                alpha = True
+                cmpr_alpha, cmpr_fluen = True, True
                 print ('Reading run params from {} ...'.format(config_file))
                 self.read_config(config_file)
                 print ("...done")
-                # special here for the alpha parameter, which is replaced by
-                # the actual alphas (if the option is True):
-                # (pre-v2.10 config files don't list alpha)
+                # special here for the alpha and fluen parameters, which
+		# are replaced by the actual data values (if the option is
+		# True); (pre-v2.10 config files don't list alpha or fluen)
                 if hasattr(self, 'alpha'):
-                    alpha = not (self.alpha is None)
+                    self.cmpr_alpha = self.alpha
+                    alpha = self.alpha
+                if hasattr(self, 'fluen'):
+                    self.cmpr_fluen = self.fluen
+                    fluen = self.fluen
             else:
                 print ('\n** ERROR ** config file not found, applying keywords\n')
                 config_file_exists = False
 
-        if (not config_file_exists):
-            # apply the keyword values or defaults
-            self.nwalkers = nwalkers
-            self.nsteps = nsteps
-            self.run_id = run_id
-            self.obsname = obsname
-            self.burstname = burstname
-            self.gtiname = gtiname
-            self.theta = theta
-            self.threads = threads
-            self.numburstssim = numburstssim
-            # number of bursts observed (redundant; set below after reading the data)
-            # self.numburstsobs = numburstsobs
+        # Some checks here
+
+        if alpha and (not fluen):
+            print ('** ERROR ** need to include fluences as well as alphas')
+            return
 
         if self.lnprior(self.theta) == -np.inf:
             print ('** ERROR ** supplied parameter vector is excluded by the prior')
@@ -443,6 +455,8 @@ class Beans:
 
         self.bstart_err = BSTART_ERR.to('d').value
 
+        self.matches = None
+
         # Read in all the measurements and set up all the parameters
         # This function now operates on the Beans object directly, and the
         # required attributes:
@@ -452,9 +466,7 @@ class Beans:
         # bypasses the earlier init function, and instead calls get_obs
         # directly
 
-        get_obs(self, alpha=alpha)
-
-        self.numburstsobs = len(self.fluen)
+        get_obs(self, alpha=alpha, fluen=fluen)
 
         # Set interpolation mode, and define averaging function
 
@@ -469,8 +481,6 @@ class Beans:
                 self.smooth = smooth
             self.tck_s = splrep(self.tobs, self.pflux, s=self.smooth)
             self.mean_flux = mean_flux_spline
-
-        self.numburstsobs = len(self.fluen)
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -505,14 +515,15 @@ Observation data file: {}
   bolometric correction: {}
 GTI data file: {}
 Burst data file: {}
-  comprising {} observed bursts, {}including alphas{}
+  comprising {} observed bursts, {}including alphas{}{}
 No. of bursts to simulate: {} ({} mode)
   with {} walkers, {} steps, {} threads{}
 Initial parameters:
 {}
 ==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
             self.numburstsobs, 
-            'not ' if self.alpha is None else '',
+            '' if self.cmpr_alpha else 'not ',
+            '' if self.cmpr_fluen else ' or fluences',
             '' if self.obsname is None else ', ref. to #{}'.format(self.ref_ind),
             self.train+self.numburstssim*(1+self.train),
             'train' if self.train else 'ensemble',
@@ -575,7 +586,10 @@ Initial parameters:
         """
         Routine to write all the configuration parameters to a file, as a
         record of the run; but also to more easily replicate or continue
-        a run
+        a run. List of all the parameters saved to the configuration file:
+        ``run_id``, ``obsname``, ``burstname``, ``gtiname``, ``alpha``,
+        ``fluen``, ``ref_ind``, ``bc``, ``interp``, ``smooth``, ``theta``, 
+        ``numburstssim``, ``prior``, ``nwalkers``, ``nsteps``, ``threads``
 
         :param file: name of file to save the config as. If None, the run_id
           will be used as a prefix
@@ -600,10 +614,9 @@ Initial parameters:
            Config.set("data", "obsname", str(self.obsname))
            Config.set("data", "burstname", self.burstname)
            Config.set("data", "gtiname", str(self.gtiname))
-           if self.alpha is None:
-               Config.set("data", "alpha", str(self.alpha))
-           else:
-               Config.set("data", "alpha", "True")
+           Config.set("data", "alpha", str(self.cmpr_alpha))
+           Config.set("data", "fluen", str(self.cmpr_fluen))
+
            if self.obsname is not None:
                # These parameters only used for "train" mode
                Config.set("data", "ref_ind", str(self.ref_ind))
@@ -675,6 +688,8 @@ Initial parameters:
                         setattr(self, option, None)
                     elif _value == 'True':
                         setattr(self, option, True)
+                    elif _value == 'False':
+                        setattr(self, option, False)
                     else:
                         setattr(self, option, _value)
 
@@ -713,9 +728,6 @@ Initial parameters:
         Calls runmodel which actually runs the model, either generating a
         burst train, or a set of runs for "ensemble" mode. Then extracts the
         relevant model outputs and calculates the likelihood.
-        Includes an *additional* call to generate_burst_train/burstensemble
-        to get the model, so as to be able to return it to the calling function;
-        this step is totally redundant
 
         :param theta_in: model parameter tuple, with X, Z, Q_b, dist, xi_b,
           xi_p, mass, radius, f_a, f_E 
@@ -743,36 +755,12 @@ Initial parameters:
         if not valid:
             return -np.inf, model
 
-        # Here we convert the model-predicted values to observational
-        # quantities, for comparison with the observations. Previously
-        # this was achieved via the "ratios" of the mdot/luminosity,
-        # fluence and alphas
-        # The times are already relative to the reference bursts, so
-        # nothing needs to be done to those
-
-        # indices for the fluence and the alphas are shifted by one
-        # if we're doing a "train" run, hence the int(self.train) (=1 if
-        # self.train == True
-
-        # Convert burst energy (in observer frame) to fluence
-
-        ato = int(self.train) # array "train" offset
-        # special to trap "unhashable type" error
-        # print (model, ato, len(self.bstart), len(self.fluen))
-
-        model[self.numburstsobs-ato:len(self.fluen)+self.numburstsobs-ato] *= \
-           self.fluen_fac/xi_b/dist**2
-
-        # Convert burst alpha to observed value (incorporating
-        # anisotropies)
-
-        model[len(self.fluen)+self.numburstsobs-ato:] *= xi_b/xi_p
-
         # To simplify final likelihood expression we define inv_sigma2 for each
         # data parameter that describe the error.  The variance (eg sEb0) is
         # underestimated by some fractional amount, f, for each set of
         # parameters.
 
+        ato = int(self.train) # array "train" offset
         err_fac = np.concatenate(( np.full(self.numburstsobs-ato,1.),
             np.full(self.numburstsobs,f_E), np.full(self.numburstsobs-ato,f_a)))
         inv_sigma2 = 1./(yerr[:self.ly]*err_fac[:self.ly])**2
@@ -873,8 +861,10 @@ Initial parameters:
                 print ('** ERROR ** no predicted times to show')
                 return
             # ebpred = np.array(model["e_b"])*np.array(model["r3"])
-            ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
+            # ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
+            ebpred = np.array(model["fluen"])
         else:
+            breakpoint()
             # The other way to return the model is as an array with the burst times, fluences
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
@@ -1046,7 +1036,7 @@ Initial parameters:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self, plot=False, analyse=True, burnin=2000):
+    def do_run(self, plot=False, analyse=True, burnin=2000, **kwargs):
         """
         This routine runs the chain for as many steps as is specified in
         the init call.  Emcee parameters are defined in runemcee module.
@@ -1098,8 +1088,9 @@ Initial parameters:
         _start = time.time()
 
         # run the chains and save the output as a h5 file
-        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.lnprior,
-            None, self.y, self.yerr, self.run_id, self.restart, self.threads)
+        sampler = runemcee(self.nwalkers, self.nsteps,
+            self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
+            self.run_id, self.restart, self.threads, **kwargs)
         print(f"...sampling complete!")
 
         _end = time.time()
@@ -1318,7 +1309,8 @@ Initial parameters:
         # our statistics
 
         # if burnin >= self.nsteps_completed*0.9:
-        if self.nsteps_completed-burnin < 1000:
+        if (self.nsteps_completed*self.nwalkers-burnin < 1000) | \
+            (self.nsteps_completed < burnin):
             print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
             burnin = 0
 
@@ -1621,8 +1613,13 @@ Initial parameters:
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             if self.train:
-                plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
-                    color='black', linestyle='', marker='.', ms=13, label='Observed')
+                if self.fluen is not None:
+                    plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
+                        color='black', linestyle='', marker='.', ms=13, label='Observed')
+                else:
+                    for _i in range(self.numburstsobs):
+                        plt.axvline(self.bstart[_i], c='k', ls='--', label='Observed')
+
             #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
                 # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
                 plt.errorbar(timepred[1:], ebpred,

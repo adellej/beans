@@ -5,7 +5,7 @@ import numpy as np
 from os.path import exists
 import sys
 
-def get_obs(bean, alpha=True):
+def get_obs(bean, alpha=True, fluen=True):
     """
     Reads data in from ascii files and returns the data structures
     required for emcee Requires persistent burst observations and,
@@ -40,6 +40,8 @@ def get_obs(bean, alpha=True):
       burstname & gtiname will be used to find the input data
     :param alpha: set to True (default) to include the alphas in the
       data for comparison, or False to omit
+    :param fluen: set to True (default) to include the fluences in the
+      data for comparison, or False to omit
 
     :return: nothing (everything comes back via the Beanobject)
     """
@@ -61,13 +63,13 @@ def get_obs(bean, alpha=True):
         # Get the burst time, fluence and alpha arrays:
 
         bean.bstart = np.array(burstdata['col1'])
+        bean.numburstsobs = len(bean.bstart)
+        bean.cmpr_fluen = fluen
         bean.fluen = np.array(burstdata['col2'])
         bean.fluene = np.array(burstdata['col3'])
-        if alpha:
-            bean.alpha = np.array(burstdata['col4'])
-            bean.alphae = np.array(burstdata['col5'])
-        else:
-            bean.alpha = None
+        bean.cmpr_alpha = alpha
+        bean.alpha = np.array(burstdata['col4'])
+        bean.alphae = np.array(burstdata['col5'])
 
         # Define reference time as start of first burst/epoch
         # bstart0 = bstart[0]
@@ -127,9 +129,12 @@ def get_obs(bean, alpha=True):
             # always exclude the first alpha because we do not know
             # the recurrence time of the first burst to calculate this
 
-            bean.y = np.concatenate((bean.bstart, bean.fluen), axis=0)
-            bean.yerr = np.concatenate((bstart_err, bean.fluene), axis=0)
-            if alpha:
+            bean.y = bean.bstart
+            bean.yerr = bstart_err
+            if bean.cmpr_fluen:
+                bean.y = np.concatenate((bean.y, bean.fluen), axis=0)
+                bean.yerr = np.concatenate((bean.yerr, bean.fluene), axis=0)
+            if bean.cmpr_alpha:
                 bean.y = np.concatenate((bean.y, bean.alpha[1:]), axis=0)
                 bean.yerr = np.concatenate((bean.yerr, bean.alphae[1:]), axis=0)
 
@@ -159,9 +164,10 @@ def get_obs(bean, alpha=True):
 	# Set the y and yerr arrays (previously obs and obs_err), which
 	# are what the MCMC code uses for comparison
 
-        bean.y = np.concatenate((bean.tdel, bean.fluen), axis=0)
-        bean.yerr = np.concatenate((bean.tdele, bean.fluene), axis=0)
-        if alpha:
+        if bean.cmpr_fluen:
+            bean.y = np.concatenate((bean.tdel, bean.fluen), axis=0)
+            bean.yerr = np.concatenate((bean.tdele, bean.fluene), axis=0)
+        if bean.cmpr_alpha:
             bean.y = np.concatenate((bean.y, bean.alpha), axis=0)
             bean.yerr = np.concatenate((bean.yerr, bean.alphae), axis=0)
 
