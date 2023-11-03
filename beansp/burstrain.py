@@ -66,7 +66,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
         print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
 
     # Calculate the burst properties for the trial mdot value
-    trial = settle(base, z, x_0, mdot0, cfac, mass, radius)
+    trial = settle(base, z, x_0, mdot0, mass, radius, corr=bean.corr)
 
     if debug:
         print ('{}: initial guess mdot0={} @ t1={}, tdel={}, direction={}'.format(fn,mdot0,t1,trial.tdel,direction))
@@ -91,7 +91,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
             or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
         and (mdot > minmdot and mdot < maxmdot):
 
-        trial = settle(base, z, x_0, mdot, cfac, mass, radius)
+        trial = settle(base, z, x_0, mdot, mass, radius, corr=bean.corr)
         nreturn = nreturn + 1
         nreturn_total = nreturn_total + 1
 
@@ -136,7 +136,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
         for t in t_arr[1:]:
             _mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius,
                 bean.mean_flux(t1, t, bean) )
-            _tmp = settle(base, z, x_0, _mdot, cfac, mass, radius)
+            _tmp = settle(base, z, x_0, _mdot, mass, radius, corr=bean.corr)
             t_arr2.append(t1+_tmp.tdel[0]/24.)
             m_arr.append(_mdot)
         plt.plot(t_arr, np.array(t_arr2), '-', label='tdel')
@@ -391,7 +391,7 @@ def burstensemble( bean, base, x_0, z, dist, xi_p, mass, radius, full_model=Fals
 
     for i in range(0, bean.numburstsobs):
 
-        tmp = settle(base, z, x_0, mdot[i], 1.0, mass, radius)
+        tmp = settle(base, z, x_0, mdot[i], mass, radius, corr=bean.corr)
 
         # accumulate the predictions into the arrays here
 

@@ -55,7 +55,11 @@ def lnZprior(z):
     """
     This beta function for the metallicity prior is from Andy Casey and is an
     approximation of the metallicity of a mock galaxy at 2.5-4.5 kpc for the
-    location of 1808. Assuming ZCNO = 0.01 is average value.
+    location of SAX J1808.4-3658. Assuming ZCNO = 0.01 is average value.
+
+    :param z: CNO metallicity (mass fraction)
+
+    :return: prior probability
     """
 
     from scipy import stats
@@ -73,6 +77,8 @@ def prior_func(theta_in):
     This function implements a simple box prior for all the parameters 
 
     :param theta_in: parameter vector
+
+    :return: prior probability
     """
 
     f_a, f_E = 1.0, 1.0
@@ -103,6 +109,8 @@ def prior_1808(theta_in):
     should only be used with extreme caution in other cases!
 
     :param theta_in: parameter vector
+
+    :return: prior probability
     """
 
     f_a, f_E = 1.0, 1.0
@@ -122,6 +130,24 @@ def prior_1808(theta_in):
     else:
         return -np.inf
 
+
+def corr_goodwin19(burst, **kwargs):
+    """
+    This is an example Settle correction function that applies the correction
+    of Goodwin et al. (2019), multiplying the recurrence time and burst
+    energy by 0.65. With this correction there is no need to modify the
+    alpha value.
+    The ``**kwargs`` can be used to incorporate other parameters into the
+    correction; from settle we pass the base flux F, mdot M, H-fraction X,
+    metallicity Z, and neutron star radius R and mass M (none used for
+    this example)
+
+    :param burst: 3-element tuple output from settle, with alpha, trec [hr], and burst energy [1e39 erg], all values in the observer frame
+
+    :return: tuple with any necessary corrections performed
+    """
+
+    return (burst[0], burst[1]*0.65, burst[2]*0.65)
 
 def model_str(model):
     """
@@ -148,7 +174,7 @@ def mean_flux_spline(t1, t2, bean):
 
     :param t1: start time for averaging
     :param t2: end time for averaging
-    :param bean: Beans object, from which the remaining parameters are drawn:
+    :param bean: :class:`beansp.Beans` object, from which the remaining parameters are drawn:
       tck_s
 
     :result: mean flux
@@ -159,12 +185,12 @@ def mean_flux_spline(t1, t2, bean):
 
 def mean_flux_linear(t1, t2, bean):
     """
-    Calculates the mean flux between t1 and t2 from the piecewise linear
-    interpolation of tobs,a,b
+    Calculates the mean flux between ``t1`` and ``t2`` from the piecewise
+    linear interpolation of ``tobs``, ``a``, ``b``
 
     :param t1: start time for averaging
     :param t2: end time for averaging
-    :param bean: Beans object, from which the remaining parameters are drawn:
+    :param bean: :class:`beansp.Beans` object, from which the remaining parameters are drawn:
       tobs, a, b
 
     :result: mean flux
@@ -388,6 +414,7 @@ class Beans:
         self.theta = theta
         self.numburstssim = numburstssim
         self.lnprior = prior
+        self.corr = corr
         self.nwalkers = nwalkers
         self.nsteps = nsteps
         self.threads = threads
@@ -629,6 +656,7 @@ Initial parameters:
            Config.set("emcee", "theta", str(self.theta))
            Config.set("emcee", "numburstssim", str(self.numburstssim))
            Config.set("emcee", "prior", str(self.lnprior))
+           Config.set("emcee", "corr", str(self.corr))
            Config.set("emcee", "nwalkers", str(self.nwalkers))
            Config.set("emcee", "nsteps", str(self.nsteps))
            Config.set("emcee", "threads", str(self.threads))
@@ -672,13 +700,29 @@ Initial parameters:
                         tuple(map(float, config.get(section, option)[1:-1].split(', '))))
                 elif option in float_params:
                     setattr(self, option, config.getfloat(section, option))
-                elif option =='prior':
+                elif (option == 'prior'):
                     function_name = config.get(section, option).split(' ')[1]
-                    if function_name != str(self.lnprior).split(' ')[1]:
+                    if (option == 'prior') & (function_name != str(self.lnprior).split(' ')[1]):
                         print ('''
-** WARNING ** config file lists prior function as {}, but supplied prior is {}
-              To fully replicate the previous run you need to specify the same prior using the prior flag on init
-'''.format(function_name, self.lnprior))
+** WARNING ** config file lists the prior function as {},
+                but supplied prior is {}
+              To fully replicate the previous run you need to specify the
+                same prior using the prior=beans.{} flag on init
+'''.format(function_name, str(self.lnprior).split(' ')[1], function_name))
+                elif (option == 'corr'):
+                    function_name = config.get(section, option)
+                    if function_name != 'None':
+                        function_name = function_name.split(' ')[1]
+                    _scorr = str(self.corr)
+                    if _scorr != 'None':
+                        _scorr = _scorr.split(' ')[1]
+                    if (function_name != _scorr):
+                        print ('''
+** WARNING ** config file lists {} for the correction,
+                but supplied value is {}
+              To fully replicate the previous run you need to specify the
+                same option/condition using the corr=beans.{} flag on init
+'''.format(function_name, _scorr, function_name))
                 elif option in int_params:
                     setattr(self, option, config.getint(section, option))
                 else:
@@ -941,6 +985,44 @@ Initial parameters:
 
         fig.legend(loc=1)
         fig.show()
+
+    def sim_data(self, file=None):
+        """
+        This method generates a table of simulated data based on the
+        current theta vector, that can be used for tests of the MCMC
+        method
+        Errors are taken as the mean of the observational errors; bursts
+        matching observed bursts (according to the matching algorithm)
+        are flagged as ``True`` in the 6th column
+
+        :return:
+        """
+
+        print ("Generating simulated data based on parameter vector\n  theta={}:".format(self.theta))
+
+        opz = 1./(np.sqrt(1.-self.gmrc2*self.theta[6]/self.theta[7]))
+        print ('  i.e. source at d={:.2f} kpc, xi_b={:.4f}, xi_p={:.4f}, X={:.2f}, Z={:.3f}, M_NS={:.2f}, R_NS={:.2f}, 1+z={:.3f}, Q_b={:.2f}'.format(
+            self.theta[3],  self.theta[4], self.theta[5], self.theta[0],
+            self.theta[1], self.theta[6], self.theta[7],opz,self.theta[2]))
+        if self.obsname is not None:
+            print ('  persistent fluxes from {}, interp={}, bc={}\n'.format(
+                self.obsname, self.interp, self.bc))
+
+        test, valid, full_model = runmodel(self.theta, self)
+
+        if self.train:
+            for i in range(len(full_model['time'])):
+                if i == 0:
+                    print('{:.5f}	{:.4f}	{:.4f}	{:.1f}	{:.1f}	{}'.format(full_model['time'][0]+self.tref, full_model['fluen'][0],np.mean(self.fluene),0.,0.,str(i in full_model['imatch'])))
+                else:
+                    print('{:.5f}	{:.4f}	{:.4f}	{:.1f}	{:.1f}	{}'.format(full_model['time'][i]+self.tref, full_model['fluen'][i-1],np.mean(self.fluene),full_model['alpha'][i-1],np.mean(self.alphae[1:]),str(i in full_model['imatch'])))
+
+        else:
+            for i in range(len(self.bstart)):
+                print('{:.5f}       {:.3f}      {:.3f}  {:.1f}  {:.1f}  {:.3f}  {:.3f}  {:.3f}  {:.3f}'.format(
+                    self.bstart[i], self.fluen[i], self.fluene[i], 
+                    self.alpha[i],self.alphae[i],self.pflux[i],
+                    self.pfluxe[i],self.tdel[i],self.tdele[i]))
 
     # -------------------------------------------------------------- #
 
@@ -1450,7 +1532,8 @@ Initial parameters:
             # e.g.
 
             if self.train:
-                times = get_param_uncert_obs(time, self.numburstssim*2+1)
+                # times = get_param_uncert_obs(time, self.numburstssim*2+1)
+                times = get_param_uncert_obs(time) 
             else:
                 times = get_param_uncert_obs(time, self.numburstsobs)
             timepred = [x[0] for x in times]
@@ -1462,16 +1545,18 @@ Initial parameters:
             # TODO really want to convert to observed quantities here with
             # the appropriate distance & xi_b at that step
 
-            fpred = np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2
+            fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
             if self.train:
-                ebs = get_param_uncert_obs(fpred, self.numburstssim*2)
+                # ebs = get_param_uncert_obs(fpred, self.numburstssim*2)
+                ebs = get_param_uncert_obs(fpred)
             else:
                 ebs = get_param_uncert_obs(fpred, self.numburstsobs)
             ebpred = [x[0] for x in ebs]
             ebpred_errup = [x[1] for x in ebs]
             ebpred_errlow = [x[2] for x in ebs]
             if self.train:
-                alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
+                # alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
+                alphas = get_param_uncert_obs(alpha)
             else:
                 alphas = get_param_uncert_obs(alpha, self.numburstssim)
 

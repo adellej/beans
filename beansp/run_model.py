@@ -156,12 +156,6 @@ def runmodel(theta_in, bean, debug=False):
 
     result['alpha_obs'] = list(np.array(result['alpha']) * xi_b/xi_p )
 
-    # TODO here also you could modify the predicted values, e.g. to make them
-    # more consistent with Kepler (for example). This could be tricky for
-    # the times, which are already relative to the start
-
-    pass
-
     # And finally form the model array for comparison with the data
 
     if bean.train:

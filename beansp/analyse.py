@@ -35,7 +35,7 @@ from .get_data import *
 from .run_emcee import runemcee
 
 
-def get_param_uncert_obs(param_array, numburstssim, percentile=[16,50,84]):
+def get_param_uncert_obs(param_array, numburstssim=None, percentile=[16,50,84]):
     '''
     Get uncertainties on predicted parameters. This routine accepts a
     list-of-lists with (for example) the start times of bursts for each
@@ -45,17 +45,26 @@ def get_param_uncert_obs(param_array, numburstssim, percentile=[16,50,84]):
             .
             .
             .
-    and calculates the 50th percentile value and +/- 1-sigma confidence
-    limits for each of the t1, t2, t3, returning a list-of-tuples for each
-    parameter, with the 50th percentile and the upper & lower uncertainties 
-    for each parameter in each tuple.
+    dimensions (nsteps*walkers, nbursts) and calculates the 50th
+    percentile value and +/- 1-sigma confidence limits for each of the t1,
+    t2, t3, returning a list-of-tuples for each parameter, with the 50th
+    percentile and the upper & lower uncertainties for each parameter in
+    each tuple.
 
-    :param param_array: array listing the predicted values
+    :param param_array: array of dimension (nsteps*walkers, nbursts) listing the predicted values
     :param numburstssim: number of events per instance (2nd dimension of
       param_array)
 
     :return: list of tuples giving parameter centroid and limits
     '''
+
+    # Since the number of bursts simulated is not always known explicitly,
+    # we get that from the predicted value array
+
+    if numburstssim is None:
+        numburstssim = np.shape(param_array)[1]
+
+    # Now calculate the percentiles for each parameter
 
     plist = list()
     for i in range(0,numburstssim):
