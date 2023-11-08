@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
+import pandas as pd
 import emcee
 from astropy.io import ascii
 import astropy.units as u
@@ -1173,7 +1174,7 @@ Initial parameters:
         sampler = runemcee(self.nwalkers, self.nsteps,
             self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
             self.run_id, self.restart, self.threads, **kwargs)
-        print(f"...sampling complete!")
+        print(f"...sampling for run_id={self.run_id} complete!")
 
         _end = time.time()
         print ("Sampling took {0:.1f} seconds".format(_end-_start))
@@ -1319,8 +1320,20 @@ Initial parameters:
         """
         This method is for running standard analysis and displaying the
         results.
-        Nothing is returned, but by default the method will create several
-        files, labeled by the run_id; drawn from
+        Nothing is returned, but various options for analysis are
+        available, which will (optionally) populate some of the 
+        :class:`beansp.Beans` attributes, including
+
+        | reader - sampler object read in from HDF file
+        | sampler - chain data
+        | nsteps_completed - number of steps completed
+        | samples - flattened samples, omitting burnin interval
+        | last - last walker positions
+        | probs - likelihoods (total, prior, and contributions from each parameter) for the last walker positions
+        | blobs - dictionary with model realisations read in from the "blobs"
+
+	By default the method will also create several files, labeled by
+        the run_id; drawn from
 
         | {}_autocorrelationtimes.pdf (via plot_autocorr)
         | {}_predictedburstscomparison.pdf
@@ -1355,7 +1368,8 @@ Initial parameters:
                     'mrcorner': 'corner plot with M, R, g and 1+z',
                     'fig6': 'corner plot with xi_b, xi_p, d, Q_b, Z',
                     'fig8': 'xi_b vs. xi_p and models for comparison',
-                    'comparison': 'observed and predicted burst times, fluences' }
+                    'comparison': 'observed and predicted burst times, fluences',
+                    'last': 'analyse last walker positions' }
 
         if options == 'all':
             options = analyses.keys()
@@ -1385,20 +1399,109 @@ Initial parameters:
             self.nsteps_completed = np.shape(self.sampler)[0]
 
             print ("... done. Got {} steps completed".format(self.nsteps_completed))
+            self.samples_burnin = None
 
-        # moved burnin to be a parameter, so we can pass that from do_run
-        # want to make sure we're using at least about 1000 samples for
-        # our statistics
+        if burnin != self.samples_burnin:
 
-        # if burnin >= self.nsteps_completed*0.9:
-        if (self.nsteps_completed*self.nwalkers-burnin < 1000) | \
-            (self.nsteps_completed < burnin):
-            print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
-            burnin = 0
+            # moved burnin to be a parameter, so we can pass that from do_run
+            # want to make sure we're using at least about 1000 samples for
+            # our statistics
 
-        # print ("Reading in flattened samples to show posteriors...")
-        # samples = self.reader.get_chain(flat=True, discard=burnin)
-        self.samples = self.sampler[burnin:,:,:].reshape((-1,self.ndim))
+            # if burnin >= self.nsteps_completed*0.9:
+            if (self.nsteps_completed*self.nwalkers-burnin < 1000) | \
+                (self.nsteps_completed < burnin):
+                print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
+                burnin = 0
+
+            # print ("Reading in flattened samples to show posteriors...")
+            # samples = self.reader.get_chain(flat=True, discard=burnin)
+            samples = self.sampler[burnin:,:,:]
+            self.last = samples[-1,:,:]
+            self.samples = samples.reshape((-1,self.ndim))
+            self.samples_burnin = burnin
+
+            # here now create the overall chainconsumer object that will
+            # enable the various posterior plots below
+
+            labels = {"X": "$X$", "Z": "$Z$", "Qb": "$Q_b$ (MeV)",
+                "d": "$d$ (kpc)", "xi_b": "$\\xi_b$", "xi_p": "$\\xi_p$",
+                "M": "$M$ ($M_\odot$)", "R": "$R$ (km)"}
+            if self.ndim > 8:
+                labels["fa"] = "$f_a$"
+                labels["fE"] = "$f_E$"
+
+            mass = self.samples[:,6]
+            radius = self.samples[:,7]
+
+            # calculate redshift and gravity from mass and radius:
+            # keep the parameters that we're going to calculate limits on
+            # below, dimensionless
+
+            R = np.array(radius)*1e5*u.cm #cgs
+            M = np.array(mass)*const.M_sun.to('g') #cgs
+
+            # ChainConsumer's plot method can't handle Quantity objects,
+            # so we need to convert gravity and redshift back to numpy
+            # arrays here
+            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
+
+            cosi_2 = 1/(2*self.samples[:,5])
+            cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
+
+            # now create the chainconsumer object
+
+            _labels = list(labels.keys())[:self.ndim]+['cosi','g','1+z']
+            _plot_labels = labels
+            _plot_labels['cosi'] = '$\cos i$'
+            _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
+            _plot_labels['1+z'] = '$1+z$'
+            _samples =np.column_stack((self.samples, cosi, gravity, redshift))
+            self.cc = ChainConsumer()
+            # self.cc.add_chain(_samples, parameters=_labels)
+            self.cc.add_chain(_samples, parameters=list(_plot_labels.values()))
+            self.cc_parameters = _plot_labels
+            # Can't work out how to do this yet
+            # self.cc.configure(plot_labels=_plot_labels)
+
+            # Now get parameter uncertainties and save to the text file
+
+            Xpred = get_param_uncert(self.samples[:,0])
+            Zpred = get_param_uncert(self.samples[:,1])
+            basepred = get_param_uncert(self.samples[:,2])
+            dpred = get_param_uncert(self.samples[:,3])
+            cosipred = get_param_uncert(cosi)
+            xibpred = get_param_uncert(self.samples[:,4])
+            xippred = get_param_uncert(self.samples[:,5])
+            masspred = get_param_uncert(mass)
+            radiuspred = get_param_uncert(radius)
+            redshiftpred = get_param_uncert(redshift)
+            gravitypred = get_param_uncert(gravity)
+
+            # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
+
+            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred\n value, upper uncertainty, lower uncertainty')
+
+        # ---------------------------------------------------------------------#
+        if 'last' in options:
+
+            # show likelihood contributions for last step
+
+            probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'], 
+                index = np.arange(self.nwalkers) )
+            p_fluen, p_alpha = 0.0, 0.0
+            for _i in np.arange(np.shape(self.last)[0]):
+                ptot, model = self.lnlike(self.last[_i,:], None, self.y, self.yerr, components=True)
+                ato = int(self.train)
+                p_time = -0.5*np.sum(model['cpts'][:self.numburstsobs-ato])
+                if self.cmpr_fluen:
+                    p_fluen = -0.5*np.sum(model['cpts'][self.numburstsobs-ato:2*self.numburstsobs-ato])
+                if self.cmpr_alpha:
+                    p_alpha = -0.5*np.sum(model['cpts'][2*self.numburstsobs-ato:])
+                pprior = self.lnprior(self.last[_i,:])
+                probs.loc[_i] = [ptot, pprior, p_time, p_fluen, p_alpha]
+
+            self.probs = probs
 
         # ---------------------------------------------------------------------#
         if 'autocor' in options:
@@ -1446,26 +1549,77 @@ Initial parameters:
         # ---------------------------------------------------------------------#
         if 'posteriors' in options:
 
-            # Also read in the "flattened" chain, for the posteriors
-
             # make plot of posterior distributions of your parameters:
-            cc = ChainConsumer()
-            cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "d", "xi_b", "xi_p", "M", "R", "fa", "fE"][:self.ndim])
+            # (using the already-created ChainConsumer object)
 
             if truths is None:
                 truths = list(self.theta)
 
             if savefig:
-                cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
+                self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
+                    filename=self.run_id+"_posteriors.pdf",
                     figsize="page", truth=truths)
             else:
-                fig = cc.plotter.plot(figsize="page", truth=truths)
+                fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim], 
+                    figsize="page", truth=truths)
                 fig.show()
             print ("...done")
 
         # ---------------------------------------------------------------------#
-        if (('mrcorner' in options) or ('comparison' in options) \
-            or ('fig6' in options) or ('fig8' in options)):
+        if 'mrcorner' in options:
+
+            # mrgr = np.column_stack((mass, radius, gravity, redshift))
+
+            # plot with chainconsumer:
+            # cc = ChainConsumer()
+            # cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
+            if savefig:
+                self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]], 
+                    filename=self.run_id+"_massradius.pdf",
+                    truth=truths, figsize="page")
+            else:
+                fig = self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
+                    figsize="page", truth=truths)
+                fig.show()
+
+        # ---------------------------------------------------------------------#
+        if 'fig6' in options:
+
+            # fig6data = np.column_stack((xip, xib, distance, base, Z, X))
+            # fig6data = np.column_stack((X, Z, base, distance, xib, xip))
+
+            # plot with chainconsumer:
+
+            # cc = ChainConsumer()
+
+            # configure params below copied from Adelle's jupyter notebook
+            # cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
+            #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
+            if savefig:
+                self.cc.configure(
+                    flip=False, bins=0.7, summary=False, \
+                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                    label_font_size='xx-large',smooth=True, \
+                    sigmas=np.linspace(0, 3, 4)
+                ).plotter.plot(
+                    parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
+                    filename=self.run_id+"_fig6.pdf",
+                    truth=truths, figsize="page")
+            else:
+                fig = self.cc.configure(
+                    flip=False, bins=0.7, summary=False, \
+                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                    label_font_size='xx-large',smooth=True, \
+                    sigmas=np.linspace(0, 3, 4)
+                ).plotter.plot(
+                    parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
+                    truth=truths, figsize="page")
+                fig.show()
+
+        # ---------------------------------------------------------------------#
+        if (('comparison' in options) or ('fig8' in options)):
             # maybe can try to record that we've already read these
             # parameters in, like so
             # and (self.burnin_excluded != burnin):
@@ -1508,24 +1662,6 @@ Initial parameters:
             distance = self.samples[:,3]
             xib = self.samples[:,4]
             xip = self.samples[:,5]
-            mass = self.samples[:,6]
-            radius = self.samples[:,7]
-
-            # calculate redshift and gravity from mass and radius:
-            # keep the parameters that we're going to calculate limits on
-            # below, dimensionless
-
-            R = np.array(radius)*1e5*u.cm #cgs
-            M = np.array(mass)*const.M_sun.to('g') #cgs
-
-            # ChainConsumer's plot method can't handle Quantity objects,
-            # so we need to convert gravity and redshift back to numpy
-            # arrays here
-            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
-            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
-
-            cosi_2 = 1/(2*xip)
-            cosi = 0.5/(2*(xip/xib)-1)
 
             # to get the parameter middle values and uncertainty use the
             # functions get_param_uncert_obs and get_param_uncert_pred,
@@ -1560,22 +1696,6 @@ Initial parameters:
             else:
                 alphas = get_param_uncert_obs(alpha, self.numburstssim)
 
-            Xpred = get_param_uncert(X)
-            Zpred = get_param_uncert(Z)
-            basepred = get_param_uncert(base)
-            dpred = get_param_uncert(distance)
-            cosipred = get_param_uncert(cosi)
-            xippred = get_param_uncert(xip)
-            xibpred = get_param_uncert(xib)
-            masspred = get_param_uncert(mass)
-            radiuspred = get_param_uncert(radius)
-            gravitypred = get_param_uncert(gravity)
-            redshiftpred = get_param_uncert(redshift)
-
-            # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
-
-            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred\n value, upper uncertainty, lower uncertainty')
-
             # make plot of posterior distributions of the mass, radius,
             # surface gravity, and redshift: stack data for input to
             # chainconsumer:
@@ -1583,46 +1703,6 @@ Initial parameters:
             radius = radius.ravel()
             gravity = np.array(gravity).ravel()
             redshift = redshift.ravel()
-
-        # ---------------------------------------------------------------------#
-        if 'mrcorner' in options:
-
-            mrgr = np.column_stack((mass, radius, gravity, redshift))
-
-            # plot with chainconsumer:
-            cc = ChainConsumer()
-            cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
-            if savefig:
-                cc.plotter.plot(filename=self.run_id+"_massradius.pdf",
-                    truth=truths, figsize="page")
-            else:
-                fig = cc.plotter.plot(figsize="page", truth=truths)
-                fig.show()
-
-        # ---------------------------------------------------------------------#
-        if 'fig6' in options:
-
-            # fig6data = np.column_stack((xip, xib, distance, base, Z, X))
-            fig6data = np.column_stack((X, Z, base, distance, xib, xip))
-
-            # plot with chainconsumer:
-
-            cc = ChainConsumer()
-
-            # configure params below copied from Adelle's jupyter notebook
-            cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
-                "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
-                .configure(flip=False, bins=0.7, summary=False, \
-                diagonal_tick_labels=False, max_ticks=3, shade=True, \
-                shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-                label_font_size='xx-large',smooth=True, \
-                sigmas=np.linspace(0, 3, 4))
-            if savefig:
-                cc.plotter.plot(filename=self.run_id+"_fig6.pdf",
-                    truth=truths, figsize="page")
-            else:
-                fig = cc.plotter.plot(figsize="page", truth=truths)
-                fig.show()
 
         # ---------------------------------------------------------------------#
         if 'fig8' in options:
