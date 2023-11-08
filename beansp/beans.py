@@ -1327,9 +1327,11 @@ Initial parameters:
         | reader - sampler object read in from HDF file
         | sampler - chain data
         | nsteps_completed - number of steps completed
-        | samples - flattened samples, omitting burnin interval
+        | samples - flattened samples, omitting first samples_burnin
         | last - last walker positions
         | probs - likelihoods (total, prior, and contributions from each parameter) for the last walker positions
+        | cc - ChainConsumer object with samples and derived cosi, gravity, redshift
+        | cc_parameters - plot labels for cc object
         | blobs - dictionary with model realisations read in from the "blobs"
 
 	By default the method will also create several files, labeled by
@@ -1478,9 +1480,21 @@ Initial parameters:
             redshiftpred = get_param_uncert(redshift)
             gravitypred = get_param_uncert(gravity)
 
-            # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
+            # save to text file with columns: value, upper uncertainty, lower uncertainty
 
-            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred\n value, upper uncertainty, lower uncertainty')
+            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
+                (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
+                masspred, radiuspred,gravitypred/1e14, redshiftpred),
+                fmt='%9.6f',
+                header='''beansp v{} parameter file
+run_id {}, nsteps_completed={}, skipping {} steps for burnin 
+
+Rows are:
+H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
+cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b),
+NS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)
+
+Each row has the 50th percentile value, upper & lower 68% uncertainties'''.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin,))
 
         # ---------------------------------------------------------------------#
         if 'last' in options:
@@ -1667,11 +1681,7 @@ Initial parameters:
             # functions get_param_uncert_obs and get_param_uncert_pred,
             # e.g.
 
-            if self.train:
-                # times = get_param_uncert_obs(time, self.numburstssim*2+1)
-                times = get_param_uncert_obs(time) 
-            else:
-                times = get_param_uncert_obs(time, self.numburstsobs)
+            times = get_param_uncert_obs(time)
             timepred = [x[0] for x in times]
             timepred_errup = [x[1] for x in times]
             timepred_errlow = [x[2] for x in times]
@@ -1682,19 +1692,11 @@ Initial parameters:
             # the appropriate distance & xi_b at that step
 
             fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
-            if self.train:
-                # ebs = get_param_uncert_obs(fpred, self.numburstssim*2)
-                ebs = get_param_uncert_obs(fpred)
-            else:
-                ebs = get_param_uncert_obs(fpred, self.numburstsobs)
+            ebs = get_param_uncert_obs(fpred)
             ebpred = [x[0] for x in ebs]
             ebpred_errup = [x[1] for x in ebs]
             ebpred_errlow = [x[2] for x in ebs]
-            if self.train:
-                # alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
-                alphas = get_param_uncert_obs(alpha)
-            else:
-                alphas = get_param_uncert_obs(alpha, self.numburstssim)
+            alphas = get_param_uncert_obs(alpha)
 
             # make plot of posterior distributions of the mass, radius,
             # surface gravity, and redshift: stack data for input to

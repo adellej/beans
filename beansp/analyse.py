@@ -35,7 +35,7 @@ from .get_data import *
 from .run_emcee import runemcee
 
 
-def get_param_uncert_obs(param_array, numburstssim=None, percentile=[16,50,84]):
+def get_param_uncert_obs(param_array, percentile=[16,50,84]):
     '''
     Get uncertainties on predicted parameters. This routine accepts a
     list-of-lists with (for example) the start times of bursts for each
@@ -58,24 +58,10 @@ def get_param_uncert_obs(param_array, numburstssim=None, percentile=[16,50,84]):
     :return: list of tuples giving parameter centroid and limits
     '''
 
-    # Since the number of bursts simulated is not always known explicitly,
-    # we get that from the predicted value array
+    plist = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
+        zip(*np.percentile(param_array, percentile, axis=0)))
 
-    if numburstssim is None:
-        numburstssim = np.shape(param_array)[1]
-
-    # Now calculate the percentiles for each parameter
-
-    plist = list()
-    for i in range(0,numburstssim):
-        plist = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
-            zip(*np.percentile(param_array, percentile, axis=0)))
-    plist2 = list()
-    plist3 = list(plist)
-    for i in range(0,numburstssim):
-        plist2.append(plist3[i])
-
-    return plist2
+    return list(plist)
 
 
 def get_param_uncert(param_array, percentile=[16,50,84]):
