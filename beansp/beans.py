@@ -75,7 +75,8 @@ def lnZprior(z):
 
 def prior_func(theta_in):
     """
-    This function implements a simple box prior for all the parameters 
+    This function is the default prior and implements a simple box prior
+    for all the parameters 
 
     :param theta_in: parameter vector
 
@@ -104,9 +105,9 @@ def prior_1808(theta_in):
     """
     This function implements a simple box prior for all the parameters
     excluding mass, radius, and the metallicity, which come instead from
-    separate functions
+    :function:`beansp.beans.lnZprior`
 
-    This prior is explicitly intended for use with SAX J1808.4-3653, and
+    This prior is explicitly intended for use with SAX J1808.4-3658, and
     should only be used with extreme caution in other cases!
 
     :param theta_in: parameter vector
@@ -992,6 +993,7 @@ Initial parameters:
         This method generates a table of simulated data based on the
         current theta vector, that can be used for tests of the MCMC
         method
+
         Errors are taken as the mean of the observational errors; bursts
         matching observed bursts (according to the matching algorithm)
         are flagged as ``True`` in the 6th column
