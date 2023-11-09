@@ -1402,8 +1402,10 @@ Initial parameters:
 
             print ("... done. Got {} steps completed".format(self.nsteps_completed))
             self.samples_burnin = None
+            self.models_burnin = None
 
-        if burnin != self.samples_burnin:
+        if (burnin != self.samples_burnin) | \
+            (burnin != self.models_burnin):
 
             # moved burnin to be a parameter, so we can pass that from do_run
             # want to make sure we're using at least about 1000 samples for
@@ -1458,11 +1460,14 @@ Initial parameters:
             _plot_labels['cosi'] = '$\cos i$'
             _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
             _plot_labels['1+z'] = '$1+z$'
-            _samples =np.column_stack((self.samples, cosi, gravity, redshift))
+
             self.cc = ChainConsumer()
+            _samples =np.column_stack((self.samples, cosi, gravity, redshift))
             # self.cc.add_chain(_samples, parameters=_labels)
             self.cc.add_chain(_samples, parameters=list(_plot_labels.values()))
+            self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
+            self.cc_nchain = 1 # initially
             # Can't work out how to do this yet
             # self.cc.configure(plot_labels=_plot_labels)
 
@@ -1633,15 +1638,11 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 fig.show()
 
         # ---------------------------------------------------------------------#
-        if (('comparison' in options) or ('fig8' in options)):
-            # maybe can try to record that we've already read these
-            # parameters in, like so
-            # and (self.burnin_excluded != burnin):
+        if (('comparison' in options) or ('fig8' in options)) & \
+            (self.models_burnin != burnin):
 
             # and finally read in the model realisations
             # This loop can take a LOOOOOONG time for long runs
-            # TODO save this to the Beans object so we only need to read
-            # it in once; need to rationalise what arrays are kept etc.
 
             print ("Reading in and processing blobs, ignoring first {}...".format(burnin))
             blobs = self.reader.get_blobs(flat=True)
@@ -1659,52 +1660,44 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 # X.append(_model['x_0'][0])
             print ("...done")
 
-            # we don't include these in the blobs anymore, to save space
-            # (and they're redundant, as also included in the samples)
-            # X = [data[i]['x_0'][0] for i in range(len(data))]
-            # Z = [data[i]['z'][0] for i in range(len(data))]
-            # base = [data[i]['base'][0] for i in range(len(data))]
-            # r1 = np.array([data[i]['r1'][0] for i in range(len(data))])
-            # r2 = np.array([data[i]['r2'][0] for i in range(len(data))])
-            # r3 = np.array([data[i]['r3'][0] for i in range(len(data))])
-            # mass = np.array([data[i]['mass'][0] for i in range(len(data))])
-            # radius = np.array([data[i]['radius'][0] for i in range(len(data))])
-            # assert np.allclose(X, self.samples[:,0])
-            X = self.samples[:,0]
-            Z = self.samples[:,1]
-            base = self.samples[:,2]
-            distance = self.samples[:,3]
-            xib = self.samples[:,4]
-            xip = self.samples[:,5]
-
             # to get the parameter middle values and uncertainty use the
             # functions get_param_uncert_obs and get_param_uncert_pred,
             # e.g.
 
             times = get_param_uncert_obs(time)
-            timepred = [x[0] for x in times]
-            timepred_errup = [x[1] for x in times]
-            timepred_errlow = [x[2] for x in times]
 
             # Here we calculate the parameter uncertainties on the
             # predcted fluences, for comparison with the observations
-            # TODO really want to convert to observed quantities here with
-            # the appropriate distance & xi_b at that step
 
-            fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
+            # this fails with inhomogeneous arrays; need to do something
+            # a bit more complicated
+            # fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
+            fpred = [list(np.array(_e_b)*self.fluen_fac/self.samples[_i,4]/self.samples[_i,3]**2) for _i, _e_b in enumerate(e_b)]
             ebs = get_param_uncert_obs(fpred)
-            ebpred = [x[0] for x in ebs]
-            ebpred_errup = [x[1] for x in ebs]
-            ebpred_errlow = [x[2] for x in ebs]
+
             alphas = get_param_uncert_obs(alpha)
 
-            # make plot of posterior distributions of the mass, radius,
-            # surface gravity, and redshift: stack data for input to
-            # chainconsumer:
-            mass = mass.ravel()
-            radius = radius.ravel()
-            gravity = np.array(gravity).ravel()
-            redshift = redshift.ravel()
+	    # store these parameters and flag it so we don't need to
+	    # calculate them again (unless burnin changes)
+
+            self.model_pred = { 'mdot': mdot,
+                'times': time, 'time_stats': times,
+                'e_b': e_b, 'e_b_stats': ebs,
+                'alpha': alpha, 'alpha_stats': alphas }
+            self.models_burnin = burnin
+
+            # Here also we modify the ChainConsumer object if we have
+            # multiple models
+
+            if len(times) > self.cc_nchain:
+                numburstssim = np.array([len(x) for x in time])
+                self.cc = ChainConsumer()
+                for _n in set(numburstssim):
+                    self.cc.add_chain(self.samples[numburstssim == _n],
+                        name='{} bursts'.format(_n), 
+                        parameters=list(self.cc_parameters.values()))
+                self.cc_nchain = len(times)
+                print ('Updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
         if 'fig8' in options:
@@ -1780,25 +1773,37 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             if self.train:
-                if self.fluen is not None:
-                    plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
-                        color='black', linestyle='', marker='.', ms=13, label='Observed')
-                else:
-                    for _i in range(self.numburstsobs):
-                        plt.axvline(self.bstart[_i], c='k', ls='--', label='Observed')
+                plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
+                    color='black', linestyle='', marker='.', ms=13, label='Observed')
+                    # redundant option for missing fluence values
+                    # for _i in range(self.numburstsobs):
+                    #     plt.axvline(self.bstart[_i], c='k', ls='--', label='Observed')
 
-            #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
-                # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-                plt.errorbar(timepred[1:], ebpred,
-                    yerr=[ebpred_errup, ebpred_errlow],
-                    xerr=[timepred_errup[1:], timepred_errlow[1:]],
-                    marker='*', ms=11, color='darkgrey', linestyle='',
-                    label='Predicted')
-                plt.xlabel("Time (days after start of outburst)")
+                times = self.model_pred['time_stats']
+                ebs = self.model_pred['e_b_stats']
+                for numburstssim in times.keys():
+                    timepred = [x[0] for x in times[numburstssim]]
+                    timepred_errup = [x[1] for x in times[numburstssim]]
+                    timepred_errlow = [x[2] for x in times[numburstssim]]
+                    ebpred = [x[0] for x in ebs[numburstssim-1]]
+                    ebpred_errup = [x[1] for x in ebs[numburstssim-1]]
+                    ebpred_errlow = [x[2] for x in ebs[numburstssim-1]]
+                    plt.errorbar(timepred[1:], ebpred,
+                        yerr=[ebpred_errup, ebpred_errlow],
+                        xerr=[timepred_errup[1:], timepred_errlow[1:]],
+                        marker='*', ms=11, linestyle='', #color='darkgrey', 
+                        label='Predicted ({})'.format(numburstssim))
+                    plt.xlabel("Time (days after start of outburst)")
             else:
                 # different style plot for the ensemble mode; the bstart
                 # still records the burst time (epoch) but now we prefer
                 # to plot vs. recurrence time
+                timepred = [x[0] for x in times]
+                timepred_errup = [x[1] for x in times]
+                timepred_errlow = [x[2] for x in times]
+                ebpred = [x[0] for x in ebs]
+                ebpred_errup = [x[1] for x in ebs]
+                ebpred_errlow = [x[2] for x in ebs]
                 plt.errorbar(self.tdel, self.fluen, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
                 plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')

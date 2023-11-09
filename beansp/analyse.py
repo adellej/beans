@@ -51,17 +51,33 @@ def get_param_uncert_obs(param_array, percentile=[16,50,84]):
     percentile and the upper & lower uncertainties for each parameter in
     each tuple.
 
-    :param param_array: array of dimension (nsteps*walkers, nbursts) listing the predicted values
-    :param numburstssim: number of events per instance (2nd dimension of
-      param_array)
+    Now modified to handle inhomogeneous arrays, where the number of
+    elements is not constant; this can arise where we have multiple
+    regions of parameter space that are being explored simultaneously
 
-    :return: list of tuples giving parameter centroid and limits
+    :param param_array: array of dimension (nsteps*walkers, nbursts) listing the predicted values
+
+    :return: dict with one or more entries, each with key of the number of bursts and a list of tuples giving parameter centroid and limits
     '''
+
+    try:
+        numburstssim = np.shape(param_array)[1]
+    except:
+        # if the shape fails, then it indicates we have an inhomogeneous
+        # set of model results
+
+        numburstssim = [len(x) for x in param_array]
+        result = dict()
+        for _n in set(numburstssim):
+            _param_array = [x for x in param_array if len(x) == _n]
+            result[_n] = get_param_uncert_obs(_param_array)[_n]
+
+        return result
 
     plist = map(lambda v: (v[1], v[2]-v[1], v[1]-v[0]),
         zip(*np.percentile(param_array, percentile, axis=0)))
 
-    return list(plist)
+    return {numburstssim: list(plist)}
 
 
 def get_param_uncert(param_array, percentile=[16,50,84]):
