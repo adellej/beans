@@ -6,6 +6,10 @@
 #-----------------------------------------
 # emcee v3.0 or above
 emcee>=3.0
+# h5py==v2.10.0 or above. To install h5py v2.10.0 on Ubuntu
+#   you will need to use pip wheels, e.g. $ pip install h5py==2.10.0
+h5py>=2.10.0
+pySettle>=1.3.0
 matplotlib
 numpy
 corner
@@ -13,8 +17,5 @@ astropy
 scipy
 tables
 chainconsumer 
-# h5py==v2.10.0 or above. To install h5py v2.10.0 on Ubuntu
-#   you will need to use pip wheels, e.g. $ pip install h5py==2.10.0
-h5py>=2.10.0
 pytest
-pySettle>=1.3.0
+sphinx_rtd_theme
