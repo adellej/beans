@@ -1176,12 +1176,13 @@ Initial parameters:
         sampler = runemcee(self.nwalkers, self.nsteps,
             self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
             self.run_id, self.restart, self.threads, **kwargs)
-        print(f"...sampling for run_id={self.run_id} complete!")
 
         _end = time.time()
-        print ("Sampling took {0:.1f} seconds".format(_end-_start))
+        print ("  run_id {} took {0:.1f} seconds for {} steps".format(
+            self.run_id, _end-_start, self.nsteps))
 
         if analyse:
+            print ("\nRunning analses with do_analysis...")
             self.do_analysis(burnin=burnin)
         #if self.restart == False:
             #sampler.reset()
