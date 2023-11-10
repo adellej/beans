@@ -42,10 +42,11 @@ def test_run_model():
     
     # updated here with the new ("physical" parameters), v2.0.0 and later
     # and new mdot-to-flux conversion, v2.2.0 and later
+    # and updates to pySettle 1.3.0, removing the 0.65 factor
 
-    exp = [0.18573604, 2.64873525, 3.68307012,   # burst times (d)
-           5.58944758, 5.7597099, 6.14755175, 6.91999859,  # fluences
-           93.53202728, 99.15817178, 106.54369635] # alphas
+    exp = [ 0.14350014,  3.19096834,  5.22761251,    # burst times (d)
+           16.74947202, 16.80537819, 18.85328316, 22.82975017,  # fluences
+           58.41027422, 64.38414044, 70.46505538] # alphas
 
     result = np.allclose(test, exp)#, rtol=1e-4)
 

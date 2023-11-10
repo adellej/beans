@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
+import pandas as pd
 import emcee
 from astropy.io import ascii
 import astropy.units as u
@@ -55,7 +56,11 @@ def lnZprior(z):
     """
     This beta function for the metallicity prior is from Andy Casey and is an
     approximation of the metallicity of a mock galaxy at 2.5-4.5 kpc for the
-    location of 1808. Assuming ZCNO = 0.01 is average value.
+    location of SAX J1808.4-3658. Assuming ZCNO = 0.01 is average value.
+
+    :param z: CNO metallicity (mass fraction)
+
+    :return: prior probability
     """
 
     from scipy import stats
@@ -70,9 +75,12 @@ def lnZprior(z):
 
 def prior_func(theta_in):
     """
-    This function implements a simple box prior for all the parameters 
+    This function is the default prior and implements a simple box prior
+    for all the parameters 
 
     :param theta_in: parameter vector
+
+    :return: prior probability
     """
 
     f_a, f_E = 1.0, 1.0
@@ -97,12 +105,14 @@ def prior_1808(theta_in):
     """
     This function implements a simple box prior for all the parameters
     excluding mass, radius, and the metallicity, which come instead from
-    separate functions
+    :function:`beansp.beans.lnZprior`
 
-    This prior is explicitly intended for use with SAX J1808.4-3653, and
+    This prior is explicitly intended for use with SAX J1808.4-3658, and
     should only be used with extreme caution in other cases!
 
     :param theta_in: parameter vector
+
+    :return: prior probability
     """
 
     f_a, f_E = 1.0, 1.0
@@ -123,11 +133,29 @@ def prior_1808(theta_in):
         return -np.inf
 
 
+def corr_goodwin19(burst, **kwargs):
+    """
+    This is an example Settle correction function that applies the correction
+    of Goodwin et al. (2019), multiplying the recurrence time and burst
+    energy by 0.65. With this correction there is no need to modify the
+    alpha value.
+    The ``**kwargs`` can be used to incorporate other parameters into the
+    correction; from settle we pass the base flux F, mdot M, H-fraction X,
+    metallicity Z, and neutron star radius R and mass M (none used for
+    this example)
+
+    :param burst: 3-element tuple output from settle, with alpha, trec [hr], and burst energy [1e39 erg], all values in the observer frame
+
+    :return: tuple with any necessary corrections performed
+    """
+
+    return (burst[0], burst[1]*0.65, burst[2]*0.65)
+
 def model_str(model):
     """
     Prints a compressed string representation of the model dict, with
-    reduced precision to reduce the size of the record saved to the .h5
-    file
+    selected parameters and reduced precision to reduce the size of the
+    record saved to the .h5 file
 
     :param model: model dictionary as returned by runmodel
 
@@ -148,7 +176,7 @@ def mean_flux_spline(t1, t2, bean):
 
     :param t1: start time for averaging
     :param t2: end time for averaging
-    :param bean: Beans object, from which the remaining parameters are drawn:
+    :param bean: :class:`beansp.Beans` object, from which the remaining parameters are drawn:
       tck_s
 
     :result: mean flux
@@ -159,12 +187,12 @@ def mean_flux_spline(t1, t2, bean):
 
 def mean_flux_linear(t1, t2, bean):
     """
-    Calculates the mean flux between t1 and t2 from the piecewise linear
-    interpolation of tobs,a,b
+    Calculates the mean flux between ``t1`` and ``t2`` from the piecewise
+    linear interpolation of ``tobs``, ``a``, ``b``
 
     :param t1: start time for averaging
     :param t2: end time for averaging
-    :param bean: Beans object, from which the remaining parameters are drawn:
+    :param bean: :class:`beansp.Beans` object, from which the remaining parameters are drawn:
       tobs, a, b
 
     :result: mean flux
@@ -282,8 +310,8 @@ class Beans:
                  run_id="test", obsname=None, burstname=None, gtiname=None,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
                  numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
-                 threads = 4, test_model=True, restart=False,
-                 interp='linear', smooth=0.02, alpha=True, **kwargs):
+                 corr=None, threads = 4, test_model=True, restart=False,
+                 interp='linear', smooth=0.02, fluen=True, alpha=True, **kwargs):
         """
         Initialise a Beans object
 
@@ -313,6 +341,7 @@ class Beans:
           middle of the predicted burst train. This burst will not be
           simulated but will be used as a reference to predict the other bursts.
         :param prior: prior function to use
+        :param corr: correction function for bursts, or None
         :param threads: number of threads for emcee to use (e.g. number of
           cores your computer has). Set to ``None`` to use all available
         :param test_model: flag to test the model during the setup process
@@ -321,6 +350,8 @@ class Beans:
           'linear', or 'spline'
         :param smooth: smoothing factor for spline interpolation
         :param alpha: set to True (default) to include the alphas in the
+          data for comparison, or False to omit
+        :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
         :result: Beans object including all the required data
         """
@@ -373,42 +404,52 @@ class Beans:
         if burstname is None:
             burstname = os.path.join(data_path, '1808_bursts.txt')
 
-        self.lnprior = prior
-        self.bc = bc
-        self.ref_ind = ref_ind
+        # apply the keyword values or defaults
 
-        # Set up initial conditions:
+        self.run_id = run_id
+        self.obsname = obsname
+        self.burstname = burstname
+        self.gtiname = gtiname
+        self.ref_ind = ref_ind
+        self.bc = bc
+        
+        self.theta = theta
+        self.numburstssim = numburstssim
+        self.lnprior = prior
+        self.corr = corr
+        self.nwalkers = nwalkers
+        self.nsteps = nsteps
+        self.threads = threads
+
+        # check for the config_file, and if detected read in (will
+        # override the defaults above):
 
         config_file_exists = None
         if (config_file is not None):
             if (os.path.exists(config_file)):
                 config_file_exists = True
-                alpha = True
+                cmpr_alpha, cmpr_fluen = True, True
                 print ('Reading run params from {} ...'.format(config_file))
                 self.read_config(config_file)
                 print ("...done")
-                # special here for the alpha parameter, which is replaced by
-                # the actual alphas (if the option is True):
-                # (pre-v2.10 config files don't list alpha)
+                # special here for the alpha and fluen parameters, which
+		# are replaced by the actual data values (if the option is
+		# True); (pre-v2.10 config files don't list alpha or fluen)
                 if hasattr(self, 'alpha'):
-                    alpha = not (self.alpha is None)
+                    self.cmpr_alpha = self.alpha
+                    alpha = self.alpha
+                if hasattr(self, 'fluen'):
+                    self.cmpr_fluen = self.fluen
+                    fluen = self.fluen
             else:
                 print ('\n** ERROR ** config file not found, applying keywords\n')
                 config_file_exists = False
 
-        if (not config_file_exists):
-            # apply the keyword values or defaults
-            self.nwalkers = nwalkers
-            self.nsteps = nsteps
-            self.run_id = run_id
-            self.obsname = obsname
-            self.burstname = burstname
-            self.gtiname = gtiname
-            self.theta = theta
-            self.threads = threads
-            self.numburstssim = numburstssim
-            # number of bursts observed (redundant; set below after reading the data)
-            # self.numburstsobs = numburstsobs
+        # Some checks here
+
+        if alpha and (not fluen):
+            print ('** ERROR ** need to include fluences as well as alphas')
+            return
 
         if self.lnprior(self.theta) == -np.inf:
             print ('** ERROR ** supplied parameter vector is excluded by the prior')
@@ -443,6 +484,8 @@ class Beans:
 
         self.bstart_err = BSTART_ERR.to('d').value
 
+        self.matches = None
+
         # Read in all the measurements and set up all the parameters
         # This function now operates on the Beans object directly, and the
         # required attributes:
@@ -452,9 +495,7 @@ class Beans:
         # bypasses the earlier init function, and instead calls get_obs
         # directly
 
-        get_obs(self, alpha=alpha)
-
-        self.numburstsobs = len(self.fluen)
+        get_obs(self, alpha=alpha, fluen=fluen)
 
         # Set interpolation mode, and define averaging function
 
@@ -469,8 +510,6 @@ class Beans:
                 self.smooth = smooth
             self.tck_s = splrep(self.tobs, self.pflux, s=self.smooth)
             self.mean_flux = mean_flux_spline
-
-        self.numburstsobs = len(self.fluen)
 
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
@@ -505,14 +544,15 @@ Observation data file: {}
   bolometric correction: {}
 GTI data file: {}
 Burst data file: {}
-  comprising {} observed bursts, {}including alphas{}
+  comprising {} observed bursts, {}including alphas{}{}
 No. of bursts to simulate: {} ({} mode)
   with {} walkers, {} steps, {} threads{}
 Initial parameters:
 {}
 ==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
             self.numburstsobs, 
-            'not ' if self.alpha is None else '',
+            '' if self.cmpr_alpha else 'not ',
+            '' if self.cmpr_fluen else ' or fluences',
             '' if self.obsname is None else ', ref. to #{}'.format(self.ref_ind),
             self.train+self.numburstssim*(1+self.train),
             'train' if self.train else 'ensemble',
@@ -575,7 +615,10 @@ Initial parameters:
         """
         Routine to write all the configuration parameters to a file, as a
         record of the run; but also to more easily replicate or continue
-        a run
+        a run. List of all the parameters saved to the configuration file:
+        ``run_id``, ``obsname``, ``burstname``, ``gtiname``, ``alpha``,
+        ``fluen``, ``ref_ind``, ``bc``, ``interp``, ``smooth``, ``theta``, 
+        ``numburstssim``, ``prior``, ``nwalkers``, ``nsteps``, ``threads``
 
         :param file: name of file to save the config as. If None, the run_id
           will be used as a prefix
@@ -600,10 +643,9 @@ Initial parameters:
            Config.set("data", "obsname", str(self.obsname))
            Config.set("data", "burstname", self.burstname)
            Config.set("data", "gtiname", str(self.gtiname))
-           if self.alpha is None:
-               Config.set("data", "alpha", str(self.alpha))
-           else:
-               Config.set("data", "alpha", "True")
+           Config.set("data", "alpha", str(self.cmpr_alpha))
+           Config.set("data", "fluen", str(self.cmpr_fluen))
+
            if self.obsname is not None:
                # These parameters only used for "train" mode
                Config.set("data", "ref_ind", str(self.ref_ind))
@@ -616,6 +658,7 @@ Initial parameters:
            Config.set("emcee", "theta", str(self.theta))
            Config.set("emcee", "numburstssim", str(self.numburstssim))
            Config.set("emcee", "prior", str(self.lnprior))
+           Config.set("emcee", "corr", str(self.corr))
            Config.set("emcee", "nwalkers", str(self.nwalkers))
            Config.set("emcee", "nsteps", str(self.nsteps))
            Config.set("emcee", "threads", str(self.threads))
@@ -659,13 +702,29 @@ Initial parameters:
                         tuple(map(float, config.get(section, option)[1:-1].split(', '))))
                 elif option in float_params:
                     setattr(self, option, config.getfloat(section, option))
-                elif option =='prior':
+                elif (option == 'prior'):
                     function_name = config.get(section, option).split(' ')[1]
-                    if function_name != str(self.lnprior).split(' ')[1]:
+                    if (option == 'prior') & (function_name != str(self.lnprior).split(' ')[1]):
                         print ('''
-** WARNING ** config file lists prior function as {}, but supplied prior is {}
-              To fully replicate the previous run you need to specify the same prior using the prior flag on init
-'''.format(function_name, self.lnprior))
+** WARNING ** config file lists the prior function as {},
+                but supplied prior is {}
+              To fully replicate the previous run you need to specify the
+                same prior using the prior=beans.{} flag on init
+'''.format(function_name, str(self.lnprior).split(' ')[1], function_name))
+                elif (option == 'corr'):
+                    function_name = config.get(section, option)
+                    if function_name != 'None':
+                        function_name = function_name.split(' ')[1]
+                    _scorr = str(self.corr)
+                    if _scorr != 'None':
+                        _scorr = _scorr.split(' ')[1]
+                    if (function_name != _scorr):
+                        print ('''
+** WARNING ** config file lists {} for the correction,
+                but supplied value is {}
+              To fully replicate the previous run you need to specify the
+                same option/condition using the corr=beans.{} flag on init
+'''.format(function_name, _scorr, function_name))
                 elif option in int_params:
                     setattr(self, option, config.getint(section, option))
                 else:
@@ -675,6 +734,8 @@ Initial parameters:
                         setattr(self, option, None)
                     elif _value == 'True':
                         setattr(self, option, True)
+                    elif _value == 'False':
+                        setattr(self, option, False)
                     else:
                         setattr(self, option, _value)
 
@@ -713,9 +774,6 @@ Initial parameters:
         Calls runmodel which actually runs the model, either generating a
         burst train, or a set of runs for "ensemble" mode. Then extracts the
         relevant model outputs and calculates the likelihood.
-        Includes an *additional* call to generate_burst_train/burstensemble
-        to get the model, so as to be able to return it to the calling function;
-        this step is totally redundant
 
         :param theta_in: model parameter tuple, with X, Z, Q_b, dist, xi_b,
           xi_p, mass, radius, f_a, f_E 
@@ -743,36 +801,12 @@ Initial parameters:
         if not valid:
             return -np.inf, model
 
-        # Here we convert the model-predicted values to observational
-        # quantities, for comparison with the observations. Previously
-        # this was achieved via the "ratios" of the mdot/luminosity,
-        # fluence and alphas
-        # The times are already relative to the reference bursts, so
-        # nothing needs to be done to those
-
-        # indices for the fluence and the alphas are shifted by one
-        # if we're doing a "train" run, hence the int(self.train) (=1 if
-        # self.train == True
-
-        # Convert burst energy (in observer frame) to fluence
-
-        ato = int(self.train) # array "train" offset
-        # special to trap "unhashable type" error
-        # print (model, ato, len(self.bstart), len(self.fluen))
-
-        model[self.numburstsobs-ato:len(self.fluen)+self.numburstsobs-ato] *= \
-           self.fluen_fac/xi_b/dist**2
-
-        # Convert burst alpha to observed value (incorporating
-        # anisotropies)
-
-        model[len(self.fluen)+self.numburstsobs-ato:] *= xi_b/xi_p
-
         # To simplify final likelihood expression we define inv_sigma2 for each
         # data parameter that describe the error.  The variance (eg sEb0) is
         # underestimated by some fractional amount, f, for each set of
         # parameters.
 
+        ato = int(self.train) # array "train" offset
         err_fac = np.concatenate(( np.full(self.numburstsobs-ato,1.),
             np.full(self.numburstsobs,f_E), np.full(self.numburstsobs-ato,f_a)))
         inv_sigma2 = 1./(yerr[:self.ly]*err_fac[:self.ly])**2
@@ -873,8 +907,10 @@ Initial parameters:
                 print ('** ERROR ** no predicted times to show')
                 return
             # ebpred = np.array(model["e_b"])*np.array(model["r3"])
-            ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
+            # ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
+            ebpred = np.array(model["fluen"])
         else:
+            breakpoint()
             # The other way to return the model is as an array with the burst times, fluences
             # and alphas all together. So unpack those here
             timepred = model[:self.numburstssim+1]
@@ -951,6 +987,45 @@ Initial parameters:
 
         fig.legend(loc=1)
         fig.show()
+
+    def sim_data(self, file=None):
+        """
+        This method generates a table of simulated data based on the
+        current theta vector, that can be used for tests of the MCMC
+        method
+
+        Errors are taken as the mean of the observational errors; bursts
+        matching observed bursts (according to the matching algorithm)
+        are flagged as ``True`` in the 6th column
+
+        :return:
+        """
+
+        print ("Generating simulated data based on parameter vector\n  theta={}:".format(self.theta))
+
+        opz = 1./(np.sqrt(1.-self.gmrc2*self.theta[6]/self.theta[7]))
+        print ('  i.e. source at d={:.2f} kpc, xi_b={:.4f}, xi_p={:.4f}, X={:.2f}, Z={:.3f}, M_NS={:.2f}, R_NS={:.2f}, 1+z={:.3f}, Q_b={:.2f}'.format(
+            self.theta[3],  self.theta[4], self.theta[5], self.theta[0],
+            self.theta[1], self.theta[6], self.theta[7],opz,self.theta[2]))
+        if self.obsname is not None:
+            print ('  persistent fluxes from {}, interp={}, bc={}\n'.format(
+                self.obsname, self.interp, self.bc))
+
+        test, valid, full_model = runmodel(self.theta, self)
+
+        if self.train:
+            for i in range(len(full_model['time'])):
+                if i == 0:
+                    print('{:.5f}	{:.4f}	{:.4f}	{:.1f}	{:.1f}	{}'.format(full_model['time'][0]+self.tref, full_model['fluen'][0],np.mean(self.fluene),0.,0.,str(i in full_model['imatch'])))
+                else:
+                    print('{:.5f}	{:.4f}	{:.4f}	{:.1f}	{:.1f}	{}'.format(full_model['time'][i]+self.tref, full_model['fluen'][i-1],np.mean(self.fluene),full_model['alpha'][i-1],np.mean(self.alphae[1:]),str(i in full_model['imatch'])))
+
+        else:
+            for i in range(len(self.bstart)):
+                print('{:.5f}       {:.3f}      {:.3f}  {:.1f}  {:.1f}  {:.3f}  {:.3f}  {:.3f}  {:.3f}'.format(
+                    self.bstart[i], self.fluen[i], self.fluene[i], 
+                    self.alpha[i],self.alphae[i],self.pflux[i],
+                    self.pfluxe[i],self.tdel[i],self.tdele[i]))
 
     # -------------------------------------------------------------- #
 
@@ -1046,7 +1121,7 @@ Initial parameters:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self, plot=False, analyse=True, burnin=2000):
+    def do_run(self, plot=False, analyse=True, burnin=2000, **kwargs):
         """
         This routine runs the chain for as many steps as is specified in
         the init call.  Emcee parameters are defined in runemcee module.
@@ -1098,14 +1173,16 @@ Initial parameters:
         _start = time.time()
 
         # run the chains and save the output as a h5 file
-        sampler = runemcee(self.nwalkers, self.nsteps, self.theta, self.lnprob, self.lnprior,
-            None, self.y, self.yerr, self.run_id, self.restart, self.threads)
-        print(f"...sampling complete!")
+        sampler = runemcee(self.nwalkers, self.nsteps,
+            self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
+            self.run_id, self.restart, self.threads, **kwargs)
 
         _end = time.time()
-        print ("Sampling took {0:.1f} seconds".format(_end-_start))
+        print ("  run_id {} took {0:.1f} seconds for {} steps".format(
+            self.run_id, _end-_start, self.nsteps))
 
         if analyse:
+            print ("\nRunning analses with do_analysis...")
             self.do_analysis(burnin=burnin)
         #if self.restart == False:
             #sampler.reset()
@@ -1246,8 +1323,22 @@ Initial parameters:
         """
         This method is for running standard analysis and displaying the
         results.
-        Nothing is returned, but by default the method will create several
-        files, labeled by the run_id; drawn from
+        Nothing is returned, but various options for analysis are
+        available, which will (optionally) populate some of the 
+        :class:`beansp.Beans` attributes, including
+
+        | reader - sampler object read in from HDF file
+        | sampler - chain data
+        | nsteps_completed - number of steps completed
+        | samples - flattened samples, omitting first samples_burnin
+        | last - last walker positions
+        | probs - likelihoods (total, prior, and contributions from each parameter) for the last walker positions
+        | cc - ChainConsumer object with samples and derived cosi, gravity, redshift
+        | cc_parameters - plot labels for cc object
+        | blobs - dictionary with model realisations read in from the "blobs"
+
+	By default the method will also create several files, labeled by
+        the run_id; drawn from
 
         | {}_autocorrelationtimes.pdf (via plot_autocorr)
         | {}_predictedburstscomparison.pdf
@@ -1282,7 +1373,8 @@ Initial parameters:
                     'mrcorner': 'corner plot with M, R, g and 1+z',
                     'fig6': 'corner plot with xi_b, xi_p, d, Q_b, Z',
                     'fig8': 'xi_b vs. xi_p and models for comparison',
-                    'comparison': 'observed and predicted burst times, fluences' }
+                    'comparison': 'observed and predicted burst times, fluences',
+                    'last': 'analyse last walker positions' }
 
         if options == 'all':
             options = analyses.keys()
@@ -1312,19 +1404,126 @@ Initial parameters:
             self.nsteps_completed = np.shape(self.sampler)[0]
 
             print ("... done. Got {} steps completed".format(self.nsteps_completed))
+            self.samples_burnin = None
+            self.models_burnin = None
 
-        # moved burnin to be a parameter, so we can pass that from do_run
-        # want to make sure we're using at least about 1000 samples for
-        # our statistics
+        if (burnin != self.samples_burnin) | \
+            (burnin != self.models_burnin):
 
-        # if burnin >= self.nsteps_completed*0.9:
-        if self.nsteps_completed-burnin < 1000:
-            print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
-            burnin = 0
+            # moved burnin to be a parameter, so we can pass that from do_run
+            # want to make sure we're using at least about 1000 samples for
+            # our statistics
 
-        # print ("Reading in flattened samples to show posteriors...")
-        # samples = self.reader.get_chain(flat=True, discard=burnin)
-        self.samples = self.sampler[burnin:,:,:].reshape((-1,self.ndim))
+            # if burnin >= self.nsteps_completed*0.9:
+            if (self.nsteps_completed*self.nwalkers-burnin < 1000) | \
+                (self.nsteps_completed < burnin):
+                print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
+                burnin = 0
+
+            # print ("Reading in flattened samples to show posteriors...")
+            # samples = self.reader.get_chain(flat=True, discard=burnin)
+            samples = self.sampler[burnin:,:,:]
+            self.last = samples[-1,:,:]
+            self.samples = samples.reshape((-1,self.ndim))
+            self.samples_burnin = burnin
+
+            # here now create the overall chainconsumer object that will
+            # enable the various posterior plots below
+
+            labels = {"X": "$X$", "Z": "$Z$", "Qb": "$Q_b$ (MeV)",
+                "d": "$d$ (kpc)", "xi_b": "$\\xi_b$", "xi_p": "$\\xi_p$",
+                "M": "$M$ ($M_\odot$)", "R": "$R$ (km)"}
+            if self.ndim > 8:
+                labels["fa"] = "$f_a$"
+                labels["fE"] = "$f_E$"
+
+            mass = self.samples[:,6]
+            radius = self.samples[:,7]
+
+            # calculate redshift and gravity from mass and radius:
+            # keep the parameters that we're going to calculate limits on
+            # below, dimensionless
+
+            R = np.array(radius)*1e5*u.cm #cgs
+            M = np.array(mass)*const.M_sun.to('g') #cgs
+
+            # ChainConsumer's plot method can't handle Quantity objects,
+            # so we need to convert gravity and redshift back to numpy
+            # arrays here
+            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
+
+            cosi_2 = 1/(2*self.samples[:,5])
+            cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
+
+            # now create the chainconsumer object
+
+            _labels = list(labels.keys())[:self.ndim]+['cosi','g','1+z']
+            _plot_labels = labels
+            _plot_labels['cosi'] = '$\cos i$'
+            _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
+            _plot_labels['1+z'] = '$1+z$'
+
+            self.cc = ChainConsumer()
+            _samples =np.column_stack((self.samples, cosi, gravity, redshift))
+            # self.cc.add_chain(_samples, parameters=_labels)
+            self.cc.add_chain(_samples, parameters=list(_plot_labels.values()))
+            self.samples = _samples # keep the samples up to date
+            self.cc_parameters = _plot_labels
+            self.cc_nchain = 1 # initially
+            # Can't work out how to do this yet
+            # self.cc.configure(plot_labels=_plot_labels)
+
+            # Now get parameter uncertainties and save to the text file
+
+            Xpred = get_param_uncert(self.samples[:,0])
+            Zpred = get_param_uncert(self.samples[:,1])
+            basepred = get_param_uncert(self.samples[:,2])
+            dpred = get_param_uncert(self.samples[:,3])
+            cosipred = get_param_uncert(cosi)
+            xibpred = get_param_uncert(self.samples[:,4])
+            xippred = get_param_uncert(self.samples[:,5])
+            masspred = get_param_uncert(mass)
+            radiuspred = get_param_uncert(radius)
+            redshiftpred = get_param_uncert(redshift)
+            gravitypred = get_param_uncert(gravity)
+
+            # save to text file with columns: value, upper uncertainty, lower uncertainty
+
+            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
+                (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
+                masspred, radiuspred,gravitypred/1e14, redshiftpred),
+                fmt='%9.6f',
+                header='''beansp v{} parameter file
+run_id {}, nsteps_completed={}, skipping {} steps for burnin 
+
+Rows are:
+H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
+cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b),
+NS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)
+
+Each row has the 50th percentile value, upper & lower 68% uncertainties'''.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin,))
+
+        # ---------------------------------------------------------------------#
+        if 'last' in options:
+
+            # show likelihood contributions for last step
+
+            probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'], 
+                index = np.arange(self.nwalkers) )
+            p_fluen, p_alpha = 0.0, 0.0
+            for _i in np.arange(np.shape(self.last)[0]):
+                ptot, model = self.lnlike(self.last[_i,:], None, self.y, self.yerr, components=True)
+                ato = int(self.train)
+                p_time = -0.5*np.sum(model['cpts'][:self.numburstsobs-ato])
+                if self.cmpr_fluen:
+                    p_fluen = -0.5*np.sum(model['cpts'][self.numburstsobs-ato:2*self.numburstsobs-ato])
+                if self.cmpr_alpha:
+                    p_alpha = -0.5*np.sum(model['cpts'][2*self.numburstsobs-ato:])
+                pprior = self.lnprior(self.last[_i,:])
+                probs.loc[_i] = [ptot, pprior, p_time, p_fluen, p_alpha]
+
+            self.probs = probs
 
         # ---------------------------------------------------------------------#
         if 'autocor' in options:
@@ -1372,34 +1571,81 @@ Initial parameters:
         # ---------------------------------------------------------------------#
         if 'posteriors' in options:
 
-            # Also read in the "flattened" chain, for the posteriors
-
             # make plot of posterior distributions of your parameters:
-            cc = ChainConsumer()
-            cc.add_chain(self.samples, parameters=["X", "Z", "Qb", "d", "xi_b", "xi_p", "M", "R", "fa", "fE"][:self.ndim])
+            # (using the already-created ChainConsumer object)
 
             if truths is None:
                 truths = list(self.theta)
 
             if savefig:
-                cc.plotter.plot(filename=self.run_id+"_posteriors.pdf",
+                self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
+                    filename=self.run_id+"_posteriors.pdf",
                     figsize="page", truth=truths)
             else:
-                fig = cc.plotter.plot(figsize="page", truth=truths)
+                fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim], 
+                    figsize="page", truth=truths)
                 fig.show()
             print ("...done")
 
         # ---------------------------------------------------------------------#
-        if (('mrcorner' in options) or ('comparison' in options) \
-            or ('fig6' in options) or ('fig8' in options)):
-            # maybe can try to record that we've already read these
-            # parameters in, like so
-            # and (self.burnin_excluded != burnin):
+        if 'mrcorner' in options:
+
+            # mrgr = np.column_stack((mass, radius, gravity, redshift))
+
+            # plot with chainconsumer:
+            # cc = ChainConsumer()
+            # cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
+            if savefig:
+                self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]], 
+                    filename=self.run_id+"_massradius.pdf",
+                    truth=truths, figsize="page")
+            else:
+                fig = self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
+                    figsize="page", truth=truths)
+                fig.show()
+
+        # ---------------------------------------------------------------------#
+        if 'fig6' in options:
+
+            # fig6data = np.column_stack((xip, xib, distance, base, Z, X))
+            # fig6data = np.column_stack((X, Z, base, distance, xib, xip))
+
+            # plot with chainconsumer:
+
+            # cc = ChainConsumer()
+
+            # configure params below copied from Adelle's jupyter notebook
+            # cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
+            #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
+            if savefig:
+                self.cc.configure(
+                    flip=False, bins=0.7, summary=False, \
+                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                    label_font_size='xx-large',smooth=True, \
+                    sigmas=np.linspace(0, 3, 4)
+                ).plotter.plot(
+                    parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
+                    filename=self.run_id+"_fig6.pdf",
+                    truth=truths, figsize="page")
+            else:
+                fig = self.cc.configure(
+                    flip=False, bins=0.7, summary=False, \
+                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                    label_font_size='xx-large',smooth=True, \
+                    sigmas=np.linspace(0, 3, 4)
+                ).plotter.plot(
+                    parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
+                    truth=truths, figsize="page")
+                fig.show()
+
+        # ---------------------------------------------------------------------#
+        if (('comparison' in options) or ('fig8' in options)) & \
+            (self.models_burnin != burnin):
 
             # and finally read in the model realisations
             # This loop can take a LOOOOOONG time for long runs
-            # TODO save this to the Beans object so we only need to read
-            # it in once; need to rationalise what arrays are kept etc.
 
             print ("Reading in and processing blobs, ignoring first {}...".format(burnin))
             blobs = self.reader.get_blobs(flat=True)
@@ -1417,135 +1663,44 @@ Initial parameters:
                 # X.append(_model['x_0'][0])
             print ("...done")
 
-            # we don't include these in the blobs anymore, to save space
-            # (and they're redundant, as also included in the samples)
-            # X = [data[i]['x_0'][0] for i in range(len(data))]
-            # Z = [data[i]['z'][0] for i in range(len(data))]
-            # base = [data[i]['base'][0] for i in range(len(data))]
-            # r1 = np.array([data[i]['r1'][0] for i in range(len(data))])
-            # r2 = np.array([data[i]['r2'][0] for i in range(len(data))])
-            # r3 = np.array([data[i]['r3'][0] for i in range(len(data))])
-            # mass = np.array([data[i]['mass'][0] for i in range(len(data))])
-            # radius = np.array([data[i]['radius'][0] for i in range(len(data))])
-            # assert np.allclose(X, self.samples[:,0])
-            X = self.samples[:,0]
-            Z = self.samples[:,1]
-            base = self.samples[:,2]
-            distance = self.samples[:,3]
-            xib = self.samples[:,4]
-            xip = self.samples[:,5]
-            mass = self.samples[:,6]
-            radius = self.samples[:,7]
-
-            # calculate redshift and gravity from mass and radius:
-            # keep the parameters that we're going to calculate limits on
-            # below, dimensionless
-
-            R = np.array(radius)*1e5*u.cm #cgs
-            M = np.array(mass)*const.M_sun.to('g') #cgs
-
-            # ChainConsumer's plot method can't handle Quantity objects,
-            # so we need to convert gravity and redshift back to numpy
-            # arrays here
-            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
-            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
-
-            cosi_2 = 1/(2*xip)
-            cosi = 0.5/(2*(xip/xib)-1)
-
             # to get the parameter middle values and uncertainty use the
             # functions get_param_uncert_obs and get_param_uncert_pred,
             # e.g.
 
-            if self.train:
-                times = get_param_uncert_obs(time, self.numburstssim*2+1)
-            else:
-                times = get_param_uncert_obs(time, self.numburstsobs)
-            timepred = [x[0] for x in times]
-            timepred_errup = [x[1] for x in times]
-            timepred_errlow = [x[2] for x in times]
+            times = get_param_uncert_obs(time)
 
             # Here we calculate the parameter uncertainties on the
             # predcted fluences, for comparison with the observations
-            # TODO really want to convert to observed quantities here with
-            # the appropriate distance & xi_b at that step
 
-            fpred = np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2
-            if self.train:
-                ebs = get_param_uncert_obs(fpred, self.numburstssim*2)
-            else:
-                ebs = get_param_uncert_obs(fpred, self.numburstsobs)
-            ebpred = [x[0] for x in ebs]
-            ebpred_errup = [x[1] for x in ebs]
-            ebpred_errlow = [x[2] for x in ebs]
-            if self.train:
-                alphas = get_param_uncert_obs(alpha, self.numburstssim*2)
-            else:
-                alphas = get_param_uncert_obs(alpha, self.numburstssim)
+            # this fails with inhomogeneous arrays; need to do something
+            # a bit more complicated
+            # fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
+            fpred = [list(np.array(_e_b)*self.fluen_fac/self.samples[_i,4]/self.samples[_i,3]**2) for _i, _e_b in enumerate(e_b)]
+            ebs = get_param_uncert_obs(fpred)
 
-            Xpred = get_param_uncert(X)
-            Zpred = get_param_uncert(Z)
-            basepred = get_param_uncert(base)
-            dpred = get_param_uncert(distance)
-            cosipred = get_param_uncert(cosi)
-            xippred = get_param_uncert(xip)
-            xibpred = get_param_uncert(xib)
-            masspred = get_param_uncert(mass)
-            radiuspred = get_param_uncert(radius)
-            gravitypred = get_param_uncert(gravity)
-            redshiftpred = get_param_uncert(redshift)
+            alphas = get_param_uncert_obs(alpha)
 
-            # save to text file with columns: paramname, value, upper uncertainty, lower uncertainty
+	    # store these parameters and flag it so we don't need to
+	    # calculate them again (unless burnin changes)
 
-            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt', (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred) , header='Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred, masspred, radiuspred,gravitypred, redshiftpred\n value, upper uncertainty, lower uncertainty')
+            self.model_pred = { 'mdot': mdot,
+                'times': time, 'time_stats': times,
+                'e_b': e_b, 'e_b_stats': ebs,
+                'alpha': alpha, 'alpha_stats': alphas }
+            self.models_burnin = burnin
 
-            # make plot of posterior distributions of the mass, radius,
-            # surface gravity, and redshift: stack data for input to
-            # chainconsumer:
-            mass = mass.ravel()
-            radius = radius.ravel()
-            gravity = np.array(gravity).ravel()
-            redshift = redshift.ravel()
+            # Here also we modify the ChainConsumer object if we have
+            # multiple models
 
-        # ---------------------------------------------------------------------#
-        if 'mrcorner' in options:
-
-            mrgr = np.column_stack((mass, radius, gravity, redshift))
-
-            # plot with chainconsumer:
-            cc = ChainConsumer()
-            cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
-            if savefig:
-                cc.plotter.plot(filename=self.run_id+"_massradius.pdf",
-                    truth=truths, figsize="page")
-            else:
-                fig = cc.plotter.plot(figsize="page", truth=truths)
-                fig.show()
-
-        # ---------------------------------------------------------------------#
-        if 'fig6' in options:
-
-            # fig6data = np.column_stack((xip, xib, distance, base, Z, X))
-            fig6data = np.column_stack((X, Z, base, distance, xib, xip))
-
-            # plot with chainconsumer:
-
-            cc = ChainConsumer()
-
-            # configure params below copied from Adelle's jupyter notebook
-            cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
-                "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
-                .configure(flip=False, bins=0.7, summary=False, \
-                diagonal_tick_labels=False, max_ticks=3, shade=True, \
-                shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-                label_font_size='xx-large',smooth=True, \
-                sigmas=np.linspace(0, 3, 4))
-            if savefig:
-                cc.plotter.plot(filename=self.run_id+"_fig6.pdf",
-                    truth=truths, figsize="page")
-            else:
-                fig = cc.plotter.plot(figsize="page", truth=truths)
-                fig.show()
+            if len(times) > self.cc_nchain:
+                numburstssim = np.array([len(x) for x in time])
+                self.cc = ChainConsumer()
+                for _n in set(numburstssim):
+                    self.cc.add_chain(self.samples[numburstssim == _n],
+                        name='{} bursts'.format(_n), 
+                        parameters=list(self.cc_parameters.values()))
+                self.cc_nchain = len(times)
+                print ('Updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
         if 'fig8' in options:
@@ -1623,18 +1778,35 @@ Initial parameters:
             if self.train:
                 plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
-            #plt.scatter(time_pred_35, e_b_pred_35, marker = '*',color='cyan',s = 200, label = '2 M$_{\odot}$, R = 11.2 km')
-                # plt.scatter(timepred[1:], ebpred, marker='*', color='darkgrey', s=100, label='Predicted')
-                plt.errorbar(timepred[1:], ebpred,
-                    yerr=[ebpred_errup, ebpred_errlow],
-                    xerr=[timepred_errup[1:], timepred_errlow[1:]],
-                    marker='*', ms=11, color='darkgrey', linestyle='',
-                    label='Predicted')
-                plt.xlabel("Time (days after start of outburst)")
+                    # redundant option for missing fluence values
+                    # for _i in range(self.numburstsobs):
+                    #     plt.axvline(self.bstart[_i], c='k', ls='--', label='Observed')
+
+                times = self.model_pred['time_stats']
+                ebs = self.model_pred['e_b_stats']
+                for numburstssim in times.keys():
+                    timepred = [x[0] for x in times[numburstssim]]
+                    timepred_errup = [x[1] for x in times[numburstssim]]
+                    timepred_errlow = [x[2] for x in times[numburstssim]]
+                    ebpred = [x[0] for x in ebs[numburstssim-1]]
+                    ebpred_errup = [x[1] for x in ebs[numburstssim-1]]
+                    ebpred_errlow = [x[2] for x in ebs[numburstssim-1]]
+                    plt.errorbar(timepred[1:], ebpred,
+                        yerr=[ebpred_errup, ebpred_errlow],
+                        xerr=[timepred_errup[1:], timepred_errlow[1:]],
+                        marker='*', ms=11, linestyle='', #color='darkgrey', 
+                        label='Predicted ({})'.format(numburstssim))
+                    plt.xlabel("Time (days after start of outburst)")
             else:
                 # different style plot for the ensemble mode; the bstart
                 # still records the burst time (epoch) but now we prefer
                 # to plot vs. recurrence time
+                timepred = [x[0] for x in times]
+                timepred_errup = [x[1] for x in times]
+                timepred_errlow = [x[2] for x in times]
+                ebpred = [x[0] for x in ebs]
+                ebpred_errup = [x[1] for x in ebs]
+                ebpred_errlow = [x[2] for x in ebs]
                 plt.errorbar(self.tdel, self.fluen, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
                 plt.scatter(timepred, ebpred, marker='*', color='darkgrey', s=100, label='Predicted')

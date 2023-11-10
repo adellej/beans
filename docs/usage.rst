@@ -2,16 +2,16 @@
 Usage
 =====
 
-To use beans, there are a few steps you need to follow ::
+To use beans, there are a few steps you need to follow:
 
 1. Collect all of the required observational data in the correct format and put it in beans/data folder.
-2. Choose all of the initial conditions and initialise the class object Beans.
+2. Choose all of the initial conditions and initialise the class object :class:`beansp.Beans`.
 3. Run the code!
 4. Analyse the results
 
 
 1. Observational data
-------------------
+---------------------
 
 The code has two modes of operation: "burst train" mode, and "ensemble"
 mode.
@@ -56,9 +56,9 @@ Once you have collected the required data in the correct format and placed it in
 
 
 2. Initialisation
---------------
+-----------------
 
-Initialisation is done by instantiating a Beans object (a "bean", why
+Initialisation is done by instantiating a :class:`beansp.Beans` object (a "bean", why
 not). The parameters you might normally
 need to specify are listed below.
 
@@ -75,7 +75,39 @@ Example initialisation would be something like:
 
 The code should display some information to the terminal that will tell you if reading in the observation data and testing the model was successful. 
 
-**It is important to choose good starting parameters** Ideally you want to
+**Note** that following each run the code will save the settings in a file
+``<run_id>.ini`` which serves as a record, along with the ``.h5`` file
+that stores the chains and model evaluations. If you're restarting or
+re-running the same experiment you can use the ``config_file`` option to
+replicate:
+
+.. code-block:: python
+
+    B = Beans(config_file="test1.ini")
+    B.restart = True
+    B.nsteps = 1000
+ 
+In the example given above we're reading in all the parameters from the
+previous ``test1`` run, but updating the number of steps to go longer this
+time.
+
+**It is important to choose good starting parameters** The
+MCMC walkers will be distributed tightly around a starting point given by
+the ``theta`` parameter, which includes each of the input parameters to the model:
+
+.. code-block:: python
+
+    theta = X, Z, Q_b, d, xi_b, xi_p, M, R [, f_a, f_E]
+
+So an example set of starting conditions would be:
+
+.. code-block:: python
+
+    theta = 0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8
+
+The ``f_a`` and ``f_E`` are optional, and need not be included; see parameters for a description of each of the parameters.
+
+Ideally you want to
 start with a set of parameters for your ``theta`` that roughly replicates
 the burst observations, including the number, fluence, and recurrence
 times. For the 'train' mode, the number of bursts simulated can be
@@ -85,82 +117,99 @@ in time) from the reference burst.
 The recurrence time (and fluence) can be adjusted by
 modifying the distance (larger distance implies larger accretion rate at
 the same flux, and hence more frequent bursts). You can test the effect of
-your trial parameters with the :meth:`.Beans.plot_model` method.
+your trial parameters with the :meth:`beansp.Beans.plot_model` method,
+which produces a plot like so:
+
+.. image:: plot_model_example.png
+   :width: 600
+
+The persistent flux measurements (*red dots*, left-hand *y*-axis) are
+shown, joined by lines implying the use of linear interpolation for
+flux inbetween.
+Fluence of the observed bursts are indicated (*gray circles*,
+right-hand *y*-axis) along with the predicted bursts (*blue stars*).
+The time of the reference burst is indicated (*black vertical line*).
+For the purposes of simulation the code assumes the accretion rate is
+constant between the predicted bursts, which is indicated by the
+stepped line. 
+
+In this example the times of the first and fourth burst are reproduced
+reasonably well (the second burst doesn't count, as its our reference from
+which the simulation is performed in each direction). There's one
+intermediate simulated burst falling between the first and second observed
+bursts,but the third observed burst isn't modeled. So our overall burst
+rate is a little low (and the fluences are too high). Even so, the
+agreement *might* be good enough to use the chosen ``theta`` as a starting
+point. 
+
+Each of the initialisation parameters are described in more detail below:
+
+- **nwalkers**
+  The number of walkers you want the MCMC algorithm to use. Something around 200 should be fine. If you are having convergence issues try doubling the number of walkers - check out the `emcee <https://emcee.readthedocs.io>`_ documentation for more information.
+
+- **nsteps**
+  The desired number of steps the MCMC algorithm will take. Every 100 steps the code checks the autocorrelation time for convergence and will terminate the run if things are converged. So you can set nsteps to something quite large (maybe 10000), but if things are not converging the code will take a very long time to run.
+
+- **run_id**
+  A string identifier to label each code run you do.  It can include the location that the chains and analysis are saved. E.g.  if I were modelling SAX J1808.4--3658 I would choose something like ``run_id = "1808/test1"``.  If the package is installed as recommended, you can run the code from within the directory in which you wish to store the output The ``run_id`` will also specify the name of the ``.ini`` file that will be saved as a record of the run parameters, and can be used to restart/redo the run by initialising a new :class:`beansp.Beans` object via the ``config_file`` parameter
+
+- **obsname**
+  Path to observation data file. Should be a string, e.g.  ``beans/data/1808_obs.txt``. Set to ``None`` to trigger an "ensemble" run
+
+- **burstname**
+  (required) Path to burst data file. Should be a string, e.g.  ``beans/data/1808_bursts.txt``
+
+- **theta**
+  Sets the initial location of your walkers in parameter space. 
+
+- **numburstssim**
+  In "burst train" mode, this is the number of bursts to simulate *in each direction*. I.e. set to roughly half the number of bursts you want to simulate, to cover your entire observed train. Don't forget to account for missed bursts!  In "burst ensemble" mode this is just the number of bursts, so set as equal to the number of bursts observed.
+
+- **bc**
+  Bolometric correction to apply to the persistent flux measurements, in "burst train" mode. If they are already bolometric estimates just set this to 1.0.
+
+- **ref_ind**
+  Index of the adopted reference burst, for "burst train" mode. In this mode the code simulates the burst train both forward and backward in time, so the reference burst should be in the middle of predicted burst train; don't forgot Python indexing starts at 0. This burst will not be simulated but will be used as a reference to predict the times of other bursts.
+
+- **threads**
+  This is required because emcee runs in parallel, so needs to know how many threads (or how many cores your computer has) that it can run on. 
+
+- **restart**
+  If your run is interrrupted and you would like to restart from the save file of a previous run with the ``run_id`` set above, set this to ``True``.  Can also be used if your max step number was not high enough and the chains did not converge before the run finished if you want to start where it finished last time. If this is a new run, set this to ``False``.
+
+Some additional parameters can be used to control the behaviour of the
+sampler:
+
+- **config_file**
+  Read in the parameters from the named file (``.ini`` extension) rather than specifying by hand
+
+- **gtiname**
+  Path to GTI data file. Should be a string, e.g.  ``beans/data/1808_gti.txt``. Set to ``None`` (the default) to turn off GTI checking
+
+- **prior**
+  Use the specified function in place of the default prior; an example which can be adapted to different sources is :func:`beansp.beans.prior_1808`
+
+- **corr**
+  Use the specified function to modify the results from ``pySettle``; an example is :func:`beansp.beans.corr_goodwin19`
+
+- **interp**
+  Interpolation method to average the persistent flux between bursts; options are ``linear`` (the default) and ``spline``. If the latter is chosen, you can also define the smoothing length with the **smooth** parameter (defaults to ``0.02``)
+
+- **alpha**
+  Set to ``False`` to ignore the ``alpha`` measurements in the likelihood; default is ``True``
+
+- **fluen**
+  Set to ``False`` to ignore the ``fluen`` measurements in the likelihood; default is ``True``
+
+- **test_model**
+  Set to ``False`` to skip the model test on init; default is ``True``
 
 If there are no errors or other issues here, move on to running the code.
 
-
-- **nwalkers**
-The number of walkers you want the MCMC algorithm to use. Something around 200 should be fine. If you are having convergence issues try doubling the number of walkers - check out the emcee documentation for more information.
-
-- **nsteps**
-The desired number of steps the MCMC algorithm will take. Every 100 steps the code checks the autocorrelation time for convergence and will terminate the run if things are converged. So you can set nsteps to something quite large (maybe 10000), but if things are not converging the code will take a very long time to run.
-
-- **theta**
-Sets the initial location of your walkers in parameter space.  ``theta`` includes each of the input parameters to the model:
-
-.. code-block:: python
-
-    theta = X, Z, Q_b, d, xi_b, xi_p, M, R, f_a, f_E
-
-So an example set of starting conditions would be:
-
-.. code-block:: python
-
-    theta = 0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0
-
-See parameters for a description of each of the parameters.
-
-- **run_id**
-A string identifier to label each code run you do.
-It can include the location that the chains and analysis are saved. E.g.
-if I were modelling SAX J1808.4--3658 I would choose something like
-``run_id = "1808/test1"``.
-
-If the package is installed as recommended, you
-can run the code from within the directory in which you wish to store the
-output
-
-The ``run_id`` will also specify the name of the ``.ini`` file that will be
-saved as a record of the run parameters, and can be used to restart/redo
-the run by initialising a new Beans object via the ``config_file`` parameter
-
-- **threads**
-This is required because emcee runs in parallel, so needs to know how many threads (or how many cores your computer has) that it can run on. 
-
-- **ref_ind**
-Index of the adopted reference burst, for "burst train" mode. In this mode the code simulates the burst train both forward and backward in time, so the reference burst should be in the middle of predicted burst train; don't forgot Python indexing starts at 0. This burst will not be simulated but will be used as a reference to predict the times of other bursts.
-
-- **numburstssim**
-In "burst train" mode, this is the number of bursts to simulate *in each
-direction*. I.e. set to roughly half the number of bursts you want to
-simulate, to cover your entire observed train. Don't forget to account for missed bursts!
-
-In "burst ensemble" mode this is just the number of bursts, so set as
-equal to the number of bursts observed.
-
-- **obsname**
-Path to observation data file. Should be a string, e.g.  '/Users/adelle/Documents/beans/data/1808_obs.txt'. Set to ``None`` to trigger an "ensemble" run
-
-- **burstname**
-(required) Path to burst data file. Should be a string, e.g. '/Users/adelle/Documents/beans/data/1808_bursts.txt'
-
-- **gtiname**
-Path to GTI data file. Should be a string, e.g.
-'/Users/adelle/Documents/beans/data/1808_gti.txt'. Set to ``None`` to skip
-GTI checking
-
-- **bc**
-Bolometric correction to apply to the persistent flux measurements, in "burst train" mode. If they are already bolometric estimates just set this to 1.0.
-
-- **restart**
-If your run is interrrupted and you would like to restart from the save file of a previous run with the ``run_id`` set above, set this to True.  Can also be used if your max step number was not high enough and the chains did not converge before the run finished if you want to start where it finished last time. If this is a new run, set this to ``False``.
-
-
 3. Running the Code
-----------------
+-------------------
 
-Once you have initialised the ``Beans`` object and ensured all the data is
+Once you have initialised the :class:`beansp.Beans` object and ensured all the data is
 available, you are ready to go. Running the code is done with the following command:
 
 .. code-block:: python
@@ -178,7 +227,7 @@ number of steps ``nsteps`` without converging.
 
 
 4. Analysing the Results
----------------------
+------------------------
 
 The output of the MCMC algorithm is saved in HDF5 format, and will be
 located in whichever folder you chose when you set ``run_id``. For initial analysis of the chains you can run:
@@ -214,10 +263,10 @@ list of strings, specifying one or more of:
   show a "corner" plot with just the neutron star parameters, *M*, *R*, *g* and *1+z*
 
 ``fig6``
-  replicate Figure 6 from `Goodwin et al. (2019) <https://doi.org/10.1093/mnras/stz2638>`, a "corner" plot with *xi_b*, *xi_p*, *d*, *Q_b*, *Z*
+  replicate Figure 6 from `Goodwin et al. (2019) <https://doi.org/10.1093/mnras/stz2638>`_, a "corner" plot with *xi_b*, *xi_p*, *d*, *Q_b*, *Z*
 
 ``fig8``
-  replicate Figure 8 from `Goodwin et al. (2019) <https://doi.org/10.1093/mnras/stz2638>`, plotting *xi_b* vs. *xi_p* and models (where available, via the `concord <https://github.com/outs1der/concord>` repository) for comparison',
+  replicate Figure 8 from `Goodwin et al. (2019) <https://doi.org/10.1093/mnras/stz2638>`_, plotting *xi_b* vs. *xi_p* and models (where available, via the `concord <https://github.com/outs1der/concord>`_ repository) for comparison',
 
 ``comparison``
   plot the observed and predicted burst times and fluences
@@ -227,7 +276,15 @@ by specifying ``savefig=True`` in the call to ``do_analysis``.
 
 **Checking Chain Convergence**
 
-There are two main methods of checking the convergence and behaviour of your MCMC chains. One is the autocorrelation time, which ``emcee`` conveniently calculates for you, and the other is the acceptance fraction. Goodman and Weare (2010) provide a good discussion on what these are and why they are important. Running ``analyse.py`` will print these to the terminal for you to check.
+There are two main methods of checking the convergence and behaviour of
+your MCMC chains. One is the autocorrelation time, which ``emcee``
+conveniently calculates for you, and the other is the acceptance fraction.
+`Goodman and Weare (2010) <https://msp.org/camcos/2010/5-1/p04.xhtml>`_
+provide a good discussion on what these are and why they are important;
+see also the `tutorial with emcee <https://emcee.readthedocs.io/en/stable/tutorials/autocorr>`_. 
+
+Running ``B.do_analysis(['autocor'])`` will display the integrated
+autocorrelation time and the estimates from ``emcee``.
 
 **Obtaining Parameter Constraints**
 
