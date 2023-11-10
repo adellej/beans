@@ -35,7 +35,8 @@ def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
     return list(pos)
 
 
-def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart, threads):
+def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
+    restart, threads, **kwargs):
     """
     Function to initilise and run emcee.
     Removed the redundant parameter ndim, which can be determined from the
@@ -100,58 +101,42 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id, restart
 
         # This will be useful to testing convergence
         old_tau = np.inf
-        if restart == False:
-            for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
-                # Only check convergence every 100 steps
-                if sampler.iteration % 100:
-                    continue
-    
-                # accumulate the acceptance fraction in the file
-                accept_frac = np.mean(sampler.acceptance_fraction)
-                with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
-                    np.savetxt(f, np.c_[float(sampler.iteration),accept_frac],
-                        fmt='%1.4e, %1.4f')
-    
-                # Compute the autocorrelation time so far
-                # Using tol=0 means that we'll always get an estimate even
-                # if it isn't trustworthy
-                tau = sampler.get_autocorr_time(tol=0)
-                autocorr[index] = np.mean(tau)
-                index += 1
-    
-                # Check convergence
-                converged = np.all(tau * 100 < sampler.iteration)
-                converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
-                if converged:
-                    print('Complete! Chains are converged')
-                    break
-                old_tau = tau
-        else:
-            pos = sampler.get_last_sample()
-            for sample in sampler.sample(pos, iterations=nsteps, progress=True, store=True):
-                if sampler.iteration % 100:
-                    continue
-                # Compute the autocorrelation time so far
-                # Using tol=0 means that we'll always get an estimate even
-                # if it isn't trustworthy
-    
-                accept_frac = np.mean(sampler.acceptance_fraction)
-                with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
-                    np.savetxt(f, [[float(sampler.iteration)],[accept_frac]], delimiter=',', newline='\n') 
-    
-                tau = sampler.get_autocorr_time(tol=0)
-                autocorr[index] = np.mean(tau)
-                index += 1
-    
-                # Check convergence
-                converged = np.all(tau * 100 < sampler.iteration)
-                converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
-                if converged:
-                    print('Complete! Chains are converged')
-                    break
-                old_tau = tau
 
-        print('Complete! WARNING max number of steps reached but chains may or may not be converged.')
+        # Earlier we had 2 identical sections here for the 2 restart
+	# options, but the only difference was the choice of the starting
+	# positions, so have now merged them
+
+        if restart == True:
+            pos = sampler.get_last_sample()
+
+        for sample in sampler.sample(pos, iterations=nsteps, progress=True,
+            **kwargs):
+            # Only check convergence every 100 steps
+            if sampler.iteration % 100:
+                continue
+    
+            # accumulate the acceptance fraction in the file
+            accept_frac = np.mean(sampler.acceptance_fraction)
+            with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
+                np.savetxt(f, np.c_[float(sampler.iteration),accept_frac],
+                    fmt='%1.4e, %1.4f')
+    
+            # Compute the autocorrelation time so far
+            # Using tol=0 means that we'll always get an estimate even
+            # if it isn't trustworthy
+            tau = sampler.get_autocorr_time(tol=0)
+            autocorr[index] = np.mean(tau)
+            index += 1
+    
+            # Check convergence
+            converged = np.all(tau * 100 < sampler.iteration)
+            converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+            if converged:
+                print('...sampling complete! Chains are converged')
+                break
+            old_tau = tau
+
+        print('...sampling complete! ** WARNING ** chains may not be converged.')
 
     return sampler
 

@@ -37,7 +37,7 @@ def settle_multiprocessing_wrapper(ft_list_item):
                          ft_list_item['Z'],
                          ft_list_item['X'],
                          ft_list_item['mdot']/(1+ft_list_item['X']),
-                         1.0,
+                         # 1.0,
                          ft_list_item['M_NS'],
                          ft_list_item['R_NS'])
 
@@ -127,7 +127,8 @@ def test_settle_benchmark():
             res = settle.settle(Q_b, ft[i]['Z'],
                                 ft[i]['X'],
                                 ft[i]['mdot']/(1+ft[i]['X']),
-                                1.0, M_NS, R_NS)
+                                # 1.0, 
+                                M_NS, R_NS)
             ts1_end = time.process_time()
             ts1_sum += (ts1_end-ts1_start)
             tdel.append(res['tdel'][0])

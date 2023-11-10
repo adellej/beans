@@ -23,7 +23,6 @@ beansp makes use of Dan Foreman-Mackey's python implementation of MCMC, emcee, a
    usage
    modules
    contributing
-   history
 
 Indices and tables
 ==================
