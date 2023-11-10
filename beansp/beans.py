@@ -1178,7 +1178,7 @@ Initial parameters:
             self.run_id, self.restart, self.threads, **kwargs)
 
         _end = time.time()
-        print ("  run_id {} took {0:.1f} seconds for {} steps".format(
+        print ("  run_id {} took {:.1f} seconds for {} steps".format(
             self.run_id, _end-_start, self.nsteps))
 
         if analyse:
