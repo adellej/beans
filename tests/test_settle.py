@@ -1,15 +1,19 @@
 """ test to check if settle has been compiled correctly """
 
-from pySettle  import settler as se
+# from pySettle  import settler as se
+import pySettle
 import numpy as np
 
 def test_settle_location():
-    se.Settle()
+    # se.Settle()
+    pySettle.settler.Settle()
     return
 
 def test_settle_output():
+    settle_version = pySettle.__version__
     # initialize settle interface
-    settle = se.Settle()
+    # settle = se.Settle()
+    settle = pySettle.settler.Settle()
 
     # run settle:
     res = settle.full(F=0.1,M=0.1,X=0.7,Z=0.02, C=0, R=11.2, Ma=1.4)
@@ -27,7 +31,7 @@ def test_settle_output():
     if result:
         print("PASSED")
     else:
-        print("FAILED")
+        print("FAILED; pySettle v{}, res={}".format(settle_version,res))
     assert result
 
     return
