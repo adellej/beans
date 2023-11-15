@@ -26,6 +26,13 @@ except:
     # in which case just record the path
     __version__ = os.getcwd()
 
+# Set the default font to Times; this doesn't seem to affect the
+# ChainConsumer plots
+
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.serif'] = ['Times']
+plt.rcParams['text.usetex'] = True
+
 # Some constants
 
 BSTART_ERR = 10*u.min # Default uncertainty for burst start times
@@ -870,16 +877,15 @@ Initial parameters:
 
 
 
-    def plot_model(self, model=None, mdot=True, title=None):
+    def plot_model(self, show_model=True, model=None, mdot=True, title=None):
         """
         Display a plot of the model results, for a burst train calculated
         with generate_burst_train Adapted from the example at
         https://matplotlib.org/gallery/api/two_scales.html
 
-        :param model: array of packed model prediction, OR dict giving full
-          model results
-        :param mdot: flag to show mdot rather than flux (only possible if
-          you're passing the full model)
+        :param show_model: set to False to skip the model generation step, in which case only the observed data will be plotted
+        :param model: array of packed model prediction, OR dict giving full model results
+        :param mdot: flag to show mdot rather than flux (only possible if you're passing the full model)
         :param title: add a title, if required
         """
 
@@ -895,7 +901,9 @@ Initial parameters:
 
         X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
         if model is None:
-            test, valid, model = runmodel(self.theta, self, debug=False)
+            # no need to do the matching here
+            test, valid, model = runmodel(self.theta, self, match=False,
+                debug=False)
 
         full_model = False  # Flag to remember whether we're plotting the full model output of
                             # generate burst train or the packed output array
@@ -903,12 +911,13 @@ Initial parameters:
         if type(model) == dict:
             full_model = True
             timepred = model["time"]
-            if len(timepred) == 0:
+            if (len(timepred) == 0): # | (not valid):
                 print ('** ERROR ** no predicted times to show')
-                return
+                show_model = False
+            else:
             # ebpred = np.array(model["e_b"])*np.array(model["r3"])
             # ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
-            ebpred = np.array(model["fluen"])
+                ebpred = np.array(model["fluen"])
         else:
             breakpoint()
             # The other way to return the model is as an array with the burst times, fluences
@@ -963,19 +972,21 @@ Initial parameters:
             if tobs is not None:
                 # Plot the observed bursts, if available
                 ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
-            ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+            if show_model:
+                ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
             # we have time but not fluence for the first burst
-            ax2.axvline(timepred[0], color=bursts_color, ls='--')
-            # and the averaged mdot over the burst interval (predicted)
-            av_mdot = []
-            for i in range(len(timepred)-1):
-                av_mdot.append(self.flux_to_mdot(X, dist, xi_p, mass, radius,
-                    self.mean_flux(timepred[i], timepred[i+1], self)))
-            av_mdot.insert(0, av_mdot[0])
-            ax1.step(timepred, av_mdot, where='pre', color=flux_color)
+                ax2.axvline(timepred[0], color=bursts_color, ls='--')
+                # and the averaged mdot over the burst interval (predicted)
+                av_mdot = []
+                for i in range(len(timepred)-1):
+                    av_mdot.append(self.flux_to_mdot(X, dist, xi_p, mass, radius,
+                        self.mean_flux(timepred[i], timepred[i+1], self)))
+                av_mdot.insert(0, av_mdot[0])
+                ax1.step(timepred, av_mdot, where='pre', color=flux_color)
         else:
             ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
-            ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+            if show_model:
+                ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
 
         ax2.tick_params(axis='y', labelcolor=bursts_color)
 
@@ -1617,32 +1628,25 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # configure params below copied from Adelle's jupyter notebook
             # cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
             #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
+            self.cc.configure(
+                flip=False, bins=0.7, summary=False, \
+                diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                label_font_size='xx-large',smooth=True, \
+                sigmas=np.linspace(0, 3, 4), usetex=True, serif=True)
             if savefig:
-                self.cc.configure(
-                    flip=False, bins=0.7, summary=False, \
-                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
-                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-                    label_font_size='xx-large',smooth=True, \
-                    sigmas=np.linspace(0, 3, 4)
-                ).plotter.plot(
+                self.cc.plotter.plot(
                     parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
                     filename=self.run_id+"_fig6.pdf",
                     truth=truths, figsize="page")
             else:
-                fig = self.cc.configure(
-                    flip=False, bins=0.7, summary=False, \
-                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
-                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-                    label_font_size='xx-large',smooth=True, \
-                    sigmas=np.linspace(0, 3, 4)
-                ).plotter.plot(
+                fig = self.cc.plotter.plot(
                     parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
                     truth=truths, figsize="page")
                 fig.show()
 
         # ---------------------------------------------------------------------#
-        if (('comparison' in options) or ('fig8' in options)) & \
-            (self.models_burnin != burnin):
+        if ('comparison' in options) & (self.models_burnin != burnin):
 
             # and finally read in the model realisations
             # This loop can take a LOOOOOONG time for long runs
@@ -1709,8 +1713,8 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # probably a better way to do this, via concord (if it's
             # available)
 
-            counts, ybins, xbins, image = plt.hist2d(np.array(xip),
-                np.array(xib), bins=500, norm=LogNorm(), cmap='OrRd')
+            counts, ybins, xbins, image = plt.hist2d(self.samples[:,5],
+                self.samples[:,4], bins=500, norm=LogNorm(), cmap='OrRd')
 
             xi_p_model2 = np.arange(0, 2.5, 0.01)
             xi_b_model2 = np.empty(len(xi_p_model2))

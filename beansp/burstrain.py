@@ -38,6 +38,8 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
 
     tobs = bean.tobs
 
+    debug_plot=False # for now don't do the debug plots 
+
     mdot_res = 1e-6
     fn = "next_burst"
     assert direction in (1,-1)
@@ -63,7 +65,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
     # mdot0 = (0.67 / 8.8) * bean.pflux[itobs[0]] * r1 
     mdot0 = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, bean.pflux[itobs[0]])
     if debug:
-        print("{}: z={}, X_0={}, r1={}".format(fn, z, x_0, r1 ))
+        print("{}: z={}, X_0={}, mdot_0={}".format(fn, z, x_0, mdot0 ))
 
     # Calculate the burst properties for the trial mdot value
     trial = settle(base, z, x_0, mdot0, mass, radius, corr=bean.corr)
@@ -123,29 +125,31 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
     mdot_hist.append(mdot)
     tdel_hist.append(trial.tdel[0]/24.)
     if debug:
-        print('{}: mdot_hist={}'.format(fn, mdot_hist))
+        print('{}: nreturn={}, nreturn_total={}, mdot_hist={}'.format(
+            fn, nreturn, nreturn_total, mdot_hist))
 
-        # now produce a diagnostic plot with the debug flag
-        # plt.plot(t1+np.array(tdel_hist), mdot_hist, '.', label='tdel history')
-        for tdel in tdel_hist:
-            plt.axvline(t1+tdel, color='k', ls='--')
-        # also calculate a bunch of values to compare with
-        t_arr = np.arange(t1, max(tobs), step=0.1)
-        m_arr = [0]
-        t_arr2 = [t1]
-        for t in t_arr[1:]:
-            _mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius,
-                bean.mean_flux(t1, t, bean) )
-            _tmp = settle(base, z, x_0, _mdot, mass, radius, corr=bean.corr)
-            t_arr2.append(t1+_tmp.tdel[0]/24.)
-            m_arr.append(_mdot)
-        plt.plot(t_arr, np.array(t_arr2), '-', label='tdel')
-        plt.plot(t_arr, t_arr, '-', label='1:1')
-        plt.xlim((0,1.1*max(t1+np.array(tdel_hist))))
-        plt.ylim((0,1.1*max(t1+np.array(tdel_hist))))
-        # plt.plot(np.array(t_arr2), np.array(m_arr), '.')
-        plt.legend()
-        plt.show()
+        if debug_plot:
+            # now produce a diagnostic plot with the debug flag
+            # plt.plot(t1+np.array(tdel_hist), mdot_hist, '.', label='tdel history')
+            for tdel in tdel_hist:
+                plt.axvline(t1+tdel, color='k', ls='--')
+            # also calculate a bunch of values to compare with
+            t_arr = np.arange(t1, max(tobs), step=0.1)
+            m_arr = [0]
+            t_arr2 = [t1]
+            for t in t_arr[1:]:
+                _mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius,
+                    bean.mean_flux(t1, t, bean) )
+                _tmp = settle(base, z, x_0, _mdot, mass, radius, corr=bean.corr)
+                t_arr2.append(t1+_tmp.tdel[0]/24.)
+                m_arr.append(_mdot)
+            plt.plot(t_arr, np.array(t_arr2), '-', label='tdel')
+            plt.plot(t_arr, t_arr, '-', label='1:1')
+            plt.xlim((0,1.1*max(t1+np.array(tdel_hist))))
+            plt.ylim((0,1.1*max(t1+np.array(tdel_hist))))
+            # plt.plot(np.array(t_arr2), np.array(m_arr), '.')
+            plt.legend()
+            plt.show()
 
     # if mdot < minmdot or mdot > maxmdot:
     if abs(mdot - mdot_hist[-2]) > mdot_res / 2.0:
@@ -208,6 +212,7 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     | e_b      [ 0  1  2  3  4  5  6  ... n-1 ]
     """
 
+    fn = "generate_burst_train"
     forward, backward = True, True  # go in both directions at the start
 
     mdot_max = -1
@@ -240,6 +245,9 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     # for i in range (0,2*(1+double)+1): # Do the 5th burst also, forward only
     for i in range(0, bean.numburstssim):  # Do the 5th burst also, forward only
 
+        if debug:
+            print ("{}: simulating burst {} of {}".format(fn, i, bean.numburstssim))
+
         # Here we adopted recurrence time corrections for SAX
 	# J1808.4--3658 ,since the accretion rate is not constant over the
 	# extrapolated time, resulting in the recurrence time being
@@ -269,20 +277,20 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
 
         if backward:
             # Find the time for the *previous* burst in the train
-            result2 = next_burst( bean, base, x_0, z, earliest, 
+            result_b = next_burst( bean, base, x_0, z, earliest, 
                 dist, xi_p, cfac, mass, radius, direction=-1, debug=debug)
 
         if forward:
             # Also find the time for the *next* burst in the train
-            result3 = next_burst( bean, base, x_0, z, latest, 
+            result_f = next_burst( bean, base, x_0, z, latest, 
                 dist, xi_p, cfac, mass, radius, direction=1, debug=debug)
 
-        if result2 is not None:
+        if result_b is not None:
             # we have a result from the next_burst call going backward, so add its properties to the arrays
-            t2 = result2.t2[0]
-            _alpha = result2.alpha[0]
-            _e_b = result2.e_b[0]
-            _mdot = result2.mdot
+            t2 = result_b.t2[0]
+            _alpha = result_b.alpha[0]
+            _e_b = result_b.e_b[0]
+            _mdot = result_b.mdot
             if salpha == -1:
                 # create the arrays with which to accumulate the results
                 stime = [t2, sbt]
@@ -299,14 +307,16 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
             earliest = t2
         else:
             # if the earlier burst has failed, we don't need to pursue any further
+            if debug:
+                print("{}: abandoning backward search, step {}".format(fn, i))
             backward = False
 
-        if result3 is not None:
+        if result_f is not None:
             # we have a result from the next_burst call going forward, so add its properties to the arrays
-            t3 = result3.t2[0]
-            _alpha2 = result3.alpha[0]
-            _e_b2 = result3.e_b[0]
-            _mdot2 = result3.mdot
+            t3 = result_f.t2[0]
+            _alpha2 = result_f.alpha[0]
+            _e_b2 = result_f.e_b[0]
+            _mdot2 = result_f.mdot
             if salpha == -1:
                 # This shouldn't happen, as we should be able to get at least one earlier burst
                 stime = [sbt, t3]
@@ -320,6 +330,11 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
                 smdot.append(_mdot2)
                 stime.append(t3)
             latest = t3
+        else:
+    
+            if debug:
+                print("{}: abandoning backward search, step {}".format(fn, i))
+            forward = False
 
         # Check the results here
 
@@ -361,6 +376,9 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
         result["alpha"] = salpha
         result["e_b"] = se_b
         #print(f"In burstrain fluence is {se_b}")
+
+    if debug:
+        print ("{}: train complete, result={}".format(fn, result))
 
     return result
 
