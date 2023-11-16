@@ -16,6 +16,6 @@ corner
 astropy
 scipy
 tables
-chainconsumer 
+chainconsumer<=0.34.0
 pytest
 sphinx_rtd_theme

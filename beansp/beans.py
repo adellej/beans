@@ -1346,7 +1346,7 @@ Initial parameters:
         | probs - likelihoods (total, prior, and contributions from each parameter) for the last walker positions
         | cc - ChainConsumer object with samples and derived cosi, gravity, redshift
         | cc_parameters - plot labels for cc object
-        | blobs - dictionary with model realisations read in from the "blobs"
+        | model_pred - dictionary with model realisations read in from the "blobs"
 
 	By default the method will also create several files, labeled by
         the run_id; drawn from
@@ -1478,7 +1478,9 @@ Initial parameters:
             self.cc = ChainConsumer()
             _samples =np.column_stack((self.samples, cosi, gravity, redshift))
             # self.cc.add_chain(_samples, parameters=_labels)
-            self.cc.add_chain(_samples, parameters=list(_plot_labels.values()))
+            self.cc.add_chain(_samples, parameters=list(_plot_labels.values()),
+                name=self.run_id)
+            self.cc.configure(usetex=True, serif=True)
             self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
@@ -1633,7 +1635,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 diagonal_tick_labels=False, max_ticks=3, shade=True, \
                 shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
                 label_font_size='xx-large',smooth=True, \
-                sigmas=np.linspace(0, 3, 4), usetex=True, serif=True)
+                sigmas=np.linspace(0, 3, 4))
             if savefig:
                 self.cc.plotter.plot(
                     parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
