@@ -4,7 +4,107 @@ import numpy as np
 # load local module
 from .burstrain import *
 
-def runmodel(theta_in, bean, debug=False):
+def burst_time_match(iref, time1, time2):
+    """
+    Function to generate an array of indices of elements in time2 that are
+    closest (overall) to the elements of time1. One of the elements of
+    time1 (index iref) is chosen as a "reference" that should be
+    replicated exactly in time2
+
+    :param iref: index of "reference" time in array time1
+    :param time1: times to match. In run_model, this is the observed burst times
+    :param time2: times to be matched; i.e. the predicted burst times
+
+    :return: list of indices having same length as time1
+    """
+
+    def match_left(ix, iref, time1, time2, first=None):
+        """
+        Routine to determine nearest values in array time2 for the 0 to ix[0]'th
+        elements of array time1, with the first guess optionally given
+        """
+
+        for _i in np.arange(iref,0,-1)-1:
+            # print (_i, iref, time1[_i], time2[:ix[0]], np.argmin(np.abs(time1[_i]-time2[:ix[0]])))
+            if (_i == iref-1) & (first is not None): # & (first < ix[0]):
+                ix.insert(0, first)
+            elif ix[0] <= 0:
+                break
+            else:
+                ix.insert(0, np.argmin(np.abs(time1[_i]-time2[:ix[0]])))   
+    
+        return ix
+
+    def match_right(ix, iref, time1, time2, first=None):
+        """
+	Routine to determine nearest values in array time2 for the
+	ix[-1]'th to last elements of array time1, with the first guess
+        optionally given
+        """
+    
+        for _i in np.arange(iref,len(time1)-1)+1:
+            # print (_i, time1[_i], time2[ix[-1]+1:], ix[-1]+1, len(time2))#np.argmin(np.abs(time1[_i]-time2[ix[-1]+1:])))
+            if (_i == iref+1) & (first is not None):
+                ix.append(first)
+            elif ix[-1]+1 == len(time2):
+                break
+            else:
+                ix.append( np.argmin(np.abs(time1[_i]-time2[ix[-1]+1:]))+ix[-1]+1 )
+
+        return ix
+
+    ref_tpred = np.argmin(np.abs(time2 - time1[iref]))
+    # make sure we have enough bursts to match, on either side of the
+    # reference
+    if ((ref_tpred < iref) | (len(time2)-ref_tpred-1 < len(time1)-iref-1)):
+        return None
+
+    ix = [ref_tpred]
+    ix = match_left(ix, iref, time1, time2)
+
+    ix = match_right(ix, iref, time1, time2)
+
+    if len(ix) < len(time1):
+        return None
+
+    # now do the refinement stage. When you have skipped bursts (i.e.
+    # predicted bursts that are not observed) it's possible that the
+    # nearest burst for one in the sequence away from the ends, will force
+    # a sub-optimal choice further out (from the ref) in the train. So
+    # these sections are designed to test for that
+
+    # print (ix, np.sum(np.abs(time1-time2[ix])))
+
+    _i = 0
+    while _i < iref-1:
+        # print (_i, ix[_i+1]-ix[_i], ix[_i+2]-ix[_i+1])
+        if (ix[_i+1]-ix[_i] == 1) & (ix[_i+2]-ix[_i+1] > 1):
+            ix_try = match_left(ix[_i+2:], _i+2, time1, time2, first=ix[_i+1]+1)
+            # print (ix_try, np.sum(np.abs(time1-time2[ix_try])))
+            if np.sum(np.abs(time1-time2[ix_try])) < np.sum(np.abs(time1-time2[ix])):
+                ix = ix_try
+                _i = -1 # so as to start from the start again, after _i is incremented below
+        _i += 1
+
+    # print ('after leftward refinement: ',ix)
+
+    _i = len(ix)-1
+    while _i > iref+1:
+        # print (_i, ix[_i]-ix[_i-1], ix[_i-1]-ix[_i-2], ix[:_i-1])
+        if (ix[_i]-ix[_i-1] == 1) & (ix[_i-1]-ix[_i-2] > 1):
+            ix_try = match_right(ix[:_i-1], _i-2, time1, time2, first=ix[_i-1]-1)
+            # print (ix_try, np.sum(np.abs(time1-time2[ix_try])))
+            if np.sum(np.abs(time1-time2[ix_try])) < np.sum(np.abs(time1-time2[ix])):
+                ix = ix_try
+                _i = len(ix) # so as to start from the end again, after _i is decremented below
+        _i -= 1
+
+    # print ('after rightward refinement: ',ix)
+
+    return ix
+
+
+def runmodel(theta_in, bean, match=True, debug=False):
     """
     This routine calls one of two functions that generate the burst model
     predictions, either generate_burst_train or burstensemble, depending on
@@ -17,7 +117,9 @@ def runmodel(theta_in, bean, debug=False):
     :param bean: Beans object, from which the required parameters are drawn:
       y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
       ref_ind, gti_checking,train, gti_start=None, gti_end=None,
-    :param debug: set to True to display more diagnostic information
+    :param match: set to False to skip the burst matching stage, which is useful for exploratory/diagnostic purposes
+    :param debug: set to True to display more diagnostic information, passed also to generate_burst_train
+
     :return: model array with predicted burst parameters, Boolean giving
       the validity of the solution (i.e. consistent with the GTI information),
       and the full result dict from generate_burst_train/burstensemble
@@ -40,8 +142,9 @@ def runmodel(theta_in, bean, debug=False):
         # This routine generates a simulated burst train. The output is a
         # dict with keys corresponding to the model parameters and
         # predicted values.
+        # We now pass on the debug flag to help with exploratory work
 
-        result = generate_burst_train( bean,  Q_b, X, Z, dist, xi_p, mass, radius)
+        result = generate_burst_train( bean,  Q_b, X, Z, dist, xi_p, mass, radius, debug=debug)
 
         # we need to reject unsuitable models here. The simplest (although
         # insufficiently strict) criterion is to at least simulate as many
@@ -50,94 +153,12 @@ def runmodel(theta_in, bean, debug=False):
         tpred = np.array(result["time"])
         npred = len(tpred)
         if npred < bean.numburstsobs:
+            if debug:
+                print ('runmodel: insufficient number of bursts simulated ({} of {}'.format(npred, bean.numburstsobs))
             return None, False, result
 
         # bug testing sample model values
         # model = np.array([-0.04106, 2.77858, 3.99188, 3.73303, 3.68542, 4.16907, 4.71480, 115.000, 126.903, 138.070]) #to test the code we define the model as an array, where the numbers in the array are values for the parameters of y, in the same order as y. Values have been taken from Duncan's example code output
-
-        if (bean.y is not None) & (npred > 0):
-
-            # Assemble the array for comparison with the data
-            # First the burst times; we dynamically determine which
-            # match offers the smallest error in absolute terms, from the 
-            # available possibilities
-
-            ref_tpred = np.argmin(np.abs(tpred - bean.bstart[bean.ref_ind]))
-            if ((ref_tpred < bean.ref_ind) |
-                (npred-ref_tpred-1 < bean.numburstsobs-bean.ref_ind-1)):
-                return None, False, result
-
-            # i, j, ref_ind, ref_tpred = 5, 10, 2, 6
-
-            # it likely is not necessary to generate the match array every
-            # time. You could store the matches array and check if it needs
-            # updating, e.g. with the following:
-
-            calc_matches = True
-            if bean.matches is not None:
-                if (set(bean.matches[:,bean.ref_ind]) == set([ref_tpred]) and 
-                    (np.max(bean.matches) == npred-1)):
-                    calc_matches = False
-
-            if calc_matches:
-                # initial match array, with the earliest bursts before and
-                # after the reference
-                imatch = np.concatenate( (np.arange(bean.ref_ind),
-                    np.arange(bean.numburstsobs-bean.ref_ind)+ref_tpred ) )
-                # final match array, with the *latest* possible bursts
-                jmatch = np.concatenate( (np.arange(ref_tpred-bean.ref_ind, ref_tpred+1),
-                    np.arange(npred-(bean.numburstsobs-bean.ref_ind-1), npred) ) )
-
-                # accumulate the arrays
-                matches = np.expand_dims(imatch.copy(), axis=0)
-
-                # now loop and generate the other possible match combinations
-                while ((imatch[0] < ref_tpred-bean.ref_ind) |
-                    (imatch[bean.ref_ind+1] < npred-(bean.numburstsobs-bean.ref_ind-1))):
-                    imatch[-1] += 1
-                    while np.any(imatch > jmatch):
-                        ex_ind = min(np.where(imatch > jmatch)[0])
-                        # print (ex_ind, i-ex_ind, ix[ex_ind-1])
-                        # print ('in loop:',imatch[ex_ind-1:], np.arange(bean.numburstsobs-ex_ind+1), imatch[ex_ind-1]+1)
-                        imatch[ex_ind-1:] = np.arange(bean.numburstsobs-ex_ind+1) \
-                            + imatch[ex_ind-1]+1
-                        if ex_ind < bean.ref_ind:
-                            imatch[bean.ref_ind:] = np.arange(bean.numburstsobs-bean.ref_ind) \
-                                + ref_tpred
-                        # special to keep the index preserved here
-                        if imatch[bean.ref_ind] > ref_tpred:
-                            imatch[bean.ref_ind-1] += 1
-                            imatch[bean.ref_ind:] = np.arange(bean.numburstsobs-bean.ref_ind) \
-                                + ref_tpred
-                    # print (ix, sum(abs(bstart-np.array(tpred)[ix])))
-                    matches = np.append(matches, [imatch], axis=0)
-         
-                bean.matches = matches
-
-            # print ("tpred etc:",tpred, matches, bean.bstart)
-            _err = np.sum((tpred[bean.matches]-bean.bstart)**2, axis=1)
-
-            imatch = bean.matches[np.argmin(_err),:]
-            result['imatch'] = imatch
- 
-            assert len(imatch) == bean.numburstsobs
-            # print (imatch)
-            assert len(set(imatch)) == bean.numburstsobs # don't double up on bursts
-
-        else:
-	    # If you're not comparing to observed bursts, just return the
-	    # result of generate_burst_train
-            # This loop will (also?) be triggered if the call to
-            # generate_burst_train results in no bursts. That can happen if
-            # the model parameters are nonsensical - e.g. Z<0. An "unhashable
-            # type" error will then be triggered - dkg
-
-            # I don't think it's ever correct to swap model for result
-            # anymore, particularly since we're also returning the result;
-            # just set the model as invalid and bail out
-
-            # model = result
-            return None, False, result
 
     else:
         # If we're not generating a burst train, just run the ensemble
@@ -158,35 +179,58 @@ def runmodel(theta_in, bean, debug=False):
 
     # And finally form the model array for comparison with the data
 
-    if bean.train:
-
-        # We only compare the times of the bursts for the events excluding
-        # the reference burst, from which the train is calculated
-        itime = list(imatch.copy())
-        itime.pop(bean.ref_ind)
-
-        # We compare the fluences for all the bursts
-        # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for
-        # the e_b and alpha arrays, compared to the times, coming out of generate_burst_train
-        ie_b = [np.max([x - 1, 0]) for x in imatch]
-
-        # We compare the alpha values only for observed events #1, 2 & 3 as we don't have the recurrence
-        # time for event #0
-        ialpha = ie_b.copy()
-        ialpha.pop(0)
-
-        # Now assemble the whole array for comparison with the measurements
-        # this would be simpler if the result elements were numpy arrays
-        # and not lists!
-
-        model =  np.concatenate((np.array(result['time'])[itime],
-            np.array(result['fluen'])[ie_b],
-            np.array(result['alpha_obs'])[ialpha]))
-
-    else:
-        # model = np.concatenate((result['time'], result['e_b'], result['alpha']))
+    model = None
+    if not bean.train:
+        # For the burstensemble version, this is simple
         model = np.concatenate((result['time'], result['fluen'],
             result['alpha_obs']))
+
+    elif match & (bean.y is not None) & (npred > 0):
+
+        # Assemble the array for comparison with the data
+        # First need to match the burst times; this is surprisingly
+        # difficult to do robustly.
+
+        imatch = burst_time_match(bean.ref_ind, bean.bstart, tpred)
+
+        if imatch is None:
+            return None, False, result
+
+        result['imatch'] = imatch
+
+        # print (imatch)
+        if len(imatch) != bean.numburstsobs:
+            print ('** ERROR ** likely insufficient number of bursts simulated ({} < {})'.format(
+                len(imatch), bean.numburstsobs))
+
+            return model, False, result
+
+        else:
+
+            assert len(set(imatch)) == bean.numburstsobs # don't double up on bursts
+
+            # We only compare the times of the bursts for the events excluding
+            # the reference burst, from which the train is calculated
+            itime = list(imatch.copy())
+            itime.pop(bean.ref_ind)
+
+            # We compare the fluences for all the bursts
+            # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for
+            # the e_b and alpha arrays, compared to the times, coming out of generate_burst_train
+            ie_b = [np.max([x - 1, 0]) for x in imatch]
+
+            # We compare the alpha values only for observed events #1, 2 & 3 as we don't have the recurrence
+            # time for event #0
+            ialpha = ie_b.copy()
+            ialpha.pop(0)
+
+            # Now assemble the whole array for comparison with the measurements
+            # this would be simpler if the result elements were numpy arrays
+            # and not lists!
+
+            model =  np.concatenate((np.array(result['time'])[itime],
+                np.array(result['fluen'])[ie_b],
+                np.array(result['alpha_obs'])[ialpha]))
 
     # Check here if the model instance is valid, i.e. the bursts that are NOT
     # matched with the observed ones must fall in gaps
