@@ -63,9 +63,10 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
     # remove the reliance on the linear interpolation parameters
     # i0 = max([0, min([len(a) - 1, max(itobs)])])
     # mdot0 = (0.67 / 8.8) * bean.pflux[itobs[0]] * r1 
-    mdot0 = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, bean.pflux[itobs[0]])
+    mdot0 = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, bean.pflux[itobs[-1]])
     if debug:
-        print("{}: z={}, X_0={}, mdot_0={}".format(fn, z, x_0, mdot0 ))
+        print("{}: z={}, X_0={}, mdot_0={}, itobs={}".format(
+            fn, z, x_0, mdot0, itobs[-1] ))
 
     # Calculate the burst properties for the trial mdot value
     trial = settle(base, z, x_0, mdot0, mass, radius, corr=bean.corr)
