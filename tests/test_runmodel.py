@@ -39,6 +39,7 @@ def test_run_model():
     # full model which is now also output
     # test, valid, full_model = runmodel(theta,y,tref,bstart,pflux, pfluxe, tobs,numburstssim,len(bstart),ref_ind,gti_checking, 1, st, et)
     test, valid, full_model = runmodel(theta, B)
+    print ('test={}'.format(test))
     
     # updated here with the new ("physical" parameters), v2.0.0 and later
     # and new mdot-to-flux conversion, v2.2.0 and later
