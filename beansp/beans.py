@@ -83,7 +83,7 @@ def lnZprior(z):
 def prior_func(theta_in):
     """
     This function is the default prior and implements a simple box prior
-    for all the parameters 
+    for all the parameters
 
     :param theta_in: parameter vector
 
@@ -157,6 +157,42 @@ def corr_goodwin19(burst, **kwargs):
     """
 
     return (burst[0], burst[1]*0.65, burst[2]*0.65)
+
+
+def corr_kepler(burst, **kwargs):
+    """
+    This is an example Settle correction function that applies the correction
+    to match kepler burst results.
+    The ``**kwargs`` can be used to incorporate other parameters into the
+    correction; from settle we pass the base flux F, mdot M, H-fraction X,
+    metallicity Z, and neutron star radius R and mass M (none used for
+    this example)
+
+    :param burst: 3-element tuple output from settle, with alpha, trec [hr], and burst energy [1e39 erg], all values in the observer frame
+
+    :return: tuple with any necessary corrections performed
+    """
+
+    #Scale Fluence
+    Fluence_coef= [-0.01494263, 0.61500959,  0.13263262]
+    E_error = Fluence_coef[0]*burst[2]**2 + Fluence_coef[1]*burst[2] + Fluence_coef[2]
+
+    #Scale trec
+    a = burst[1]; b = kwargs['Z']; c = kwargs['X']
+    form = [1, a, b, c, a ** 2, a * b, a * c, b ** 2, b * c, c ** 2]
+    tdel_coff = [4.00396086e-24,  1.78459388e+00, 6.37416752e+01, -4.06404901e+00,
+                2.94290411e-02,  4.52264987e+00, -2.35649145e+00, -4.64376836e+02,
+                -2.73559070e+01,  8.08332362e+00]
+    intercept = -0.8976578105076352
+    t_error = np.dot(tdel_coff,form) + intercept
+
+    # alpha ~ tdel/E_b, thus scale alpha as well
+    t_fac = (burst[1] - t_error) / burst[1]
+    e_fac = (burst[2] - E_error) / burst[2]
+    alp_scl = burst[0] * (1 - t_fac) / (1 - e_fac)
+
+    return (alp_scl, t_error, E_error)
+
 
 def model_str(model):
     """
@@ -336,7 +372,7 @@ class Beans:
           checking
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
-          (optionally) *f_a* & *f_E* 
+          (optionally) *f_a* & *f_E*
         :param numburstssim: number of bursts to simulate, for the "train" mode,
           both earlier and later than the reference burst; i.e. set to half
           the total number of bursts you want to simulate. Don't forget to
@@ -377,16 +413,16 @@ class Beans:
         # energy from settle (in 1e39, the observer frame) to fluence at 1
         # kpc in units of 1e-6 erg/cm^2
 
-        self.fluen_fac = ((1e39*u.erg/(4*np.pi*u.kpc**2)) 
+        self.fluen_fac = ((1e39*u.erg/(4*np.pi*u.kpc**2))
             / (1e-6*u.erg/u.cm**2)).decompose()
 
         # Conversion factor between persistent flux (in units of 1e-9
-        # erg/cm^2/s) and the accretion rate 
+        # erg/cm^2/s) and the accretion rate
 
         self.r1 = (1e-9*u.erg/u.cm**2/u.s*u.kpc**2
             / (u.km*const.c)**2).decompose()
 
-        # Conversion factor for redshift, GM/Rc^2 
+        # Conversion factor for redshift, GM/Rc^2
 
         self.gmrc2 = (2.*const.G*const.M_sun/(const.c**2*u.km)).decompose()
 
@@ -419,7 +455,7 @@ class Beans:
         self.gtiname = gtiname
         self.ref_ind = ref_ind
         self.bc = bc
-        
+
         self.theta = theta
         self.numburstssim = numburstssim
         self.lnprior = prior
@@ -557,14 +593,14 @@ No. of bursts to simulate: {} ({} mode)
 Initial parameters:
 {}
 ==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
-            self.numburstsobs, 
+            self.numburstsobs,
             '' if self.cmpr_alpha else 'not ',
             '' if self.cmpr_fluen else ' or fluences',
             '' if self.obsname is None else ', ref. to #{}'.format(self.ref_ind),
             self.train+self.numburstssim*(1+self.train),
             'train' if self.train else 'ensemble',
             self.nwalkers, self.nsteps,
-            self.threads, 
+            self.threads,
             ', resuming' if self.restart else '',
             self.theta_table(self.theta, indent=2) )
 
@@ -596,7 +632,7 @@ Initial parameters:
             return (result+"""
 #f_a, f_E = {}, {} \\ systematic error terms for alpha, fluence""".format(
     f_a, f_E)).replace('#',' '*indent)
-        
+
         return result.replace('#', ' '*indent)
 
 
@@ -608,7 +644,7 @@ Initial parameters:
         (settle.cc, line 131) where G.X is the hydrogen mass fraction, and
         G.R is the radius in cm; the constant is  M_sun/(4*365.25×86400)
         (i.e. the conversion of  M_sun /yr to g/s) to better than 1 part
-        in 1000) in the NS frame 
+        in 1000) in the NS frame
 
         :return: accretion rate in g/cm^2/s
         """
@@ -624,7 +660,7 @@ Initial parameters:
         record of the run; but also to more easily replicate or continue
         a run. List of all the parameters saved to the configuration file:
         ``run_id``, ``obsname``, ``burstname``, ``gtiname``, ``alpha``,
-        ``fluen``, ``ref_ind``, ``bc``, ``interp``, ``smooth``, ``theta``, 
+        ``fluen``, ``ref_ind``, ``bc``, ``interp``, ``smooth``, ``theta``,
         ``numburstssim``, ``prior``, ``nwalkers``, ``nsteps``, ``threads``
 
         :param file: name of file to save the config as. If None, the run_id
@@ -783,7 +819,7 @@ Initial parameters:
         relevant model outputs and calculates the likelihood.
 
         :param theta_in: model parameter tuple, with X, Z, Q_b, dist, xi_b,
-          xi_p, mass, radius, f_a, f_E 
+          xi_p, mass, radius, f_a, f_E
         :param x: the "independent" variable, passed to lnlike
         :param y: the "dependent" variable (i.e. measurements), passed to lnlike
         :param yerr: erorr estimates on y
@@ -850,7 +886,7 @@ Initial parameters:
 
         :param theta_in: parameter vector
         :param x: the "independent" variable, passed to :meth:`Beans.lnlike`
-        :param y: the "dependent" variable (i.e. measurements), passed to 
+        :param y: the "dependent" variable (i.e. measurements), passed to
           :meth:`Beans.lnlike`
         :param yerr: erorr estimates on y
         :return: total (prior+model) likelihood, prior likelihood, model array
@@ -1034,7 +1070,7 @@ Initial parameters:
         else:
             for i in range(len(self.bstart)):
                 print('{:.5f}       {:.3f}      {:.3f}  {:.1f}  {:.1f}  {:.3f}  {:.3f}  {:.3f}  {:.3f}'.format(
-                    self.bstart[i], self.fluen[i], self.fluene[i], 
+                    self.bstart[i], self.fluen[i], self.fluene[i],
                     self.alpha[i],self.alphae[i],self.pflux[i],
                     self.pfluxe[i],self.tdel[i],self.tdele[i]))
 
@@ -1294,7 +1330,7 @@ Initial parameters:
 
         param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$d$", "$\\xi_b$",
             "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$"]
-                
+
         for j in range(self.ndim):
             chain = sampler[:, :, j].T
             # print(np.shape(sampler))
@@ -1335,7 +1371,7 @@ Initial parameters:
         This method is for running standard analysis and displaying the
         results.
         Nothing is returned, but various options for analysis are
-        available, which will (optionally) populate some of the 
+        available, which will (optionally) populate some of the
         :class:`beansp.Beans` attributes, including
 
         | reader - sampler object read in from HDF file
@@ -1508,7 +1544,7 @@ Initial parameters:
                 masspred, radiuspred,gravitypred/1e14, redshiftpred),
                 fmt='%9.6f',
                 header='''beansp v{} parameter file
-run_id {}, nsteps_completed={}, skipping {} steps for burnin 
+run_id {}, nsteps_completed={}, skipping {} steps for burnin
 
 Rows are:
 H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
@@ -1522,7 +1558,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
             # show likelihood contributions for last step
 
-            probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'], 
+            probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'],
                 index = np.arange(self.nwalkers) )
             p_fluen, p_alpha = 0.0, 0.0
             for _i in np.arange(np.shape(self.last)[0]):
@@ -1595,7 +1631,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     filename=self.run_id+"_posteriors.pdf",
                     figsize="page", truth=truths)
             else:
-                fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim], 
+                fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
                     figsize="page", truth=truths)
                 fig.show()
             print ("...done")
@@ -1609,7 +1645,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # cc = ChainConsumer()
             # cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
             if savefig:
-                self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]], 
+                self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
                     filename=self.run_id+"_massradius.pdf",
                     truth=truths, figsize="page")
             else:
@@ -1703,7 +1739,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 self.cc = ChainConsumer()
                 for _n in set(numburstssim):
                     self.cc.add_chain(self.samples[numburstssim == _n],
-                        name='{} bursts'.format(_n), 
+                        name='{} bursts'.format(_n),
                         parameters=list(self.cc_parameters.values()))
                 self.cc_nchain = len(times)
                 print ('Updated chain object with {} model classes'.format(self.cc_nchain))
@@ -1800,7 +1836,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     plt.errorbar(timepred[1:], ebpred,
                         yerr=[ebpred_errup, ebpred_errlow],
                         xerr=[timepred_errup[1:], timepred_errlow[1:]],
-                        marker='*', ms=11, linestyle='', #color='darkgrey', 
+                        marker='*', ms=11, linestyle='', #color='darkgrey',
                         label='Predicted ({})'.format(numburstssim))
                     plt.xlabel("Time (days after start of outburst)")
             else:
