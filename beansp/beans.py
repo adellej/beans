@@ -41,7 +41,7 @@ BSTART_ERR = 10*u.min # Default uncertainty for burst start times
 ## load local  modules
 from .settle import settle
 from .burstrain import generate_burst_train, next_burst, burstensemble
-from .run_model import runmodel
+from .run_model import runmodel, burst_time_match
 from .get_data import get_obs
 from .mrprior import mr_prior
 from .run_emcee import runemcee
@@ -889,9 +889,6 @@ Initial parameters:
         :param title: add a title, if required
         """
 
-        tobs = self.bstart
-        ebobs = self.fluen
-
         # for the default linear interpolation connect the flux
         # measurements by lines
 
@@ -900,10 +897,18 @@ Initial parameters:
             ls = ''
 
         X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
+
         if model is None:
             # no need to do the matching here
             test, valid, model = runmodel(self.theta, self, match=False,
                 debug=False)
+
+            # ... but it's useful to know if it's possible
+
+            imatch = burst_time_match(self.ref_ind, self.bstart,
+                np.array(model['time']))
+            if imatch is None:
+                print ("** WARNING ** can't match predicted bursts to observations")
 
         full_model = False  # Flag to remember whether we're plotting the full model output of
                             # generate burst train or the packed output array
@@ -925,17 +930,27 @@ Initial parameters:
             timepred = model[:self.numburstssim+1]
             ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)]) * self.fluen_fac/xi_b/dist**2
 
-        fig, ax1 = plt.subplots()
+        # Now set up the figure
+
+        if imatch is None:
+            fig, ax1 = plt.subplots()
+        else:
+            fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']])
+            ax1 = axs['main']
         # fig.figure(figsize=(10,7))
 
         flux_color = 'tab:red'
         bursts_color = 'tab:blue'
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
+        # first show the flux/mdot
         if mdot and full_model:
+            # this is the usual (only?) plot style, showing mdot vs. time,
+            # along with the burst model and observation comparison
             _mdot, _mdot_err = self.flux_to_mdot(X, dist, xi_p, mass, radius)
             ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
             if self.train:
+                # show the burst train
                 ax1.errorbar(self.tobs, _mdot, _mdot_err,
                     marker='.', ls=ls, color=flux_color, label='mdot')
                 if self.interp == 'spline':
@@ -944,8 +959,9 @@ Initial parameters:
                         BSpline(*self.tck_s)(t)), color=flux_color)
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
-                ax2.axvline(self.bstart[self.ref_ind], c='k')
+                ax2.axvline(self.bstart[self.ref_ind], c='k', ls='--')
             else:
+                # show the ensemble comparison, which is much simpler
                 ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
                          color=flux_color, label='mdot')
         else:
@@ -969,9 +985,13 @@ Initial parameters:
         # Plot the bursts here
         ax2.set_ylabel("Fluence (1e-9 erg/cm$^2$)", color=bursts_color)
         if self.train:
-            if tobs is not None:
+            if self.bstart is not None:
                 # Plot the observed bursts, if available
-                ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+                # ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+                ax2.errorbar(self.bstart, self.fluen, yerr=self.fluene,
+                    color=bursts_color, linestyle='', marker='.', ms=13,
+                    label='observed')
+
             if show_model:
                 ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
             # we have time but not fluence for the first burst
@@ -983,6 +1003,21 @@ Initial parameters:
                         self.mean_flux(timepred[i], timepred[i+1], self)))
                 av_mdot.insert(0, av_mdot[0])
                 ax1.step(timepred, av_mdot, where='pre', color=flux_color)
+
+                if imatch is not None:
+                    # show the burst time comparison
+                    resid = (self.bstart-np.array(timepred)[imatch])*24.
+                    axs['resid'].plot(imatch, resid,
+                        linestyle='', marker='.', ms=13, color=bursts_color)
+                    for i in range(self.numburstsobs):
+                        axs['resid'].annotate(' {}'.format(i+1), 
+                            (imatch[i], resid[i]) )
+                    axs['resid'].axhline(0.0, color=bursts_color, ls='--')
+                    axs['resid'].set_xlabel('Burst number (predicted)')
+                    axs['resid'].set_ylabel('Time offset (hr)')
+                    print ('RMS obs-model offset = {:.4f} hr'.format(
+                        np.sqrt(np.mean(resid**2))))
+
         else:
             ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             if show_model:
@@ -1780,10 +1815,15 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
             plt.figure(figsize=(10,7))
 
+            # copy colors from plot_model method for consistency
+
+            bursts_color = 'tab:blue'
+
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             if self.train:
                 plt.errorbar(self.bstart, self.fluen, yerr=self.fluene,
-                    color='black', linestyle='', marker='.', ms=13, label='Observed')
+                    color=bursts_color, linestyle='', marker='.', ms=13, label='Observed')
+                plt.axvline(self.bstart[self.ref_ind], c='k', ls='--')
                     # redundant option for missing fluence values
                     # for _i in range(self.numburstsobs):
                     #     plt.axvline(self.bstart[_i], c='k', ls='--', label='Observed')
