@@ -619,18 +619,18 @@ Initial parameters:
         if self.has_systematic:
             f_a, f_E = theta[8:]
 
-        result = """#X = {} \\ hydrogen mass fraction
-#Z = {} \\ CNO mass fraction
-#Q_b = {} \\ base flux [MeV/nucleon]
-#M_NS = {} M_sun \\ neutron star mass
-#R_NS = {} km \\ neutron star radius
+        result = """#X = {:.3f} \\ hydrogen mass fraction
+#Z = {:.5f} \\ CNO mass fraction
+#Q_b = {:.3f} \\ base flux [MeV/nucleon]
+#M_NS = {:.3f} M_sun \\ neutron star mass
+#R_NS = {:.3f} km \\ neutron star radius
 #d = {:.2f} kpc \\ source distance
 #xi_b = {:.3f} \\ anisotropy factor for burst emission
 #xi_p = {:.3f} \\ anisotropy factor for persistent emission""".format(
     X, Z, Q_b, mass, radius, dist, xi_b, xi_p)
         if self.has_systematic:
             return (result+"""
-#f_a, f_E = {}, {} \\ systematic error terms for alpha, fluence""".format(
+#f_a, f_E = {:.3f}, {:.3f} \\ systematic error terms for alpha, fluence""".format(
     f_a, f_E)).replace('#',' '*indent)
 
         return result.replace('#', ' '*indent)
@@ -1079,6 +1079,11 @@ Initial parameters:
         Errors are taken as the mean of the observational errors; bursts
         matching observed bursts (according to the matching algorithm)
         are flagged as ``True`` in the 6th column
+
+        In lieu of an output file, you can just paste the results into a
+        text file and use as the input (specify as ``burstname``)
+
+        :param file: file to save the results to (not yet implemented)
 
         :return:
         """
