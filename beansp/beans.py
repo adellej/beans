@@ -1016,7 +1016,7 @@ Initial parameters:
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
                     ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_color)
                 ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
-                ax1.set_xlabel("Time (days after start of outburst)")
+                ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
             else:
                 # "ensemble" mode plot vs. epoch, rather than observation time
                 ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_color,
@@ -1072,7 +1072,7 @@ Initial parameters:
 
         ax2.tick_params(axis='y', labelcolor=bursts_color)
 
-        ax1.set_xlabel("Time (days after outburst start)")
+        ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
         if title is not None:
             plt.title(title)
 
@@ -1879,17 +1879,21 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
                 ax1 = axs['main']
 
-                ax1.errorbar(self.bstart, self.fluen, yerr=self.fluene,
-                    color=obs_color, linestyle='', marker='.', ms=13, label='Observed')
+                ax1.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
+                    yerr=self.fluene[self.ifluen],
+                    color=obs_color, linestyle='', marker='.', ms=13,
+                    label='observed')
+                # non-redundant option for missing fluence values
+                for i in range(self.numburstsobs):
+                    if (i not in self.ifluen) & (i != self.ref_ind):
+                        ax1.axvline(self.bstart[i], color=obs_color, ls='--')
                 ax1.axvline(self.bstart[self.ref_ind], c='k', ls='-')
-                    # redundant option for missing fluence values
-                    # for _i in range(self.numburstsobs):
-                    #     plt.axvline(self.bstart[_i], c='k', ls='--', label='Observed')
 
                 times = self.model_pred['time_stats']
                 ebs = self.model_pred['e_b_stats']
                 # loop over all the different solutions
-                for numburstssim in times.keys():
+                _label = 'matched'
+                for i, numburstssim in enumerate(times.keys()):
                     timepred = [x[0] for x in times[numburstssim]]
                     timepred_errup = [x[1] for x in times[numburstssim]]
                     timepred_errlow = [x[2] for x in times[numburstssim]]
@@ -1899,30 +1903,34 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     ax1.errorbar(timepred[1:], ebpred,
                         yerr=[ebpred_errup, ebpred_errlow],
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
-                        marker='*', ms=11, linestyle='', color=bursts_color,
+                        marker='*', ms=11, linestyle='', color='C{}'.format(i),
                         label='Predicted ({})'.format(numburstssim))
 
+                    ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
                     imatch = burst_time_match(self.ref_ind, self.bstart,
-                        np.array(timepred))
+                        ref_tpred, np.array(timepred))
                     # Not sure this will work so well if there are
                     # multiple sets of solutions
-                    if len(times.keys()) == 1:
-                        imatchm1 = [x-1 for x in imatch if x-1 >= 0]
-                        ax1.plot(np.array(timepred[1:])[imatchm1], 
-                            np.array(ebpred)[imatchm1],
-                            marker='*', ms=11, linestyle='', color='tab:red',
-                            label='Matched',zorder=3)
+                    # if len(times.keys()) == 1:
+                    imatchm1 = [x-1 for x in imatch if x-1 >= 0]
+                    ax1.plot(np.array(timepred[1:])[imatchm1], 
+                        np.array(ebpred)[imatchm1],
+                        marker='*', ms=11, linestyle='', color='tab:red',
+                        label=_label,zorder=99)
+                    _label = None # only give the label the first time
 
                     resid = -(self.bstart-np.array(timepred)[imatch])*24.
                     axs['resid'].errorbar(self.bstart, resid,
                         yerr=[np.array(timepred_errup)[imatch]*24.,
                         np.array(timepred_errlow)[imatch]*24.],
-                        marker='*', ms=11, linestyle='', color='tab:red')
+                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
+                    print ('RMS obs-model offset ({}) = {:.4f} hr'.format(
+                        numburstssim, np.sqrt(np.mean(resid**2))))
 
                 ax1.set_ylabel("Fluence (1e-9 erg/cm$^2$)")
                 axs['resid'].axhline(0.0, color=obs_color, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
-                axs['resid'].set_xlabel("Time (days after start of outburst)")
+                axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
                 ax1.legend(loc=2)
 
             else:
