@@ -67,13 +67,18 @@ def get_obs(bean, alpha=True, fluen=True):
         bean.cmpr_fluen = fluen
         bean.fluen = np.array(burstdata['col2'])
         bean.fluene = np.array(burstdata['col3'])
+        bean.ifluen = bean.fluen > 0.
         bean.cmpr_alpha = alpha
         bean.alpha = np.array(burstdata['col4'])
         bean.alphae = np.array(burstdata['col5'])
+        if np.any(~bean.ifluen):
+            if np.any(bean.alpha[~bean.ifluen] > 0.):
+                print('** WARNING ** nonzero alphas despite missing fluences will be ignored in fit')
+        bean.ifluen = np.where(bean.ifluen)[0]
 
-        # Define reference time as start of first burst/epoch
+        # Define reference time as day of first burst/epoch
         # bstart0 = bstart[0]
-        bean.tref = bean.bstart[0]
+        bean.tref = np.floor(bean.bstart[0])
 
     else:
         print ('** WARNING ** skipping read of burst data, assuming no bursts observed')
@@ -88,6 +93,7 @@ def get_obs(bean, alpha=True, fluen=True):
         obsdata = ascii.read(bean.obsname)
         ta_1 = obsdata['col1']
         ta_2 = obsdata['col2']
+        bean.tref = np.min([bean.tref,np.floor(np.min(ta_1))])
 
         ssa_1 = ta_1
         ssa_2 = ta_2
@@ -132,11 +138,11 @@ def get_obs(bean, alpha=True, fluen=True):
             bean.y = bean.bstart
             bean.yerr = bstart_err
             if bean.cmpr_fluen:
-                bean.y = np.concatenate((bean.y, bean.fluen), axis=0)
-                bean.yerr = np.concatenate((bean.yerr, bean.fluene), axis=0)
+                bean.y = np.concatenate((bean.y, bean.fluen[bean.ifluen]), axis=0)
+                bean.yerr = np.concatenate((bean.yerr, bean.fluene[bean.ifluen]), axis=0)
             if bean.cmpr_alpha:
-                bean.y = np.concatenate((bean.y, bean.alpha[1:]), axis=0)
-                bean.yerr = np.concatenate((bean.yerr, bean.alphae[1:]), axis=0)
+                bean.y = np.concatenate((bean.y, bean.alph[1:][bean.ifluen[1:]-1]), axis=0)
+                bean.yerr = np.concatenate((bean.yerr, bean.alphae[1:][bean.ifluen[1:]-1]), axis=0)
 
             bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
             bean.yerr = np.delete(bean.yerr, bean.ref_ind)

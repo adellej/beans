@@ -202,8 +202,11 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     :return: a dictionary with the following keys:
     ['base', 'z', 'x_0', 'dist', 'xi_p', 'time', 'mdot_max', 'mdot',
     'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
+    The main outputs are the 'time', 'e_b', 'alpha', and 'mdot'  elements
+    (numpy arrays) which are the predicted properties of the bursts and
+    the mdot inferred for each interval.
     We have one more element of the time array than the other arrays, because
-    we can't determine the properties for that burst, as we don't have
+    we can't determine the properties for that burst, as we may not have
     enough data to back project. So the ith element of e_b, alpha etc.
     belongs with the (i+1)th element of time:
 
@@ -232,20 +235,24 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     if bean.bstart is not None:
         sbt = bean.bstart[bean.ref_ind]
     else:
-        # In the absence of any bursts, set the reference time to ref_ind (can be
-        # any time within the outburst)
+	# In the absence of any bursts, set the reference time to ref_ind
+	# (can be any time within the outburst)
+	# TODO check if this is consistent with the usage for initial
+	# value of earliest/latest below; not sure of the use case
         # sbt = 0.0
         sbt = bean.ref_ind
 
-    salpha = -1
     flag = 1  # Initially OK
 
-    stime = []  # initialise array to store simulated times
-    earliest = sbt  # this is the earliest burst in the train
-    latest = sbt    # this is the time of the latest burst in the train
-    # for i in range (0,2*(1+double)+1): # Do the 5th burst also, forward only
-    for i in range(0, bean.numburstssim):  # Do the 5th burst also, forward only
+    stime, iref = [sbt], 0  # initialise list to store simulated times
+    salpha, se_b, smdot = [], [], [] # ditto for other lists
+    earliest = sbt  # (running) time of the earliest burst in the train
+    latest = sbt    # (running) time of the latest burst in the train
 
+    for i in range(0, bean.numburstssim):
+
+        assert earliest == stime[0] # I think these variables are redundant
+        assert latest == stime[-1]
         if debug:
             print ("{}: simulating burst {} of {}".format(fn, i, bean.numburstssim))
 
@@ -281,61 +288,37 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
             result_b = next_burst( bean, base, x_0, z, earliest, 
                 dist, xi_p, cfac, mass, radius, direction=-1, debug=debug)
 
+            if result_b is not None:
+                # we have a result from the next_burst call going backward, so add its properties to the arrays
+                stime.insert(0, result_b.t2[0])
+                iref += 1
+                salpha.insert(0, result_b.alpha[0])
+                se_b.insert(0, result_b.e_b[0])
+                smdot.insert(0, result_b.mdot)
+                earliest = result_b.t2[0]
+            else:
+                # if the earlier burst has failed, we don't need to pursue any further
+                if debug:
+                    print("{}: abandoning backward search, step {}".format(fn, i))
+                backward = False
+
         if forward:
             # Also find the time for the *next* burst in the train
             result_f = next_burst( bean, base, x_0, z, latest, 
                 dist, xi_p, cfac, mass, radius, direction=1, debug=debug)
 
-        if result_b is not None:
-            # we have a result from the next_burst call going backward, so add its properties to the arrays
-            t2 = result_b.t2[0]
-            _alpha = result_b.alpha[0]
-            _e_b = result_b.e_b[0]
-            _mdot = result_b.mdot
-            if salpha == -1:
-                # create the arrays with which to accumulate the results
-                stime = [t2, sbt]
-                iref = 1    # index for reference burst
-                salpha = [_alpha]
-                se_b = [_e_b]
-                smdot = [_mdot]
+            if result_f is not None:
+                # we have a result from the next_burst call going forward, so add its properties to the arrays
+                stime.append(result_f.t2[0])
+                salpha.append(result_f.alpha[0])
+                se_b.append(result_f.e_b[0])
+                smdot.append(result_f.mdot)
+                latest = result_f.t2[0]
             else:
-                stime.insert(0, t2)
-                iref += 1
-                salpha.insert(0, _alpha)
-                se_b.insert(0, _e_b)
-                smdot.insert(0, _mdot)
-            earliest = t2
-        else:
-            # if the earlier burst has failed, we don't need to pursue any further
-            if debug:
-                print("{}: abandoning backward search, step {}".format(fn, i))
-            backward = False
-
-        if result_f is not None:
-            # we have a result from the next_burst call going forward, so add its properties to the arrays
-            t3 = result_f.t2[0]
-            _alpha2 = result_f.alpha[0]
-            _e_b2 = result_f.e_b[0]
-            _mdot2 = result_f.mdot
-            if salpha == -1:
-                # This shouldn't happen, as we should be able to get at least one earlier burst
-                stime = [sbt, t3]
-                iref = 0
-                salpha = [_alpha2]
-                se_b = [_e_b2]
-                smdot = [_mdot2]
-            else:
-                salpha.append(_alpha2)
-                se_b.append(_e_b2)
-                smdot.append(_mdot2)
-                stime.append(t3)
-            latest = t3
-        else:
     
-            if debug:
-                print("{}: abandoning backward search, step {}".format(fn, i))
-            forward = False
+                if debug:
+                    print("{}: abandoning backward search, step {}".format(fn, i))
+                forward = False
 
         # Check the results here
 
@@ -368,14 +351,14 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
 
     # now the actual predictions
 
-    result["time"] = stime
+    result["time"] = np.array(stime)
     if len(stime) > 0:
         # The simulation might fail to generate any bursts, so only add the arrays if they exist
-        result["mdot"] = smdot
+        result["mdot"] = np.array(smdot)
         # this is redundant, can be worked out from the times
         # result["iref"] = iref
-        result["alpha"] = salpha
-        result["e_b"] = se_b
+        result["alpha"] = np.array(salpha)
+        result["e_b"] = np.array(se_b)
         #print(f"In burstrain fluence is {se_b}")
 
     if debug:
@@ -399,6 +382,13 @@ def burstensemble( bean, base, x_0, z, dist, xi_p, mass, radius, full_model=Fals
     :param xi_p: anisotropy of persistent emission
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
+
+    :return: a dictionary with the following keys:
+    ['base', 'z', 'x_0', 'dist', 'xi_p', 'time', 'mdot_max', 'mdot',
+    'iref', 'alpha', 'e_b', 'mass', 'radius']
+    The main outputs are the 'time', 'e_b', 'alpha', and 'mdot'  elements
+    (numpy arrays) which are the predicted properties of the bursts and
+    the mdot inferred for each interval.
     """
 
     salpha = []
@@ -439,10 +429,10 @@ def burstensemble( bean, base, x_0, z, dist, xi_p, mass, radius, full_model=Fals
 
     # now the actual predictions
 
-    result["time"] = stime
-    result["mdot"] = smdot
-    result["alpha"] = salpha
-    result["e_b"] = se_b
+    result["time"] = np.array(stime)
+    result["mdot"] = np.array(smdot)
+    result["alpha"] = np.array(salpha)
+    result["e_b"] = np.array(se_b)
 
     # omit the printing for now, as it prevents assessing the progress
     # print('ensemble')

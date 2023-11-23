@@ -159,7 +159,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
         # insufficiently strict) criterion is to at least simulate as many
         # bursts as are observed.
 
-        tpred = np.array(result["time"])
+        tpred = result["time"]
         npred = len(tpred)
         if npred < bean.numburstsobs:
             if debug:
@@ -181,10 +181,9 @@ def runmodel(theta_in, bean, match=True, debug=False):
     # The times are already relative to the reference bursts, so
     # nothing needs to be done to those
 
-    result['fluen'] = list( np.array(result['e_b']) 
-        * (bean.fluen_fac/xi_b/dist**2).value )
+    result['fluen'] = result['e_b'] * (bean.fluen_fac/xi_b/dist**2).value
 
-    result['alpha_obs'] = list(np.array(result['alpha']) * xi_b/xi_p )
+    result['alpha_obs'] = result['alpha'] * xi_b/xi_p
 
     # And finally form the model array for comparison with the data
 
@@ -220,7 +219,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
 
             # We only compare the times of the bursts for the events excluding
             # the reference burst, from which the train is calculated
-            itime = list(imatch.copy())
+            itime = imatch.copy()
             itime.pop(bean.ref_ind)
 
             # We compare the fluences for all the bursts
@@ -234,12 +233,11 @@ def runmodel(theta_in, bean, match=True, debug=False):
             ialpha.pop(0)
 
             # Now assemble the whole array for comparison with the measurements
-            # this would be simpler if the result elements were numpy arrays
-            # and not lists!
+            # Includes the selection of non-zero fluences (set in get_obs)
 
-            model =  np.concatenate((np.array(result['time'])[itime],
-                np.array(result['fluen'])[ie_b],
-                np.array(result['alpha_obs'])[ialpha]))
+            model =  np.concatenate((result['time'][itime],
+                result['fluen'][ie_b][bean.ifluen],
+                result['alpha_obs'][ialpha][bean.ifluen[1:]-1]))
 
     # Check here if the model instance is valid, i.e. the bursts that are NOT
     # matched with the observed ones must fall in gaps

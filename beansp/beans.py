@@ -1002,7 +1002,7 @@ Initial parameters:
                         BSpline(*self.tck_s)(t)), color=flux_color)
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
-                ax2.axvline(self.bstart[self.ref_ind], c='k', ls='--')
+                ax2.axvline(self.bstart[self.ref_ind], c='k', ls='-')
             else:
                 # show the ensemble comparison, which is much simpler
                 ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
@@ -1031,9 +1031,13 @@ Initial parameters:
             if self.bstart is not None:
                 # Plot the observed bursts, if available
                 # ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
-                ax2.errorbar(self.bstart, self.fluen, yerr=self.fluene,
+                ax2.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
+                    yerr=self.fluene[self.ifluen],
                     color=obs_color, linestyle='', marker='.', ms=13,
                     label='observed')
+                for i in range(self.numburstsobs):
+                    if (i not in self.ifluen) & (i != self.ref_ind):
+                        ax2.axvline(self.bstart[i], color=obs_color, ls='--')
 
             if show_model:
                 ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
@@ -1877,7 +1881,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
                 ax1.errorbar(self.bstart, self.fluen, yerr=self.fluene,
                     color=obs_color, linestyle='', marker='.', ms=13, label='Observed')
-                ax1.axvline(self.bstart[self.ref_ind], c='k', ls='--')
+                ax1.axvline(self.bstart[self.ref_ind], c='k', ls='-')
                     # redundant option for missing fluence values
                     # for _i in range(self.numburstsobs):
                     #     plt.axvline(self.bstart[_i], c='k', ls='--', label='Observed')
