@@ -141,7 +141,7 @@ def get_obs(bean, alpha=True, fluen=True):
                 bean.y = np.concatenate((bean.y, bean.fluen[bean.ifluen]), axis=0)
                 bean.yerr = np.concatenate((bean.yerr, bean.fluene[bean.ifluen]), axis=0)
             if bean.cmpr_alpha:
-                bean.y = np.concatenate((bean.y, bean.alph[1:][bean.ifluen[1:]-1]), axis=0)
+                bean.y = np.concatenate((bean.y, bean.alpha[1:][bean.ifluen[1:]-1]), axis=0)
                 bean.yerr = np.concatenate((bean.yerr, bean.alphae[1:][bean.ifluen[1:]-1]), axis=0)
 
             bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
