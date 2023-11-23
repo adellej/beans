@@ -44,8 +44,9 @@ def test_run_model():
     # updated here with the new ("physical" parameters), v2.0.0 and later
     # and new mdot-to-flux conversion, v2.2.0 and later
     # and updates to pySettle 1.3.0, removing the 0.65 factor
+    # and updates to the way the time offset is calculated, 2.11.x and later
 
-    exp = [ 0.14352447,  3.19095919,  5.22764058,    # burst times (d)
+    exp = [  0.55714447,  3.6045792 ,  5.64126058,    # burst times (d)
            16.74921135, 16.80522968, 18.85323383, 22.82994974,  # fluences
            58.40968246, 64.38403223, 70.46527038] # alphas
 
