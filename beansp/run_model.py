@@ -4,15 +4,16 @@ import numpy as np
 # load local module
 from .burstrain import *
 
-def burst_time_match(iref, time1, time2):
+def burst_time_match(iref1, time1, iref2, time2):
     """
     Function to generate an array of indices of elements in time2 that are
     closest (overall) to the elements of time1. One of the elements of
-    time1 (index iref) is chosen as a "reference" that should be
-    replicated exactly in time2
+    time1 (index iref1) is chosen as a "reference" that should be
+    replicated exactly in time2 (index iref2)
 
-    :param iref: index of "reference" time in array time1
+    :param iref1: index of "reference" time in array time1
     :param time1: times to match. In run_model, this is the observed burst times
+    :param iref2: index of "reference" time in array time2
     :param time2: times to be matched; i.e. the predicted burst times
 
     :return: list of indices having same length as time1
@@ -53,9 +54,7 @@ def burst_time_match(iref, time1, time2):
 
         return ix
 
-    # TODO shouldn't need to search for this, could return in from
-    # generate_burst_train
-    ref_tpred = np.argmin(np.abs(time2 - time1[iref]))
+    assert np.isclose(time1[iref1],time2[iref2])
 
     # special here for IGRJ 17511-3057, forcing the match solution
     # if (ref_tpred-15 >= 0) & (len(time2) > ref_tpred+17):
@@ -65,13 +64,13 @@ def burst_time_match(iref, time1, time2):
 
     # make sure we have enough bursts to match, on either side of the
     # reference
-    if ((ref_tpred < iref) | (len(time2)-ref_tpred-1 < len(time1)-iref-1)):
+    if ((iref2 < iref1) | (len(time2)-iref2-1 < len(time1)-iref1-1)):
         return None
 
-    ix = [ref_tpred]
-    ix = match_left(ix, iref, time1, time2)
+    ix = [iref2]
+    ix = match_left(ix, iref1, time1, time2)
 
-    ix = match_right(ix, iref, time1, time2)
+    ix = match_right(ix, iref1, time1, time2)
 
     if len(ix) < len(time1):
         return None
@@ -85,7 +84,7 @@ def burst_time_match(iref, time1, time2):
     # print (ix, np.sum(np.abs(time1-time2[ix])))
 
     _i = 0
-    while _i < iref-1:
+    while _i < iref1-1:
         # print (_i, ix[_i+1]-ix[_i], ix[_i+2]-ix[_i+1])
         if (ix[_i+1]-ix[_i] == 1) & (ix[_i+2]-ix[_i+1] > 1):
             ix_try = match_left(ix[_i+2:], _i+2, time1, time2, first=ix[_i+1]+1)
@@ -98,7 +97,7 @@ def burst_time_match(iref, time1, time2):
     # print ('after leftward refinement: ',ix)
 
     _i = len(ix)-1
-    while _i > iref+1:
+    while _i > iref1+1:
         # print (_i, ix[_i]-ix[_i-1], ix[_i-1]-ix[_i-2], ix[:_i-1])
         if (ix[_i]-ix[_i-1] == 1) & (ix[_i-1]-ix[_i-2] > 1):
             ix_try = match_right(ix[:_i-1], _i-2, time1, time2, first=ix[_i-1]-1)
@@ -199,7 +198,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
         # First need to match the burst times; this is surprisingly
         # difficult to do robustly.
 
-        imatch = burst_time_match(bean.ref_ind, bean.bstart, tpred)
+        imatch = burst_time_match(bean.ref_ind, bean.bstart, result['iref'], tpred)
 
         if imatch is None:
             return None, False, result

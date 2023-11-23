@@ -200,8 +200,11 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     :param debug: set to True to show additional debugging information
 
     :return: a dictionary with the following keys:
-    ['base', 'z', 'x_0', 'dist', 'xi_p', 'time', 'mdot_max', 'mdot',
-    'iref', 'alpha', 'e_b', 'mass', 'radius', 'forward', 'backward']
+    ['time', 'mdot', 'alpha', 'e_b', 'iref'], and optionally also
+    (if full_model is set to True):
+    ['base', 'z', 'x_0', 'dist', 'xi_p', 'mdot_max', 'mass', 'radius',
+    'forward', 'backward'] (all but the last 2 are copies of the input
+    parameters).
     The main outputs are the 'time', 'e_b', 'alpha', and 'mdot'  elements
     (numpy arrays) which are the predicted properties of the bursts and
     the mdot inferred for each interval.
@@ -355,8 +358,7 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     if len(stime) > 0:
         # The simulation might fail to generate any bursts, so only add the arrays if they exist
         result["mdot"] = np.array(smdot)
-        # this is redundant, can be worked out from the times
-        # result["iref"] = iref
+        result["iref"] = iref
         result["alpha"] = np.array(salpha)
         result["e_b"] = np.array(se_b)
         #print(f"In burstrain fluence is {se_b}")
