@@ -53,7 +53,16 @@ def burst_time_match(iref, time1, time2):
 
         return ix
 
+    # TODO shouldn't need to search for this, could return in from
+    # generate_burst_train
     ref_tpred = np.argmin(np.abs(time2 - time1[iref]))
+
+    # special here for IGRJ 17511-3057, forcing the match solution
+    # if (ref_tpred-15 >= 0) & (len(time2) > ref_tpred+17):
+    #     return [ref_tpred+x for x in [-15, -14, -11,  -9,  -4,  -3,  -1,   0,   1,   2,   5,  12,  14, 15, 17]]
+    # else:
+    #     return None
+
     # make sure we have enough bursts to match, on either side of the
     # reference
     if ((ref_tpred < iref) | (len(time2)-ref_tpred-1 < len(time1)-iref-1)):
@@ -238,19 +247,22 @@ def runmodel(theta_in, bean, match=True, debug=False):
     # avoid copying them over from IDL each time; but now these are stored
     # with the Beans object
 
-    if bean.gti_checking:
+    if match & (model is not None) & bean.gti_checking:
         # if "st" not in globals():
         if (bean.st is None) or (bean.et is None):
             print ('** WARNING ** can''t access GTI information')
             return model, valid, result
 
+        # this is *very* inefficient, but might be the simplest option,
+        # particularly if we have overlapping GTIs
         for index, rt in enumerate(tpred):
             if index not in imatch:
                 # ok, not one of the known bursts. Is it an excluded time?#
                 for i in range(len(bean.st)):
 
-                    if rt >= bean.st[i] and rt <= bean.et[i] - 10.0 / 86400.0:
+                    if (rt >= bean.st[i]) and (rt <= bean.et[i] - 10.0 / 86400.0):
 
+                        # print (rt, i, bean.st[i], bean.et[i])
                         return model, False, result
 
     # Check here if anisoptropy estimates are consistent with Fujimoto model
