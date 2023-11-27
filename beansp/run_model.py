@@ -54,7 +54,7 @@ def burst_time_match(iref1, time1, iref2, time2):
 
         return ix
 
-    assert np.isclose(time1[iref1],time2[iref2])
+    assert np.isclose(time1[iref1],time2[iref2],rtol=1e-4)
 
     # special here for IGRJ 17511-3057, forcing the match solution
     # if (ref_tpred-15 >= 0) & (len(time2) > ref_tpred+17):

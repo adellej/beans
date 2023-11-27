@@ -349,15 +349,19 @@ class Beans:
     except:
         pass
 
-    def __init__(self, config_file=None, nwalkers=200, nsteps=100,
-                 run_id="test", obsname=None, burstname=None, gtiname=None,
+    def __init__(self, prior=prior_func, corr=None, config_file=None,
+                 run_id="test", nwalkers=200, nsteps=100,
+                 obsname=None, burstname=None, gtiname=None,
+                 interp='linear', smooth=0.02,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
-                 numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
-                 corr=None, threads = 4, test_model=True, restart=False,
-                 interp='linear', smooth=0.02, fluen=True, alpha=True, **kwargs):
+                 fluen=True, alpha=True, separation=False, 
+                 numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
+                 test_model=True, restart=False, **kwargs):
         """
         Initialise a Beans object
 
+        :param prior: prior function to use
+        :param corr: correction function for bursts, or None
         :param config_file: file to read in configuration parameters (in
           which case the keyword params below are ignored)
         :param nwalkers: number of walkers for the emcee run
@@ -383,8 +387,6 @@ class Beans:
           times are relative to. For the "train" mode, should be around the
           middle of the predicted burst train. This burst will not be
           simulated but will be used as a reference to predict the other bursts.
-        :param prior: prior function to use
-        :param corr: correction function for bursts, or None
         :param threads: number of threads for emcee to use (e.g. number of
           cores your computer has). Set to ``None`` to use all available
         :param test_model: flag to test the model during the setup process
@@ -396,6 +398,9 @@ class Beans:
           data for comparison, or False to omit
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
+        :param separation: if set to True, will try to match the burst
+          separations rather than the occurrence time
+
         :result: Beans object including all the required data
         """
 
@@ -691,6 +696,7 @@ Initial parameters:
 
            if self.obsname is not None:
                # These parameters only used for "train" mode
+               Config.set("data", "tref", str(self.tref))
                Config.set("data", "ref_ind", str(self.ref_ind))
                Config.set("data", "bc", str(self.bc))
                Config.set("data", "interp", str(self.interp))
@@ -723,7 +729,7 @@ Initial parameters:
             run_id = os.path.join(data_path, 'beans.ini')
 
         int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
-        float_params = ('bc', 'smooth')
+        float_params = ('bc', 'smooth', 'tref')
 
         if not os.path.isfile(file):
             print ('** ERROR ** config file not found')
