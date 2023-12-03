@@ -99,13 +99,15 @@ the ``theta`` parameter, which includes each of the input parameters to the mode
 
     theta = X, Z, Q_b, d, xi_b, xi_p, M, R [, f_a, f_E]
 
+(the square brackets indicate that ``f_a`` and ``f_E`` are optional). 
+
 So an example set of starting conditions would be:
 
 .. code-block:: python
 
     theta = 0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8
 
-The ``f_a`` and ``f_E`` are optional, and need not be included; see parameters for a description of each of the parameters.
+The ``f_a`` and ``f_E`` in this case are not included; see parameters for a description of each of the parameters.
 
 Ideally you want to
 start with a set of parameters for your ``theta`` that roughly replicates

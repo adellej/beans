@@ -45,7 +45,7 @@ from .run_model import runmodel, burst_time_match
 from .get_data import get_obs
 from .mrprior import mr_prior
 from .run_emcee import runemcee
-from .analyse import get_param_uncert_obs, get_param_uncert
+from .analyse import get_param_uncert_obs, get_param_uncert_part, get_param_uncert
 
 # -------------------------------------------------------------------------#
 
@@ -940,7 +940,8 @@ Initial parameters:
 
         X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
 
-        if model is None:
+        imatch = None
+        if (model is None) & show_model:
             # no need to do the matching here
             test, valid, model = runmodel(self.theta, self, match=False,
                 debug=False)
@@ -948,7 +949,7 @@ Initial parameters:
             # ... but it's useful to know if it's possible
 
             imatch = burst_time_match(self.ref_ind, self.bstart,
-                np.array(model['time']))
+                model['iref'], np.array(model['time']))
 
             if imatch is None:
                 print ("** WARNING ** can't match predicted bursts to observations")
@@ -966,7 +967,7 @@ Initial parameters:
             # ebpred = np.array(model["e_b"])*np.array(model["r3"])
             # ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
                 ebpred = np.array(model["fluen"])
-        else:
+        elif type(model) == list:
             breakpoint()
             # The other way to return the model is as an array with the burst times, fluences
             # and alphas all together. So unpack those here
@@ -975,11 +976,11 @@ Initial parameters:
 
         # Now set up the figure
 
-        if imatch is None:
-            fig, ax1 = plt.subplots()
-        else:
+        if show_model & (imatch is not None):
             fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']])
             ax1 = axs['main']
+        else:
+            fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
 
         flux_color = 'tab:red'
@@ -1021,7 +1022,8 @@ Initial parameters:
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
                     ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_color)
-                ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+                if show_model:
+                    ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
                 ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
             else:
                 # "ensemble" mode plot vs. epoch, rather than observation time
@@ -1277,6 +1279,8 @@ Initial parameters:
         _start = time.time()
 
         # run the chains and save the output as a h5 file
+        # TODO to simplify the subsequent analysis I think this object
+        # should be added to the Beans object
         sampler = runemcee(self.nwalkers, self.nsteps,
             self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
             self.run_id, self.restart, self.threads, **kwargs)
@@ -1423,7 +1427,8 @@ Initial parameters:
 
 
     def do_analysis(self, options=['autocor','posteriors'],
-                          truths=None, burnin=2000, savefig=True):
+                          part=None, truths=None, burnin=2000,
+                          savefig=True):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -1454,7 +1459,9 @@ Initial parameters:
         TODO: need to reorganise a bit, and add more options
 
         :param options: array of strings corresponding to various analysis
-            options, listed in the analyses dict below
+          options, listed in the analyses dict below
+	:param part: string or array "partition" dividing the set of
+          samples into two or more separate groups for analysis
         :param truths: parameter vector to overplot on (one of the) corner
           plots (TODO: need to check if >1 corner plot are selected
           +truths, which will likely result in an error due to
@@ -1491,10 +1498,6 @@ Initial parameters:
                 for key in analyses.keys():
                     print ('  {}: {}'.format(key, analyses[key]))
                 return
-
-        # ---------------------------------------------------------------------#
-        # PLOTS
-        # ---------------------------------------------------------------------#
 
         if not hasattr(self, 'reader'):
 
@@ -1614,6 +1617,10 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
         if 'last' in options:
 
             # show likelihood contributions for last step
+	    # TODO could also use the reader.get_last_sample method, at
+	    # least for p_tot, but this won't give you the likelihood
+            # contributions. It does include as the 4th element the prior
+            # and model realisations (blobs) though
 
             probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'],
                 index = np.arange(self.nwalkers) )
@@ -1632,6 +1639,9 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             self.probs = probs
 
         # ---------------------------------------------------------------------#
+        # PLOTS
+        # ---------------------------------------------------------------------#
+
         if 'autocor' in options:
 
             # plot autocorrelation times
@@ -1763,10 +1773,19 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             print ("...done")
 
             # to get the parameter middle values and uncertainty use the
-            # functions get_param_uncert_obs and get_param_uncert_pred,
+            # functions get_param_uncert_obs and get_param_uncert_part
             # e.g.
 
-            times = get_param_uncert_obs(time)
+            numbursts_pred = [len(x) for x in time]
+            # special here for the base20 run, to 3500 steps at least;
+            # more generally want to have a way of doing this on the fly
+            # part = ['loX-36' if ((_n == 36) & (self.samples[i,0] < 0.3)) 
+            #     else 'loX-37' if ((_n == 37) & (self.samples[i,0] < 0.3)) 
+            #     else 'hiX' #if (self.samples[i,0] > 0.3)
+            #     for i, _n in enumerate(numbursts_pred)]
+            if (part is None) & (len(set(numbursts_pred)) > 1):
+                part = numbursts_pred
+            times = get_param_uncert_part(time, partition=part)
 
             # Here we calculate the parameter uncertainties on the
             # predcted fluences, for comparison with the observations
@@ -1775,15 +1794,17 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # a bit more complicated
             # fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
             fpred = [list(np.array(_e_b)*self.fluen_fac/self.samples[_i,4]/self.samples[_i,3]**2) for _i, _e_b in enumerate(e_b)]
-            ebs = get_param_uncert_obs(fpred)
+            ebs = get_param_uncert_part(fpred, partition=part)
 
-            alphas = get_param_uncert_obs(alpha)
+            alphas = get_param_uncert_part(alpha, partition=part)
 
 	    # store these parameters and flag it so we don't need to
 	    # calculate them again (unless burnin changes)
 
             self.model_pred = { 'mdot': mdot,
                 'times': time, 'time_stats': times,
+                'numbursts': numbursts_pred, 'partition': part,
+                'part_stats': {x: len(np.where(np.array(part) == x)[0]) for x in set(part)},
                 'e_b': e_b, 'e_b_stats': ebs,
                 'alpha': alpha, 'alpha_stats': alphas }
             self.models_burnin = burnin
@@ -1791,14 +1812,21 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # Here also we modify the ChainConsumer object if we have
             # multiple models
 
-            if len(times) > self.cc_nchain:
-                numburstssim = np.array([len(x) for x in time])
+            if (len(times) != self.cc_nchain) & (part is not None):
                 self.cc = ChainConsumer()
-                for _n in set(numburstssim):
-                    self.cc.add_chain(self.samples[numburstssim == _n],
-                        name='{} bursts'.format(_n),
-                        parameters=list(self.cc_parameters.values()))
-                self.cc_nchain = len(times)
+                self.cc_nchain = 0
+                for _n in set(part):
+                    # need to check that there are sufficient samples here
+                    _sel = np.array(part) == _n
+                    _check = np.shape(self.samples[_sel])[0]
+                    if _check > 1000:
+                        self.cc.add_chain(self.samples[_sel],
+                            # name='{} bursts'.format(_n),
+                            name = _n if type(_n) == str else str(_n),
+                            parameters=list(self.cc_parameters.values()))
+                        self.cc_nchain += 1
+                    else:
+                      print ('Skipping walkers for n={}, too few samples ({})'.format(_n, _check))
                 print ('Updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
@@ -1903,9 +1931,9 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     timepred = [x[0] for x in times[numburstssim]]
                     timepred_errup = [x[1] for x in times[numburstssim]]
                     timepred_errlow = [x[2] for x in times[numburstssim]]
-                    ebpred = [x[0] for x in ebs[numburstssim-1]]
-                    ebpred_errup = [x[1] for x in ebs[numburstssim-1]]
-                    ebpred_errlow = [x[2] for x in ebs[numburstssim-1]]
+                    ebpred = [x[0] for x in ebs[numburstssim]]
+                    ebpred_errup = [x[1] for x in ebs[numburstssim]]
+                    ebpred_errlow = [x[2] for x in ebs[numburstssim]]
                     ax1.errorbar(timepred[1:], ebpred,
                         yerr=[ebpred_errup, ebpred_errlow],
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
@@ -1915,13 +1943,14 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
                     imatch = burst_time_match(self.ref_ind, self.bstart,
                         ref_tpred, np.array(timepred))
+                    print (numburstssim, imatch)
                     # Not sure this will work so well if there are
                     # multiple sets of solutions
                     # if len(times.keys()) == 1:
                     imatchm1 = [x-1 for x in imatch if x-1 >= 0]
                     ax1.plot(np.array(timepred[1:])[imatchm1], 
                         np.array(ebpred)[imatchm1],
-                        marker='*', ms=11, linestyle='', color='tab:red',
+                        marker='*', ms=5, linestyle='', color='tab:red',
                         label=_label,zorder=99)
                     _label = None # only give the label the first time
 
@@ -1930,8 +1959,9 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                         yerr=[np.array(timepred_errup)[imatch]*24.,
                         np.array(timepred_errlow)[imatch]*24.],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i))
-                    print ('RMS obs-model offset ({}) = {:.4f} hr'.format(
-                        numburstssim, np.sqrt(np.mean(resid**2))))
+                    print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
+                        numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples), 
+                        np.sqrt(np.mean(resid**2))))
 
                 ax1.set_ylabel("Fluence (1e-9 erg/cm$^2$)")
                 axs['resid'].axhline(0.0, color=obs_color, ls='--')

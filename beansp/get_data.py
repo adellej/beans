@@ -87,7 +87,7 @@ def get_obs(bean, alpha=True, fluen=True):
     if bean.obsname is not None:
         # if not exists(obsname):
         #     sys.exit("** ERROR ** observation file {} not found".format(obsname))
-        obsdata = ascii.read(bean.obsname)
+        obsdata = ascii.read(bean.obsname)# format='tab', header_start=None, data_start=0)
         ta_1 = obsdata['col1']
         ta_2 = obsdata['col2']
 
