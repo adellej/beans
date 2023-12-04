@@ -991,7 +991,7 @@ Initial parameters:
             #plot satellite gtis
             for i in range(1,len(self.st)):
                 ax1.axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
-            ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite gtis')
+            ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite GTIs')
 
         # first show the flux/mdot
         if mdot and full_model:
@@ -1922,6 +1922,12 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     if (i not in self.ifluen) & (i != self.ref_ind):
                         ax1.axvline(self.bstart[i], color=obs_color, ls='--')
                 ax1.axvline(self.bstart[self.ref_ind], c='k', ls='-')
+
+                if self.gti_checking:
+                    #plot satellite gtis
+                    for i in range(1,len(self.st)):
+                        ax1.axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
+                    ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite GTIs')
 
                 times = self.model_pred['time_stats']
                 ebs = self.model_pred['e_b_stats']
