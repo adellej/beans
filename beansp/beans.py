@@ -1428,7 +1428,7 @@ Initial parameters:
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=None, burnin=2000,
-                          savefig=True):
+                          savefig=False):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -1450,9 +1450,6 @@ Initial parameters:
         the run_id; drawn from
 
         | {}_autocorrelationtimes.pdf (via plot_autocorr)
-        | {}_predictedburstscomparison.pdf
-        | {}chain-plot.pdf
-        | {}_massradius.pdf
         | {}_posteriors.pdf
         | {}_parameterconstraints_pred.txt
 
@@ -1484,6 +1481,7 @@ Initial parameters:
                     'mrcorner': 'corner plot with M, R, g and 1+z',
                     'fig6': 'corner plot with xi_b, xi_p, d, Q_b, Z',
                     'fig8': 'xi_b vs. xi_p and models for comparison',
+                    'converge': 'check the convergence via posterior evolution',
                     'comparison': 'observed and predicted burst times, fluences',
                     'last': 'analyse last walker positions' }
 
@@ -1748,6 +1746,28 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 fig = self.cc.plotter.plot(
                     parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
                     truth=truths, figsize="page")
+                fig.show()
+
+        # ---------------------------------------------------------------------#
+        if ('converge' in options):
+
+            # do the summary plot, comparing the two halves of the burnin
+
+            _cc = ChainConsumer()
+            _n = int(np.shape(self.samples)[0]/2)
+            _cc.add_chain(self.samples[:_n,:self.ndim],
+                parameters=list(self.cc_parameters.keys())[:self.ndim],
+                name='{}-{}'.format(self.samples_burnin,
+                self.samples_burnin+int(_n/self.nwalkers)))
+            _cc.add_chain(self.samples[_n:,:self.ndim],
+                parameters=list(self.cc_parameters.keys())[:self.ndim],
+                name='{}-{}'.format(self.samples_burnin+int(_n/self.nwalkers),
+                self.nsteps_completed))
+            if savefig:
+                _cc.plotter.plot_summary(
+                    filename=self.run_id+"_converge.pdf")#,figsize="page")
+            else:
+                fig = _cc.plotter.plot_summary()#figsize="page")
                 fig.show()
 
         # ---------------------------------------------------------------------#
