@@ -60,7 +60,7 @@ def burst_time_match(iref1, time1, iref2, time2):
     # this for continuing the base20 run
     # ioff = [-17, -16, -13, -11,  -6,  -5,  -3,  -2,  -1,   0,   3,   4,   5,
     #      7,   9,  11,  12,  14,  15,  19]
-    # & for IGR J17498-2921, for the base21 run
+    # & for IGR J17498-2921, for the forcepm9 run
     # ioff = [-9, -5, -2, -1,  0,  1,  8,  9]
     # if (iref2+ioff[0] >= 0) & (len(time2) > iref2+ioff[-1]):
     #     return [iref2+x for x in ioff]

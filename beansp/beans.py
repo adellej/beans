@@ -1297,13 +1297,18 @@ Initial parameters:
 
 # -------------------------------------------------------------------------#
 
-    def plot_autocorr(self, reader=None, savefile=None, figsize=(8,5) ):
+    def plot_autocorr(self, samples=None, reader=None, savefile=None, figsize=(8,5) ):
         """
         This method shows the estimated autocorrelation time for the run
         Extracted from do_analysis, and originally based on the analysis
         described in the example for emcee:
         https://emcee.readthedocs.io/en/stable/tutorials/autocorr
 
+        :param samples: numpy array with samples, to calculate the
+          autocorrelation from
+        :param reader: object to get the chains from (if not supplied via
+	  the samples parameter), via the get_chain method. TODO just pass
+          the samples to make this more general
         :param savefile: name of file to save as (skip if None)
         :param figsize: size for the figure, (tuple, in inches)
 
@@ -1366,23 +1371,24 @@ Initial parameters:
             return taus[window]
 
 
-        if reader is None:
+        if (samples is None) and (reader is None):
             # load in sampler:
+            print ('Loading reader from {}.h5...'.format(self.run_id))
             reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
 
-        #tau = 20
-        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
-        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
-        print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau),
-          min(tau), max(tau)))
+        if reader is not None:
+            samples = reader.get_chain(flat=False)
+            #tau = 20
+            tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
+            thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
+            print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
+            print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau),
+                min(tau), max(tau)))
 
         # alternate method of checking if the chains are converged:
         # This code is from https://dfm.io/posts/autocorr/
 
         # get autocorrelation time:
-
-        sampler=reader.get_chain(flat=False)
 
         # loop through 10 parameters and plot the evolution of the
         # autocorrelation time estimate for each
@@ -1393,7 +1399,7 @@ Initial parameters:
             "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$"]
 
         for j in range(self.ndim):
-            chain = sampler[:, :, j].T
+            chain = samples[:, :, j].T
             # print(np.shape(sampler))
 
             N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), self.ndim)).astype(int)
@@ -1645,9 +1651,9 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # plot autocorrelation times
 
             if savefig:
-                self.plot_autocorr(self.reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
+                self.plot_autocorr(reader=self.reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
             else:
-                self.plot_autocorr(self.reader, savefile=None)
+                self.plot_autocorr(reader=self.reader, savefile=None)
                 print ('Skipping autocorrelation plot save')
             print ("...done")
 
@@ -1803,7 +1809,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             #     else 'loX-37' if ((_n == 37) & (self.samples[i,0] < 0.3)) 
             #     else 'hiX' #if (self.samples[i,0] > 0.3)
             #     for i, _n in enumerate(numbursts_pred)]
-            if (part is None) & (len(set(numbursts_pred)) > 1):
+            if (part is None): # & (len(set(numbursts_pred)) > 1):
                 part = numbursts_pred
             times = get_param_uncert_part(time, partition=part)
 
@@ -1821,10 +1827,14 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 	    # store these parameters and flag it so we don't need to
 	    # calculate them again (unless burnin changes)
 
+            # part_stats = None
+            # if part is not None:
+            #     part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in set(part)}
+            part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in times.keys()}
             self.model_pred = { 'mdot': mdot,
                 'times': time, 'time_stats': times,
                 'numbursts': numbursts_pred, 'partition': part,
-                'part_stats': {x: len(np.where(np.array(part) == x)[0]) for x in set(part)},
+                'part_stats': part_stats,
                 'e_b': e_b, 'e_b_stats': ebs,
                 'alpha': alpha, 'alpha_stats': alphas }
             self.models_burnin = burnin
@@ -1954,6 +1964,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 # loop over all the different solutions
                 _label = 'matched'
                 for i, numburstssim in enumerate(times.keys()):
+                    print (i, numburstssim, times, ebs)
                     timepred = [x[0] for x in times[numburstssim]]
                     timepred_errup = [x[1] for x in times[numburstssim]]
                     timepred_errlow = [x[2] for x in times[numburstssim]]
