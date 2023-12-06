@@ -1587,12 +1587,18 @@ Initial parameters:
             # self.cc.add_chain(_samples, parameters=_labels)
             self.cc.add_chain(_samples, parameters=list(_plot_labels.values()),
                 name=self.run_id)
-            self.cc.configure(usetex=True, serif=True)
+            # configure params below copied from Adelle's jupyter notebook
+            # we apply them here for consistency across all the posterior
+            # plots
+            self.cc.configure(usetex=True, serif=True, 
+                flip=False, bins=0.7, summary=False, \
+                diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                label_font_size='xx-large',smooth=True, \
+                sigmas=np.linspace(0, 3, 4))
             self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
-            # Can't work out how to do this yet
-            # self.cc.configure(plot_labels=_plot_labels)
 
             # Now get parameter uncertainties and save to the text file
 
@@ -1741,15 +1747,8 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
             # cc = ChainConsumer()
 
-            # configure params below copied from Adelle's jupyter notebook
             # cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
             #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
-            self.cc.configure(
-                flip=False, bins=0.7, summary=False, \
-                diagonal_tick_labels=False, max_ticks=3, shade=True, \
-                shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-                label_font_size='xx-large',smooth=True, \
-                sigmas=np.linspace(0, 3, 4))
             if savefig:
                 self.cc.plotter.plot(
                     parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
