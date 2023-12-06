@@ -70,7 +70,7 @@ def get_param_uncert_obs(param_array, percentile=[16,50,84]):
         result = dict()
         for _n in set(numburstssim):
             _param_array = [x for x in param_array if len(x) == _n]
-            result[_n] = get_param_uncert_obs(_param_array)[_n]
+            result[_n] = get_param_uncert_obs(_param_array, percentile)[_n]
 
         return result
 
@@ -78,6 +78,36 @@ def get_param_uncert_obs(param_array, percentile=[16,50,84]):
         zip(*np.percentile(param_array, percentile, axis=0)))
 
     return {numburstssim: list(plist)}
+
+
+def get_param_uncert_part(param_array, percentile=[16,50,84], partition=None):
+    '''
+    As for get_param_uncert_obs, but uses a "partition" array which
+    divides the set of lists into discrete groups for analysis
+
+    :param param_array: array of dimension (nsteps*walkers, nbursts) listing the predicted values
+    :param partition: arbitrary array of same length as the first dimension of param_array
+
+    :return: dict with one or more entries, each with key from the partition array and a list of tuples giving parameter centroid and limits
+    '''
+
+    if partition is None:
+        return get_param_uncert_obs(param_array, percentile)
+
+    if len(partition) != len(param_array):
+        print ('** ERROR ** partition array is wrong shape ({} != {},?), ignoring'.format(len(partition),len(param_array)))
+        partition = None
+
+    # now loop over the discrete partition elements and generate the stats
+
+    result = dict()
+    for _n in set(partition):
+        _param_array = [x for i, x in enumerate(param_array) if partition[i] == _n]
+        # this is fucking stupid, would be unnecessary if you could index
+        # a dict values
+        result[_n] = tuple(get_param_uncert_obs(_param_array, percentile).values())[0]
+
+    return result
 
 
 def get_param_uncert(param_array, percentile=[16,50,84]):

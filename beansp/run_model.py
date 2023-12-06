@@ -54,11 +54,16 @@ def burst_time_match(iref1, time1, iref2, time2):
 
         return ix
 
-    assert np.isclose(time1[iref1],time2[iref2])
+    assert np.isclose(time1[iref1],time2[iref2],rtol=1e-4)
 
-    # special here for IGRJ 17511-3057, forcing the match solution
-    # if (ref_tpred-15 >= 0) & (len(time2) > ref_tpred+17):
-    #     return [ref_tpred+x for x in [-15, -14, -11,  -9,  -4,  -3,  -1,   0,   1,   2,   5,  12,  14, 15, 17]]
+    # special here for IGR J17511-3057, forcing the match solution
+    # this for continuing the base20 run
+    # ioff = [-17, -16, -13, -11,  -6,  -5,  -3,  -2,  -1,   0,   3,   4,   5,
+    #      7,   9,  11,  12,  14,  15,  19]
+    # & for IGR J17498-2921, for the forcepm9 run
+    # ioff = [-9, -5, -2, -1,  0,  1,  8,  9]
+    # if (iref2+ioff[0] >= 0) & (len(time2) > iref2+ioff[-1]):
+    #     return [iref2+x for x in ioff]
     # else:
     #     return None
 

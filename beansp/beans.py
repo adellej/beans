@@ -1,4 +1,5 @@
 """Main module. This has functions that do the sampling, save the chains, and analyse the results."""
+
 ## Python packages required:
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -45,7 +46,7 @@ from .run_model import runmodel, burst_time_match
 from .get_data import get_obs
 from .mrprior import mr_prior
 from .run_emcee import runemcee
-from .analyse import get_param_uncert_obs, get_param_uncert
+from .analyse import get_param_uncert_obs, get_param_uncert_part, get_param_uncert
 
 # -------------------------------------------------------------------------#
 
@@ -349,30 +350,41 @@ class Beans:
     except:
         pass
 
-    def __init__(self, config_file=None, nwalkers=200, nsteps=100,
-                 run_id="test", obsname=None, burstname=None, gtiname=None,
+    def __init__(self, prior=prior_func, corr=None, config_file=None,
+                 run_id="test", nwalkers=200, nsteps=100,
+                 obsname=None, burstname=None, gtiname=None,
+                 interp='linear', smooth=0.02,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
-                 numburstssim=3, bc=2.21, ref_ind=1, prior=prior_func,
-                 corr=None, threads = 4, test_model=True, restart=False,
-                 interp='linear', smooth=0.02, fluen=True, alpha=True, **kwargs):
+                 fluen=True, alpha=True, 
+                 numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
+                 test_model=True, restart=False, **kwargs):
         """
         Initialise a Beans object
 
+        :param prior: prior function to use
+        :param corr: correction function for bursts, or None
         :param config_file: file to read in configuration parameters (in
           which case the keyword params below are ignored)
-        :param nwalkers: number of walkers for the emcee run
-        :param nsteps: number of MCMC steps to run
         :param run_id: string identifier for the run, used to label all the
           result files, and where you want output to be saved
+        :param nwalkers: number of walkers for the emcee run
+        :param nsteps: number of MCMC steps to run
         :param obsname: name of the file including the flux history, from which
           the mdot is estimated to generate to generate the burst train
           (set ``obsname=None`` for a non-contiguous, or "ensemble" mode run)
         :param burstname: name of the burst data file, listing the bursts
         :param gtiname: name of the GTI file, set to ``None`` to turn off
           checking
+        :param interp: interpolation mode for the flux; possible values are
+          'linear', or 'spline'
+        :param smooth: smoothing factor for spline interpolation
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
           (optionally) *f_a* & *f_E*
+        :param fluen: set to True (default) to include the fluences in the
+          data for comparison, or False to omit
+        :param alpha: set to True (default) to include the alphas in the
+          data for comparison, or False to omit
         :param numburstssim: number of bursts to simulate, for the "train" mode,
           both earlier and later than the reference burst; i.e. set to half
           the total number of bursts you want to simulate. Don't forget to
@@ -383,19 +395,11 @@ class Beans:
           times are relative to. For the "train" mode, should be around the
           middle of the predicted burst train. This burst will not be
           simulated but will be used as a reference to predict the other bursts.
-        :param prior: prior function to use
-        :param corr: correction function for bursts, or None
         :param threads: number of threads for emcee to use (e.g. number of
           cores your computer has). Set to ``None`` to use all available
         :param test_model: flag to test the model during the setup process
         :param restart: set to ``True`` to continue a previously interrupted run
-        :param interp: interpolation mode for the flux; possible values are
-          'linear', or 'spline'
-        :param smooth: smoothing factor for spline interpolation
-        :param alpha: set to True (default) to include the alphas in the
-          data for comparison, or False to omit
-        :param fluen: set to True (default) to include the fluences in the
-          data for comparison, or False to omit
+
         :result: Beans object including all the required data
         """
 
@@ -691,6 +695,7 @@ Initial parameters:
 
            if self.obsname is not None:
                # These parameters only used for "train" mode
+               Config.set("data", "tref", str(self.tref))
                Config.set("data", "ref_ind", str(self.ref_ind))
                Config.set("data", "bc", str(self.bc))
                Config.set("data", "interp", str(self.interp))
@@ -723,7 +728,7 @@ Initial parameters:
             run_id = os.path.join(data_path, 'beans.ini')
 
         int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
-        float_params = ('bc', 'smooth')
+        float_params = ('bc', 'smooth', 'tref')
 
         if not os.path.isfile(file):
             print ('** ERROR ** config file not found')
@@ -913,17 +918,23 @@ Initial parameters:
 
 
 
-    def plot_model(self, show_model=True, model=None, mdot=True, title=None):
+    def plot(self, show_model=True, model=None, mdot=True, title=None, 
+        savefig=False):
         """
-        Display a plot of the model results, for a burst train calculated
-        with generate_burst_train Adapted from the example at
+	Display a plot of the data and model results, for a burst train
+        calculated with generate_burst_train Adapted from the example at
         https://matplotlib.org/gallery/api/two_scales.html
 
         :param show_model: set to False to skip the model generation step, in which case only the observed data will be plotted
         :param model: array of packed model prediction, OR dict giving full model results
         :param mdot: flag to show mdot rather than flux (only possible if you're passing the full model)
         :param title: add a title, if required
+        :param savefig: set to True to save the figure to PDF
         """
+
+        flux_colour = 'tab:red'
+        bursts_colour = 'tab:blue'
+        obs_colour = 'tab:grey'
 
         # for the default linear interpolation connect the flux
         # measurements by lines
@@ -934,7 +945,8 @@ Initial parameters:
 
         X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
 
-        if model is None:
+        imatch = None
+        if (model is None) & show_model:
             # no need to do the matching here
             test, valid, model = runmodel(self.theta, self, match=False,
                 debug=False)
@@ -942,14 +954,14 @@ Initial parameters:
             # ... but it's useful to know if it's possible
 
             imatch = burst_time_match(self.ref_ind, self.bstart,
-                np.array(model['time']))
+                model['iref'], np.array(model['time']))
 
             if imatch is None:
                 print ("** WARNING ** can't match predicted bursts to observations")
 
-        full_model = False  # Flag to remember whether we're plotting the full model output of
-                            # generate burst train or the packed output array
-        # if hasattr(model, "time"):
+        full_model = False  # Flag to remember whether we're plotting the
+                            # full model output of generate burst train or
+                            # the packed output array
         if type(model) == dict:
             full_model = True
             timepred = model["time"]
@@ -957,109 +969,106 @@ Initial parameters:
                 print ('** ERROR ** no predicted times to show')
                 show_model = False
             else:
-            # ebpred = np.array(model["e_b"])*np.array(model["r3"])
-            # ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
                 ebpred = np.array(model["fluen"])
-        else:
+        elif type(model) == list:
             breakpoint()
-            # The other way to return the model is as an array with the burst times, fluences
-            # and alphas all together. So unpack those here
+	    # The other way to return the model is as an array with the
+	    # burst times, fluences and alphas all together. So unpack
+	    # those here
             timepred = model[:self.numburstssim+1]
             ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)]) * self.fluen_fac/xi_b/dist**2
 
         # Now set up the figure
 
-        if imatch is None:
-            fig, ax1 = plt.subplots()
-        else:
+        if show_model & (imatch is not None):
             fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']])
             ax1 = axs['main']
+        else:
+            fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
 
-        flux_color = 'tab:red'
-        bursts_color = 'tab:blue'
-        obs_color = 'tab:grey'
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
         if self.gti_checking:
             #plot satellite gtis
             for i in range(1,len(self.st)):
                 ax1.axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
-            ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite gtis')
+            ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite GTIs')
 
         # first show the flux/mdot
         if mdot and full_model:
             # this is the usual (only?) plot style, showing mdot vs. time,
             # along with the burst model and observation comparison
             _mdot, _mdot_err = self.flux_to_mdot(X, dist, xi_p, mass, radius)
-            ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
+            ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_colour)
             if self.train:
                 # show the burst train
                 ax1.errorbar(self.tobs, _mdot, _mdot_err,
-                    marker='.', ls=ls, color=flux_color, label='mdot')
+                    marker='.', ls=ls, color=flux_colour, label='mdot')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
                     ax1.plot(t, self.flux_to_mdot(X, dist, xi_p, mass, radius,
-                        BSpline(*self.tck_s)(t)), color=flux_color)
+                        BSpline(*self.tck_s)(t)), color=flux_colour)
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
                 ax2.axvline(self.bstart[self.ref_ind], c='k', ls='-')
             else:
                 # show the ensemble comparison, which is much simpler
                 ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
-                         color=flux_color, label='mdot')
+                         color=flux_colour, label='mdot')
         else:
-            ax1.set_ylabel('Persistent flux', color=flux_color)
+            ax1.set_ylabel('Persistent flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}\\,s^{-1}}$)', color=flux_colour)
             if self.train:
                 ax1.errorbar(self.tobs, self.pflux, self.pfluxe,
-                    marker = '.', ls=ls, color=flux_color, label = 'pflux')
+                    marker = '.', ls=ls, color=flux_colour, label = 'persistent flux')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
-                    ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_color)
-                ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+                    ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_colour)
+                if show_model:
+                    ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_colour,s = 100)
                 ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
             else:
                 # "ensemble" mode plot vs. epoch, rather than observation time
-                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_color,
-                         label='pflux')
+                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_colour,
+                         label='persistent flux')
                 ax1.set_xlabel("Epoch (MJD)")
 
-        ax1.tick_params(axis='y', labelcolor=flux_color)
+        ax1.tick_params(axis='y', labelcolor=flux_colour)
 
         # Plot the bursts here
-        ax2.set_ylabel("Fluence (1e-9 erg/cm$^2$)", color=bursts_color)
+        ax2.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)", color=obs_colour)
         if self.train:
             if self.bstart is not None:
                 # Plot the observed bursts, if available
                 # ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
                 ax2.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                     yerr=self.fluene[self.ifluen],
-                    color=obs_color, linestyle='', marker='.', ms=13,
-                    label='observed')
+                    color=obs_colour, linestyle='', marker='.', ms=13,
+                    label='observed bursts')
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
-                        ax2.axvline(self.bstart[i], color=obs_color, ls='--')
+                        ax2.axvline(self.bstart[i], color=obs_colour, ls='--')
 
             if show_model:
-                ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+                ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted bursts')
             # we have time but not fluence for the first burst
-                ax2.axvline(timepred[0], color=bursts_color, ls='--')
+                ax2.axvline(timepred[0], color=bursts_colour, ls='--')
                 # and the averaged mdot over the burst interval (predicted)
                 av_mdot = []
                 for i in range(len(timepred)-1):
                     av_mdot.append(self.flux_to_mdot(X, dist, xi_p, mass, radius,
                         self.mean_flux(timepred[i], timepred[i+1], self)))
                 av_mdot.insert(0, av_mdot[0])
-                ax1.step(timepred, av_mdot, where='pre', color=flux_color)
+                ax1.step(timepred, av_mdot, where='pre', color=flux_colour)
 
                 if imatch is not None:
                     # show the burst time comparison
                     resid = -(self.bstart-np.array(timepred)[imatch])*24.
                     axs['resid'].plot(imatch, resid,
-                        linestyle='', marker='.', ms=13, color=obs_color)
+                        linestyle='', marker='.', ms=13, color=obs_colour)
                     for i in range(self.numburstsobs):
                         axs['resid'].annotate(' {}'.format(i+1), 
                             (imatch[i], resid[i]) )
-                    axs['resid'].axhline(0.0, color=obs_color, ls='--')
+                    axs['resid'].axhline(0.0, color=obs_colour, ls='--')
                     axs['resid'].set_xlabel('Burst number (predicted)')
                     axs['resid'].set_ylabel('Time offset (hr)')
                     print ('RMS obs-model offset = {:.4f} hr'.format(
@@ -1068,9 +1077,9 @@ Initial parameters:
         else:
             ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             if show_model:
-                ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+                ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted')
 
-        ax2.tick_params(axis='y', labelcolor=bursts_color)
+        ax2.tick_params(axis='y', labelcolor=obs_colour)
 
         ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
         if title is not None:
@@ -1079,6 +1088,12 @@ Initial parameters:
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
         fig.legend(loc=1)
+
+        if savefig:
+            file = f'{self.run_id}_plot.pdf'
+            print ('Saving figure plot to {}'.format(file))
+            fig.savefig(file)
+
         fig.show()
 
     def sim_data(self, file=None):
@@ -1265,12 +1280,14 @@ Initial parameters:
         if plot:
             print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
             # make plot of observed burst comparison with predicted bursts:
-            self.plot_model(title='Initial guess of parameters')
+            self.plot(title='Initial guess of parameters')
             value = input('Press [RETURN] to continue: ')
 
         _start = time.time()
 
         # run the chains and save the output as a h5 file
+        # TODO to simplify the subsequent analysis I think this object
+        # should be added to the Beans object
         sampler = runemcee(self.nwalkers, self.nsteps,
             self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
             self.run_id, self.restart, self.threads, **kwargs)
@@ -1287,13 +1304,18 @@ Initial parameters:
 
 # -------------------------------------------------------------------------#
 
-    def plot_autocorr(self, reader=None, savefile=None, figsize=(8,5) ):
+    def plot_autocorr(self, samples=None, reader=None, savefile=None, figsize=(8,5) ):
         """
         This method shows the estimated autocorrelation time for the run
         Extracted from do_analysis, and originally based on the analysis
         described in the example for emcee:
         https://emcee.readthedocs.io/en/stable/tutorials/autocorr
 
+        :param samples: numpy array with samples, to calculate the
+          autocorrelation from
+        :param reader: object to get the chains from (if not supplied via
+	  the samples parameter), via the get_chain method. TODO just pass
+          the samples to make this more general
         :param savefile: name of file to save as (skip if None)
         :param figsize: size for the figure, (tuple, in inches)
 
@@ -1356,23 +1378,24 @@ Initial parameters:
             return taus[window]
 
 
-        if reader is None:
+        if (samples is None) and (reader is None):
             # load in sampler:
+            print ('Loading reader from {}.h5...'.format(self.run_id))
             reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
 
-        #tau = 20
-        tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
-        thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
-        print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
-        print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau),
-          min(tau), max(tau)))
+        if reader is not None:
+            samples = reader.get_chain(flat=False)
+            #tau = 20
+            tau = reader.get_autocorr_time(tol=0) #using tol=0 means we'll always get an estimate even if it isn't trustworthy.
+            thin = int(0.5 * np.min(tau)) # seems to be ignored - dkg
+            print(f"The autocorrelation time for each parameter as calculated by emcee is: {tau}")
+            print ("  mean {:.1f}, min {:.1f}, max {:.1f}".format(np.mean(tau),
+                min(tau), max(tau)))
 
         # alternate method of checking if the chains are converged:
         # This code is from https://dfm.io/posts/autocorr/
 
         # get autocorrelation time:
-
-        sampler=reader.get_chain(flat=False)
 
         # loop through 10 parameters and plot the evolution of the
         # autocorrelation time estimate for each
@@ -1383,7 +1406,7 @@ Initial parameters:
             "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$"]
 
         for j in range(self.ndim):
-            chain = sampler[:, :, j].T
+            chain = samples[:, :, j].T
             # print(np.shape(sampler))
 
             N = np.exp(np.linspace(np.log(100), np.log(chain.shape[1]), self.ndim)).astype(int)
@@ -1417,7 +1440,8 @@ Initial parameters:
 
 
     def do_analysis(self, options=['autocor','posteriors'],
-                          truths=None, burnin=2000, savefig=True):
+                          part=None, truths=None, burnin=2000,
+                          savefig=False):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -1439,16 +1463,15 @@ Initial parameters:
         the run_id; drawn from
 
         | {}_autocorrelationtimes.pdf (via plot_autocorr)
-        | {}_predictedburstscomparison.pdf
-        | {}chain-plot.pdf
-        | {}_massradius.pdf
         | {}_posteriors.pdf
         | {}_parameterconstraints_pred.txt
 
         TODO: need to reorganise a bit, and add more options
 
         :param options: array of strings corresponding to various analysis
-            options, listed in the analyses dict below
+          options, listed in the analyses dict below
+	:param part: string or array "partition" dividing the set of
+          samples into two or more separate groups for analysis
         :param truths: parameter vector to overplot on (one of the) corner
           plots (TODO: need to check if >1 corner plot are selected
           +truths, which will likely result in an error due to
@@ -1471,6 +1494,7 @@ Initial parameters:
                     'mrcorner': 'corner plot with M, R, g and 1+z',
                     'fig6': 'corner plot with xi_b, xi_p, d, Q_b, Z',
                     'fig8': 'xi_b vs. xi_p and models for comparison',
+                    'converge': 'check the convergence via posterior evolution',
                     'comparison': 'observed and predicted burst times, fluences',
                     'last': 'analyse last walker positions' }
 
@@ -1485,10 +1509,6 @@ Initial parameters:
                 for key in analyses.keys():
                     print ('  {}: {}'.format(key, analyses[key]))
                 return
-
-        # ---------------------------------------------------------------------#
-        # PLOTS
-        # ---------------------------------------------------------------------#
 
         if not hasattr(self, 'reader'):
 
@@ -1608,6 +1628,10 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
         if 'last' in options:
 
             # show likelihood contributions for last step
+	    # TODO could also use the reader.get_last_sample method, at
+	    # least for p_tot, but this won't give you the likelihood
+            # contributions. It does include as the 4th element the prior
+            # and model realisations (blobs) though
 
             probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'],
                 index = np.arange(self.nwalkers) )
@@ -1626,14 +1650,17 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             self.probs = probs
 
         # ---------------------------------------------------------------------#
+        # PLOTS
+        # ---------------------------------------------------------------------#
+
         if 'autocor' in options:
 
             # plot autocorrelation times
 
             if savefig:
-                self.plot_autocorr(self.reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
+                self.plot_autocorr(reader=self.reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
             else:
-                self.plot_autocorr(self.reader, savefile=None)
+                self.plot_autocorr(reader=self.reader, savefile=None)
                 print ('Skipping autocorrelation plot save')
             print ("...done")
 
@@ -1735,6 +1762,28 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 fig.show()
 
         # ---------------------------------------------------------------------#
+        if ('converge' in options):
+
+            # do the summary plot, comparing the two halves of the burnin
+
+            _cc = ChainConsumer()
+            _n = int(np.shape(self.samples)[0]/2)
+            _cc.add_chain(self.samples[:_n,:self.ndim],
+                parameters=list(self.cc_parameters.keys())[:self.ndim],
+                name='{}-{}'.format(self.samples_burnin,
+                self.samples_burnin+int(_n/self.nwalkers)))
+            _cc.add_chain(self.samples[_n:,:self.ndim],
+                parameters=list(self.cc_parameters.keys())[:self.ndim],
+                name='{}-{}'.format(self.samples_burnin+int(_n/self.nwalkers),
+                self.nsteps_completed))
+            if savefig:
+                _cc.plotter.plot_summary(
+                    filename=self.run_id+"_converge.pdf")#,figsize="page")
+            else:
+                fig = _cc.plotter.plot_summary()#figsize="page")
+                fig.show()
+
+        # ---------------------------------------------------------------------#
         if ('comparison' in options) & (self.models_burnin != burnin):
 
             # and finally read in the model realisations
@@ -1757,10 +1806,19 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             print ("...done")
 
             # to get the parameter middle values and uncertainty use the
-            # functions get_param_uncert_obs and get_param_uncert_pred,
+            # functions get_param_uncert_obs and get_param_uncert_part
             # e.g.
 
-            times = get_param_uncert_obs(time)
+            numbursts_pred = [len(x) for x in time]
+            # special here for the base20 run, to 3500 steps at least;
+            # more generally want to have a way of doing this on the fly
+            # part = ['loX-36' if ((_n == 36) & (self.samples[i,0] < 0.3)) 
+            #     else 'loX-37' if ((_n == 37) & (self.samples[i,0] < 0.3)) 
+            #     else 'hiX' #if (self.samples[i,0] > 0.3)
+            #     for i, _n in enumerate(numbursts_pred)]
+            if (part is None): # & (len(set(numbursts_pred)) > 1):
+                part = numbursts_pred
+            times = get_param_uncert_part(time, partition=part)
 
             # Here we calculate the parameter uncertainties on the
             # predcted fluences, for comparison with the observations
@@ -1769,15 +1827,21 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # a bit more complicated
             # fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
             fpred = [list(np.array(_e_b)*self.fluen_fac/self.samples[_i,4]/self.samples[_i,3]**2) for _i, _e_b in enumerate(e_b)]
-            ebs = get_param_uncert_obs(fpred)
+            ebs = get_param_uncert_part(fpred, partition=part)
 
-            alphas = get_param_uncert_obs(alpha)
+            alphas = get_param_uncert_part(alpha, partition=part)
 
 	    # store these parameters and flag it so we don't need to
 	    # calculate them again (unless burnin changes)
 
+            # part_stats = None
+            # if part is not None:
+            #     part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in set(part)}
+            part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in times.keys()}
             self.model_pred = { 'mdot': mdot,
                 'times': time, 'time_stats': times,
+                'numbursts': numbursts_pred, 'partition': part,
+                'part_stats': part_stats,
                 'e_b': e_b, 'e_b_stats': ebs,
                 'alpha': alpha, 'alpha_stats': alphas }
             self.models_burnin = burnin
@@ -1785,14 +1849,21 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # Here also we modify the ChainConsumer object if we have
             # multiple models
 
-            if len(times) > self.cc_nchain:
-                numburstssim = np.array([len(x) for x in time])
+            if (len(times) != self.cc_nchain) & (part is not None):
                 self.cc = ChainConsumer()
-                for _n in set(numburstssim):
-                    self.cc.add_chain(self.samples[numburstssim == _n],
-                        name='{} bursts'.format(_n),
-                        parameters=list(self.cc_parameters.values()))
-                self.cc_nchain = len(times)
+                self.cc_nchain = 0
+                for _n in set(part):
+                    # need to check that there are sufficient samples here
+                    _sel = np.array(part) == _n
+                    _check = np.shape(self.samples[_sel])[0]
+                    if _check > 1000:
+                        self.cc.add_chain(self.samples[_sel],
+                            # name='{} bursts'.format(_n),
+                            name = _n if type(_n) == str else str(_n),
+                            parameters=list(self.cc_parameters.values()))
+                        self.cc_nchain += 1
+                    else:
+                      print ('Skipping walkers for n={}, too few samples ({})'.format(_n, _check))
                 print ('Updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
@@ -1867,39 +1938,46 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
             plt.figure(figsize=(10,7))
 
-            # copy colors from plot_model method for consistency
+            # copy colors from plot method for consistency
 
-            bursts_color = 'tab:blue'
-            obs_color = 'tab:grey'
+            bursts_colour = 'tab:blue'
+            obs_colour = 'tab:grey'
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             if self.train:
-                # 2-panel plot like in plot_model
+                # 2-panel plot like in plot
 
                 fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
                 ax1 = axs['main']
 
                 ax1.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                     yerr=self.fluene[self.ifluen],
-                    color=obs_color, linestyle='', marker='.', ms=13,
+                    color=obs_colour, linestyle='', marker='.', ms=13,
                     label='observed')
                 # non-redundant option for missing fluence values
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
-                        ax1.axvline(self.bstart[i], color=obs_color, ls='--')
+                        ax1.axvline(self.bstart[i], color=obs_colour, ls='--')
                 ax1.axvline(self.bstart[self.ref_ind], c='k', ls='-')
+
+                if self.gti_checking:
+                    #plot satellite gtis
+                    for i in range(1,len(self.st)):
+                        ax1.axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
+                    ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite GTIs')
 
                 times = self.model_pred['time_stats']
                 ebs = self.model_pred['e_b_stats']
                 # loop over all the different solutions
                 _label = 'matched'
                 for i, numburstssim in enumerate(times.keys()):
+                    print (i, numburstssim, times, ebs)
                     timepred = [x[0] for x in times[numburstssim]]
                     timepred_errup = [x[1] for x in times[numburstssim]]
                     timepred_errlow = [x[2] for x in times[numburstssim]]
-                    ebpred = [x[0] for x in ebs[numburstssim-1]]
-                    ebpred_errup = [x[1] for x in ebs[numburstssim-1]]
-                    ebpred_errlow = [x[2] for x in ebs[numburstssim-1]]
+                    ebpred = [x[0] for x in ebs[numburstssim]]
+                    ebpred_errup = [x[1] for x in ebs[numburstssim]]
+                    ebpred_errlow = [x[2] for x in ebs[numburstssim]]
                     ax1.errorbar(timepred[1:], ebpred,
                         yerr=[ebpred_errup, ebpred_errlow],
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
@@ -1909,13 +1987,14 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
                     imatch = burst_time_match(self.ref_ind, self.bstart,
                         ref_tpred, np.array(timepred))
+                    print (numburstssim, imatch)
                     # Not sure this will work so well if there are
                     # multiple sets of solutions
                     # if len(times.keys()) == 1:
                     imatchm1 = [x-1 for x in imatch if x-1 >= 0]
                     ax1.plot(np.array(timepred[1:])[imatchm1], 
                         np.array(ebpred)[imatchm1],
-                        marker='*', ms=11, linestyle='', color='tab:red',
+                        marker='*', ms=5, linestyle='', color='tab:red',
                         label=_label,zorder=99)
                     _label = None # only give the label the first time
 
@@ -1924,11 +2003,12 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                         yerr=[np.array(timepred_errup)[imatch]*24.,
                         np.array(timepred_errlow)[imatch]*24.],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i))
-                    print ('RMS obs-model offset ({}) = {:.4f} hr'.format(
-                        numburstssim, np.sqrt(np.mean(resid**2))))
+                    print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
+                        numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples), 
+                        np.sqrt(np.mean(resid**2))))
 
                 ax1.set_ylabel("Fluence (1e-9 erg/cm$^2$)")
-                axs['resid'].axhline(0.0, color=obs_color, ls='--')
+                axs['resid'].axhline(0.0, color=obs_colour, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
                 axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
                 ax1.legend(loc=2)
@@ -1945,8 +2025,11 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 ebpred_errlow = [x[2] for x in ebs]
                 plt.errorbar(self.tdel, self.fluen, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
-                plt.scatter(timepred, ebpred, marker='*', color=bursts_color, s=100, label='Predicted')
-                plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color=bursts_color)
+                plt.scatter(timepred, ebpred, marker='*', color=bursts_colour, s=100, label='Predicted')
+                plt.errorbar(timepred, ebpred,
+                    yerr=[ebpred_errup, ebpred_errlow],
+                    xerr=[timepred_errup, timepred_errlow], fmt='.',
+                    color=bursts_colour)
                 plt.xlabel("Recurrence time (hr)")
 
                 plt.ylabel("Fluence (1e-9 erg/cm$^2$)")

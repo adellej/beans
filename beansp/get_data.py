@@ -63,6 +63,7 @@ def get_obs(bean, alpha=True, fluen=True):
         # Get the burst time, fluence and alpha arrays:
 
         bean.bstart = np.array(burstdata['col1'])
+        bean.tdel = (bean.bstart[1:]-bean.bstart[:-1])*24.
         bean.numburstsobs = len(bean.bstart)
         bean.cmpr_fluen = fluen
         bean.fluen = np.array(burstdata['col2'])
@@ -76,10 +77,6 @@ def get_obs(bean, alpha=True, fluen=True):
                 print('** WARNING ** nonzero alphas despite missing fluences will be ignored in fit')
         bean.ifluen = np.where(bean.ifluen)[0]
 
-        # Define reference time as day of first burst/epoch
-        # bstart0 = bstart[0]
-        bean.tref = np.floor(bean.bstart[0])
-
     else:
         print ('** WARNING ** skipping read of burst data, assuming no bursts observed')
         # if there's no burst data, define the start time as the first observation instead
@@ -90,10 +87,21 @@ def get_obs(bean, alpha=True, fluen=True):
     if bean.obsname is not None:
         # if not exists(obsname):
         #     sys.exit("** ERROR ** observation file {} not found".format(obsname))
-        obsdata = ascii.read(bean.obsname)
+        obsdata = ascii.read(bean.obsname)# format='tab', header_start=None, data_start=0)
         ta_1 = obsdata['col1']
         ta_2 = obsdata['col2']
-        bean.tref = np.min([bean.tref,np.floor(np.min(ta_1))])
+
+        # Define reference time as day of first burst/epoch, or day of
+        # first observation, unless it's already been defined (e.g. read
+        # in from the config file)
+        # Changed this to be the day of the first burst/obs instead of the
+        # time of the first burst from v2.11.0 onwards, so older runs need
+        # to specify the value in the config file
+        # bstart0 = bstart[0]
+
+        if not hasattr(bean, 'tref'):
+            bean.tref = np.min([np.floor(bean.bstart[0]),
+                np.floor(np.min(ta_1))])
 
         ssa_1 = ta_1
         ssa_2 = ta_2

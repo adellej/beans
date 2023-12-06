@@ -36,7 +36,7 @@ def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
 
 
 def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
-    restart, threads, **kwargs):
+    restart, threads, pos=None, **kwargs):
     """
     Function to initilise and run emcee.
     Removed the redundant parameter ndim, which can be determined from the
@@ -80,9 +80,6 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
         print('Restarting',run_id,'with',nwalkers,'walkers after',steps_so_far,'steps done')
     else:
         reader.reset(nwalkers, ndim)
-        # set the intial position of the walkers
-        # pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
-        pos = set_initial_positions(theta,  nwalkers, prior)
 
         print('Ready to run',run_id,'with',nwalkers,'walkers')
             
@@ -92,7 +89,9 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
     # https://emcee.readthedocs.io/en/stable/tutorials/parallel
     with Pool(processes=threads) as pool:
 
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=(x, y, yerr), backend=reader, blobs_dtype=dtype, pool=pool )
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
+            args=(x, y, yerr), backend=reader, blobs_dtype=dtype, pool=pool,
+            **kwargs)
         #moves=emcee.moves.StretchMove(a=1.5))
     
         # We'll track how the average autocorrelation time estimate changes
@@ -106,11 +105,17 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 	# options, but the only difference was the choice of the starting
 	# positions, so have now merged them
 
-        if restart == True:
+        if pos is not None:
+            print ('** WARNING ** setting walkers at provided position vector')
+        elif restart == True:
             pos = sampler.get_last_sample()
+        else:
+            # set the intial position of the walkers
+            # pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
+            pos = set_initial_positions(theta,  nwalkers, prior)
 
-        for sample in sampler.sample(pos, iterations=nsteps, progress=True,
-            **kwargs):
+        for sample in sampler.sample(pos, iterations=nsteps, progress=True):
+
             # Only check convergence every 100 steps
             if sampler.iteration % 100:
                 continue
