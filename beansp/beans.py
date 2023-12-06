@@ -919,17 +919,23 @@ Initial parameters:
 
 
 
-    def plot_model(self, show_model=True, model=None, mdot=True, title=None):
+    def plot(self, show_model=True, model=None, mdot=True, title=None, 
+        savefig=False):
         """
-        Display a plot of the model results, for a burst train calculated
-        with generate_burst_train Adapted from the example at
+	Display a plot of the data and model results, for a burst train
+        calculated with generate_burst_train Adapted from the example at
         https://matplotlib.org/gallery/api/two_scales.html
 
         :param show_model: set to False to skip the model generation step, in which case only the observed data will be plotted
         :param model: array of packed model prediction, OR dict giving full model results
         :param mdot: flag to show mdot rather than flux (only possible if you're passing the full model)
         :param title: add a title, if required
+        :param savefig: set to True to save the figure to PDF
         """
+
+        flux_colour = 'tab:red'
+        bursts_colour = 'tab:blue'
+        obs_colour = 'tab:grey'
 
         # for the default linear interpolation connect the flux
         # measurements by lines
@@ -954,9 +960,9 @@ Initial parameters:
             if imatch is None:
                 print ("** WARNING ** can't match predicted bursts to observations")
 
-        full_model = False  # Flag to remember whether we're plotting the full model output of
-                            # generate burst train or the packed output array
-        # if hasattr(model, "time"):
+        full_model = False  # Flag to remember whether we're plotting the
+                            # full model output of generate burst train or
+                            # the packed output array
         if type(model) == dict:
             full_model = True
             timepred = model["time"]
@@ -964,13 +970,12 @@ Initial parameters:
                 print ('** ERROR ** no predicted times to show')
                 show_model = False
             else:
-            # ebpred = np.array(model["e_b"])*np.array(model["r3"])
-            # ebpred = np.array(model["e_b"]) * self.fluen_fac/xi_b/dist**2
                 ebpred = np.array(model["fluen"])
         elif type(model) == list:
             breakpoint()
-            # The other way to return the model is as an array with the burst times, fluences
-            # and alphas all together. So unpack those here
+	    # The other way to return the model is as an array with the
+	    # burst times, fluences and alphas all together. So unpack
+	    # those here
             timepred = model[:self.numburstssim+1]
             ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)]) * self.fluen_fac/xi_b/dist**2
 
@@ -983,9 +988,6 @@ Initial parameters:
             fig, ax1 = plt.subplots()
         # fig.figure(figsize=(10,7))
 
-        flux_color = 'tab:red'
-        bursts_color = 'tab:blue'
-        obs_color = 'tab:grey'
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
         if self.gti_checking:
             #plot satellite gtis
@@ -998,76 +1000,76 @@ Initial parameters:
             # this is the usual (only?) plot style, showing mdot vs. time,
             # along with the burst model and observation comparison
             _mdot, _mdot_err = self.flux_to_mdot(X, dist, xi_p, mass, radius)
-            ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_color)
+            ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_colour)
             if self.train:
                 # show the burst train
                 ax1.errorbar(self.tobs, _mdot, _mdot_err,
-                    marker='.', ls=ls, color=flux_color, label='mdot')
+                    marker='.', ls=ls, color=flux_colour, label='mdot')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
                     ax1.plot(t, self.flux_to_mdot(X, dist, xi_p, mass, radius,
-                        BSpline(*self.tck_s)(t)), color=flux_color)
+                        BSpline(*self.tck_s)(t)), color=flux_colour)
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
                 ax2.axvline(self.bstart[self.ref_ind], c='k', ls='-')
             else:
                 # show the ensemble comparison, which is much simpler
                 ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
-                         color=flux_color, label='mdot')
+                         color=flux_colour, label='mdot')
         else:
-            ax1.set_ylabel('Persistent flux', color=flux_color)
+            ax1.set_ylabel('Persistent flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}\\,s^{-1}}$)', color=flux_colour)
             if self.train:
                 ax1.errorbar(self.tobs, self.pflux, self.pfluxe,
-                    marker = '.', ls=ls, color=flux_color, label = 'pflux')
+                    marker = '.', ls=ls, color=flux_colour, label = 'persistent flux')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
-                    ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_color)
+                    ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_colour)
                 if show_model:
-                    ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_color,s = 100)
+                    ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_colour,s = 100)
                 ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
             else:
                 # "ensemble" mode plot vs. epoch, rather than observation time
-                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_color,
-                         label='pflux')
+                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_colour,
+                         label='persistent flux')
                 ax1.set_xlabel("Epoch (MJD)")
 
-        ax1.tick_params(axis='y', labelcolor=flux_color)
+        ax1.tick_params(axis='y', labelcolor=flux_colour)
 
         # Plot the bursts here
-        ax2.set_ylabel("Fluence (1e-9 erg/cm$^2$)", color=bursts_color)
+        ax2.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)", color=obs_colour)
         if self.train:
             if self.bstart is not None:
                 # Plot the observed bursts, if available
                 # ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
                 ax2.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                     yerr=self.fluene[self.ifluen],
-                    color=obs_color, linestyle='', marker='.', ms=13,
-                    label='observed')
+                    color=obs_colour, linestyle='', marker='.', ms=13,
+                    label='observed bursts')
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
-                        ax2.axvline(self.bstart[i], color=obs_color, ls='--')
+                        ax2.axvline(self.bstart[i], color=obs_colour, ls='--')
 
             if show_model:
-                ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+                ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted bursts')
             # we have time but not fluence for the first burst
-                ax2.axvline(timepred[0], color=bursts_color, ls='--')
+                ax2.axvline(timepred[0], color=bursts_colour, ls='--')
                 # and the averaged mdot over the burst interval (predicted)
                 av_mdot = []
                 for i in range(len(timepred)-1):
                     av_mdot.append(self.flux_to_mdot(X, dist, xi_p, mass, radius,
                         self.mean_flux(timepred[i], timepred[i+1], self)))
                 av_mdot.insert(0, av_mdot[0])
-                ax1.step(timepred, av_mdot, where='pre', color=flux_color)
+                ax1.step(timepred, av_mdot, where='pre', color=flux_colour)
 
                 if imatch is not None:
                     # show the burst time comparison
                     resid = -(self.bstart-np.array(timepred)[imatch])*24.
                     axs['resid'].plot(imatch, resid,
-                        linestyle='', marker='.', ms=13, color=obs_color)
+                        linestyle='', marker='.', ms=13, color=obs_colour)
                     for i in range(self.numburstsobs):
                         axs['resid'].annotate(' {}'.format(i+1), 
                             (imatch[i], resid[i]) )
-                    axs['resid'].axhline(0.0, color=obs_color, ls='--')
+                    axs['resid'].axhline(0.0, color=obs_colour, ls='--')
                     axs['resid'].set_xlabel('Burst number (predicted)')
                     axs['resid'].set_ylabel('Time offset (hr)')
                     print ('RMS obs-model offset = {:.4f} hr'.format(
@@ -1076,9 +1078,9 @@ Initial parameters:
         else:
             ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
             if show_model:
-                ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_color,s = 100, label = 'predicted')
+                ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted')
 
-        ax2.tick_params(axis='y', labelcolor=bursts_color)
+        ax2.tick_params(axis='y', labelcolor=obs_colour)
 
         ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
         if title is not None:
@@ -1087,6 +1089,12 @@ Initial parameters:
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
         fig.legend(loc=1)
+
+        if savefig:
+            file = f'{self.run_id}_plot.pdf'
+            print ('Saving figure plot to {}'.format(file))
+            fig.savefig(file)
+
         fig.show()
 
     def sim_data(self, file=None):
@@ -1273,7 +1281,7 @@ Initial parameters:
         if plot:
             print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
             # make plot of observed burst comparison with predicted bursts:
-            self.plot_model(title='Initial guess of parameters')
+            self.plot(title='Initial guess of parameters')
             value = input('Press [RETURN] to continue: ')
 
         _start = time.time()
@@ -1931,26 +1939,26 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
             plt.figure(figsize=(10,7))
 
-            # copy colors from plot_model method for consistency
+            # copy colors from plot method for consistency
 
-            bursts_color = 'tab:blue'
-            obs_color = 'tab:grey'
+            bursts_colour = 'tab:blue'
+            obs_colour = 'tab:grey'
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             if self.train:
-                # 2-panel plot like in plot_model
+                # 2-panel plot like in plot
 
                 fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
                 ax1 = axs['main']
 
                 ax1.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                     yerr=self.fluene[self.ifluen],
-                    color=obs_color, linestyle='', marker='.', ms=13,
+                    color=obs_colour, linestyle='', marker='.', ms=13,
                     label='observed')
                 # non-redundant option for missing fluence values
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
-                        ax1.axvline(self.bstart[i], color=obs_color, ls='--')
+                        ax1.axvline(self.bstart[i], color=obs_colour, ls='--')
                 ax1.axvline(self.bstart[self.ref_ind], c='k', ls='-')
 
                 if self.gti_checking:
@@ -2001,7 +2009,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                         np.sqrt(np.mean(resid**2))))
 
                 ax1.set_ylabel("Fluence (1e-9 erg/cm$^2$)")
-                axs['resid'].axhline(0.0, color=obs_color, ls='--')
+                axs['resid'].axhline(0.0, color=obs_colour, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
                 axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
                 ax1.legend(loc=2)
@@ -2018,8 +2026,11 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 ebpred_errlow = [x[2] for x in ebs]
                 plt.errorbar(self.tdel, self.fluen, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
-                plt.scatter(timepred, ebpred, marker='*', color=bursts_color, s=100, label='Predicted')
-                plt.errorbar(timepred, ebpred, yerr=[ebpred_errup, ebpred_errlow],xerr=[timepred_errup, timepred_errlow], fmt='.', color=bursts_color)
+                plt.scatter(timepred, ebpred, marker='*', color=bursts_colour, s=100, label='Predicted')
+                plt.errorbar(timepred, ebpred,
+                    yerr=[ebpred_errup, ebpred_errlow],
+                    xerr=[timepred_errup, timepred_errlow], fmt='.',
+                    color=bursts_colour)
                 plt.xlabel("Recurrence time (hr)")
 
                 plt.ylabel("Fluence (1e-9 erg/cm$^2$)")

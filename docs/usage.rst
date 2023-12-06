@@ -119,7 +119,7 @@ in time) from the reference burst.
 The recurrence time (and fluence) can be adjusted by
 modifying the distance (larger distance implies larger accretion rate at
 the same flux, and hence more frequent bursts). You can test the effect of
-your trial parameters with the :meth:`beansp.Beans.plot_model` method,
+your trial parameters with the :meth:`beansp.Beans.plot` method,
 which produces a plot like so:
 
 .. image:: plot_model_example.png
