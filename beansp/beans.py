@@ -1,4 +1,5 @@
 """Main module. This has functions that do the sampling, save the chains, and analyse the results."""
+
 ## Python packages required:
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -354,7 +355,7 @@ class Beans:
                  obsname=None, burstname=None, gtiname=None,
                  interp='linear', smooth=0.02,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
-                 fluen=True, alpha=True, separation=False, 
+                 fluen=True, alpha=True, 
                  numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
         """
@@ -364,19 +365,26 @@ class Beans:
         :param corr: correction function for bursts, or None
         :param config_file: file to read in configuration parameters (in
           which case the keyword params below are ignored)
-        :param nwalkers: number of walkers for the emcee run
-        :param nsteps: number of MCMC steps to run
         :param run_id: string identifier for the run, used to label all the
           result files, and where you want output to be saved
+        :param nwalkers: number of walkers for the emcee run
+        :param nsteps: number of MCMC steps to run
         :param obsname: name of the file including the flux history, from which
           the mdot is estimated to generate to generate the burst train
           (set ``obsname=None`` for a non-contiguous, or "ensemble" mode run)
         :param burstname: name of the burst data file, listing the bursts
         :param gtiname: name of the GTI file, set to ``None`` to turn off
           checking
+        :param interp: interpolation mode for the flux; possible values are
+          'linear', or 'spline'
+        :param smooth: smoothing factor for spline interpolation
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
           (optionally) *f_a* & *f_E*
+        :param fluen: set to True (default) to include the fluences in the
+          data for comparison, or False to omit
+        :param alpha: set to True (default) to include the alphas in the
+          data for comparison, or False to omit
         :param numburstssim: number of bursts to simulate, for the "train" mode,
           both earlier and later than the reference burst; i.e. set to half
           the total number of bursts you want to simulate. Don't forget to
@@ -391,15 +399,6 @@ class Beans:
           cores your computer has). Set to ``None`` to use all available
         :param test_model: flag to test the model during the setup process
         :param restart: set to ``True`` to continue a previously interrupted run
-        :param interp: interpolation mode for the flux; possible values are
-          'linear', or 'spline'
-        :param smooth: smoothing factor for spline interpolation
-        :param alpha: set to True (default) to include the alphas in the
-          data for comparison, or False to omit
-        :param fluen: set to True (default) to include the fluences in the
-          data for comparison, or False to omit
-        :param separation: if set to True, will try to match the burst
-          separations rather than the occurrence time
 
         :result: Beans object including all the required data
         """
