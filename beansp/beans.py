@@ -9,6 +9,8 @@ import emcee
 from astropy.io import ascii
 import astropy.units as u
 import astropy.constants as const
+from astropy.table import Table, Column, MaskedColumn
+from astropy.time import Time, TimeDelta
 from matplotlib.ticker import MaxNLocator
 from scipy.stats import gaussian_kde
 # import scipy.stats as stats
@@ -34,9 +36,11 @@ plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = ['Times']
 plt.rcParams['text.usetex'] = True
 
-# Some constants
+# Some constants & standard units
 
 BSTART_ERR = 10*u.min # Default uncertainty for burst start times
+FLUX_U = 1e-9*u.erg/u.cm**2/u.s
+FLUEN_U = 1e-6*u.erg/u.cm**2
 
 # -------------------------------------------------------------------------#
 ## load local  modules
@@ -1010,7 +1014,7 @@ Initial parameters:
                         BSpline(*self.tck_s)(t)), color=flux_colour)
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
-                ax2.axvline(self.bstart[self.ref_ind], c='k', ls='-')
+                ax2.axvline(self.bstart[self.ref_ind], c='k', ls='--')
             else:
                 # show the ensemble comparison, which is much simpler
                 ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
@@ -1439,6 +1443,119 @@ Initial parameters:
         plt.show()
 
 
+    def burst_table(self, show=True, predicted=False, key=None):
+        """
+	This method creates and, optionally, displays a table from the
+        model and observed bursts.
+
+        The table is returned as an astropy Table object that can be saved
+        as an MRT file, like so: tab.write('test.dat',format='mrt')
+	although you will have to then edit the file afterwards to
+        complete the metadata
+
+        :param show: set to True to display each row (in LaTeX format)
+        :param predicted: set to True to show predicted bursts also (not yet implemented)
+        :param key: for the case where we have more than one set of predictions (e.g. for different numbers of predicted bursts), the key will identify which to return
+
+        :return: astropy table of burst properties
+        """
+
+        if not self.HAS_CONCORD:
+            print ('** ERROR ** alpha calculation requires concord')
+            return None
+
+        if not hasattr(self, 'model_pred'):
+            print ('** ERROR ** no model predictions available, run the comparison first')
+            return None
+
+        if (key is None) & (len(self.model_pred['time_stats'].keys()) > 1):
+            print ('** ERROR ** multiple solutions are available, please specify one with the key keyword')
+            print (self.model_pred['time_stats'].keys())
+            return None
+
+        elif key is None:
+            key = list(self.model_pred['time_stats'].keys())[0]
+
+        timepred = [x[0] for x in self.model_pred['time_stats'][key]]
+        ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
+        imatch = burst_time_match(self.ref_ind, self.bstart, ref_tpred, np.array(timepred))
+
+        bursts = Table()
+        bursts['num'] = np.arange(self.numburstsobs)+1
+        bursts['num'].info.description = 'Burst number'
+        bursts['minbar_id'] = np.full(self.numburstsobs, 9999) # filler
+        bursts['minbar_id'].info.description = 'MINBAR DR1 ID'
+        bursts['time'] = Time(self.bstart+self.tref, format='mjd') 
+        # we can set this, but it doesn't seem to be written when output
+        # as MRT
+        bursts['time'].info.description = 'Burst start time'
+        bursts['bfluen'] = MaskedColumn(self.fluen, mask=self.fluen <= 0.,
+            unit=FLUEN_U, description='Integrated burst fluence')
+        bursts['e_bfluen'] = MaskedColumn(self.fluene, mask=self.fluen <= 0.,
+            unit=FLUEN_U, description='Error on burst fluence')
+        bursts['alpha_obs'] = MaskedColumn(self.alpha, mask=self.alpha <=0., 
+            description='Burst alpha-value')
+        bursts['e_alpha_obs'] = MaskedColumn(self.alphae, mask=self.alpha <=0., 
+            description='Error on alpha-value')
+
+        # Now loop over the bursts and calculate the derived quantities
+        dt, e_dt, alpha, e_alpha, E_alpha = [], [], [], [], []
+        for i in np.arange(self.numburstsobs):
+            if imatch[i] > 0: 
+                if imatch[i]-imatch[i-1] == 1:
+                    # no missed bursts
+                    _dt = (self.bstart[i]-self.bstart[i-1])*24.
+                    perflx = self.mean_flux(self.bstart[i-1], self.bstart[i], self)
+                else:
+                    # one or more missed bursts, so use the model predictions for the previous time
+                    _dt = (self.bstart[i] - np.array(self.model_pred['times'])[:,imatch[i]-1]) * 24.
+                    perflx = [self.mean_flux(x, self.bstart[i], self) for x in np.array(self.model_pred['times'])[:,imatch[i]-1]]
+                _alpha = self.cd.alpha(_dt,(self.fluen[i], self.fluene[i]), perflx)
+                if np.shape(_dt) == ():
+                    # scalar _dt, exact recurrence time
+                    dt.append(_dt)
+                    e_dt.append(0.)
+                    if show:
+                        print ("{} & & {} & {:.2f} & ${:.3f} \pm {:.3f}$ & ${:.1f} \pm {:.1f}$ & ${:.1f}_{{-{:.1f}}}^{{+{:.1f}}}$ \\\\".format(bursts['num'][i], bursts['time'][i], dt[-1], bursts['bfluen'][i], bursts['e_bfluen'][i], bursts['alpha_obs'][i], bursts['e_alpha_obs'][i], _alpha[0], _alpha[1], _alpha[2]))
+                else:
+                    dt_stats = np.percentile(np.array(_dt), [16,50,84])
+                    dt.append(dt_stats[1])
+                    e_dt.append((dt_stats[2]-dt_stats[0])*0.5)
+                    if show:
+                        print ("{} & & {} & ${:.2f}\pm{:.2f}$ & ${:.3f} \pm {:.3f}$ & ${:.1f} \pm {:.1f}$ & ${:.1f}_{{-{:.1f}}}^{{+{:.1f}}}$ \\\\".format(bursts['num'][i], bursts['time'][i], dt[-1], e_dt[-1], bursts['bfluen'][i], bursts['e_bfluen'][i], bursts['alpha_obs'][i], bursts['e_alpha_obs'][i], _alpha[0], _alpha[1], _alpha[2]))
+                alpha.append(_alpha[0])
+                e_alpha.append(_alpha[1])
+                E_alpha.append(_alpha[2])
+            else:
+                dt.append(0.)
+                e_dt.append(0.)
+                alpha.append(0.)
+                e_alpha.append(0.)
+                E_alpha.append(0.)
+                if show:
+                    print ("{} & & {} & \\nodata & ${:.3f} \pm {:.3f}$ & \\nodata & \\nodata \\\\".format(bursts['num'][i], bursts['time'][i], bursts['bfluen'][i], bursts['e_bfluen'][i]))
+
+        bursts['trec'] = MaskedColumn(dt, mask=np.array(dt) <=0., unit=u.hr, 
+            description='Burst recurrence time')
+        bursts['e_trec'] = MaskedColumn(e_dt, mask=np.array(dt) <=0., unit=u.hr,
+            description='Error on recurrence time')
+        bursts['alpha_mod'] = MaskedColumn(alpha, mask=np.array(alpha) <= 0.,
+            description='Model-informed alpha value')
+        bursts['e_alpha_mod'] = MaskedColumn(e_alpha, mask=np.array(alpha) <= 0.,
+            description='Lower limit on model alpha')
+        bursts['E_alpha_mod'] = MaskedColumn(E_alpha, mask=np.array(alpha) <= 0.,
+            description='Upper limit on model alpha')
+
+        # set the formats here. These should be OK for most cases!
+        bursts['trec'].info.format='5.2f'
+        bursts['e_trec'].info.format='5.2f'
+        bursts['alpha_mod'].info.format='6.2f'
+        bursts['e_alpha_mod'].info.format='4.2f'
+        bursts['E_alpha_mod'].info.format='4.2f'
+
+        return bursts
+
+
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=None, burnin=2000,
                           savefig=False):
@@ -1590,12 +1707,15 @@ Initial parameters:
             # configure params below copied from Adelle's jupyter notebook
             # we apply them here for consistency across all the posterior
             # plots
+	    # despite the original sigmas setting, only 2 contours are
+	    # shown...? (the first two, 1 & 2 sigma)
             self.cc.configure(usetex=True, serif=True, 
-                flip=False, bins=0.7, summary=False, \
+                flip=False, summary=False,
+                bins=0.7, # has the effect of light smoothing of the histograms
                 diagonal_tick_labels=False, max_ticks=3, shade=True, \
                 shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
                 label_font_size='xx-large',smooth=True, \
-                sigmas=np.linspace(0, 3, 4))
+                sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
             self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
@@ -1888,7 +2008,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
 
             if Beans.HAS_CONCORD:
                 # setup dict with list of models, legend labels and linestyles
-                he16_models = {'he16_a': ('He & Keek (2016) model A', '--'),
+                he16_models = {'he16_a': ('He \& Keek (2016) model A', '--'),
                                'he16_b': ('model B', '-.'),
                                'he16_c': ('model C', (0, (3, 5, 1, 5))),
                                'he16_d': ('model D', (0, (1, 5))) }
@@ -1957,7 +2077,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
                         ax1.axvline(self.bstart[i], color=obs_colour, ls='--')
-                ax1.axvline(self.bstart[self.ref_ind], c='k', ls='-')
+                ax1.axvline(self.bstart[self.ref_ind], c='k', ls='--')
 
                 if self.gti_checking:
                     #plot satellite gtis
@@ -1981,7 +2101,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                         yerr=[ebpred_errup, ebpred_errlow],
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i),
-                        label='Predicted ({})'.format(numburstssim))
+                        label='predicted ({})'.format(numburstssim))
 
                     ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
                     imatch = burst_time_match(self.ref_ind, self.bstart,
@@ -2006,7 +2126,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                         numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples), 
                         np.sqrt(np.mean(resid**2))))
 
-                ax1.set_ylabel("Fluence (1e-9 erg/cm$^2$)")
+                ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
                 axs['resid'].axhline(0.0, color=obs_colour, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
                 axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
@@ -2031,7 +2151,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                     color=bursts_colour)
                 plt.xlabel("Recurrence time (hr)")
 
-                plt.ylabel("Fluence (1e-9 erg/cm$^2$)")
+                plt.ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
                 plt.legend(loc=2)
 
             if savefig:
