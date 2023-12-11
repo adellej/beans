@@ -36,7 +36,7 @@ def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
 
 
 def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
-    restart, threads, pos=None, **kwargs):
+    restart, threads, stretch_a, pos=None, **kwargs):
     """
     Function to initilise and run emcee.
     Removed the redundant parameter ndim, which can be determined from the
@@ -56,6 +56,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
     :param restart: set to True to continue a previously interrupted run
     :param threads: number of threads for emcee to use (e.g. number of
       cores your computer has). Set to None to use all available
+    :param stretch_a: the Goodman & Weare (2010) stretch move scale parameter
     """
 
     ndim = len(theta)
@@ -97,8 +98,8 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
             args=(x, y, yerr), backend=reader, blobs_dtype=dtype, pool=pool,
+            moves=emcee.moves.StretchMove(a=stretch_a),
             **kwargs)
-        #moves=emcee.moves.StretchMove(a=1.5))
     
         # We'll track how the average autocorrelation time estimate changes
         index = 0

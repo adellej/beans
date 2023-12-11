@@ -359,7 +359,7 @@ class Beans:
                  obsname=None, burstname=None, gtiname=None,
                  interp='linear', smooth=0.02,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
-                 fluen=True, alpha=True, 
+                 stretch_a=2.0, fluen=True, alpha=True, 
                  numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
         """
@@ -385,6 +385,7 @@ class Beans:
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
           (optionally) *f_a* & *f_E*
+        :param stretch_a: the Goodman & Weare (2010) stretch move scale parameter, passed to emcee
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
         :param alpha: set to True (default) to include the alphas in the
@@ -465,6 +466,7 @@ class Beans:
         self.bc = bc
 
         self.theta = theta
+        self.stretch_a = stretch_a
         self.numburstssim = numburstssim
         self.lnprior = prior
         self.corr = corr
@@ -602,7 +604,7 @@ GTI data file: {}
 Burst data file: {}
   comprising {} observed bursts, {}including alphas{}{}
 No. of bursts to simulate: {} ({} mode)
-  with {} walkers, {} steps, {} threads{}
+  with {} walkers, {} steps, {} threads{}, a={}
 Initial parameters:
 {}
 ==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
@@ -614,7 +616,7 @@ Initial parameters:
             'train' if self.train else 'ensemble',
             self.nwalkers, self.nsteps,
             self.threads,
-            ', resuming' if self.restart else '',
+            ', resuming' if self.restart else '', self.stretch_a,
             self.theta_table(self.theta, indent=2) )
 
 
@@ -713,6 +715,7 @@ Initial parameters:
 
            Config.add_section("emcee")
            Config.set("emcee", "theta", str(self.theta))
+           Config.set("emcee", "stretch_a", str(self.stretch_a))
            Config.set("emcee", "numburstssim", str(self.numburstssim))
            Config.set("emcee", "prior", str(self.lnprior))
            Config.set("emcee", "corr", str(self.corr))
@@ -737,7 +740,7 @@ Initial parameters:
             run_id = os.path.join(data_path, 'beans.ini')
 
         int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
-        float_params = ('bc', 'smooth', 'tref')
+        float_params = ('bc', 'smooth', 'tref', 'stretch_a')
 
         if not os.path.isfile(file):
             print ('** ERROR ** config file not found')
@@ -1306,7 +1309,7 @@ Initial parameters:
         # should be added to the Beans object
         sampler = runemcee(self.nwalkers, self.nsteps,
             self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
-            self.run_id, self.restart, self.threads, **kwargs)
+            self.run_id, self.restart, self.threads, self.stretch_a, **kwargs)
 
         _end = time.time()
         print ("  run_id {} took {:.1f} seconds for {} steps".format(
