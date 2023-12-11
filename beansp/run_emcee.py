@@ -62,7 +62,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
     # This section now defines the initial walker positions and next defines the chain and runs emcee.
 
-    print("# -------------------------------------------------------------------------#")
+    print("\n# ---------------------------------------------------------------------------#")
 
     # define the dtype of the blobs
     # this refers to the 2nd and subsequent parameters returned by lnprob;
@@ -77,15 +77,21 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
     if restart == True:
         steps_so_far = np.shape(reader.get_chain())[0]
-        print('Restarting',run_id,'with',nwalkers,'walkers after',steps_so_far,'steps done')
+	# logic here is, that if nsteps > steps_so_far, then you're
+	# restarting to try to complete the original nsteps target
+        if nsteps-steps_so_far > 0:
+            print('    Continuing run={} with {} walkers from {}/{} steps...'.format(run_id,nwalkers,steps_so_far,nsteps))
+            nsteps -= steps_so_far
+        else:
+            print('    Extending run={} with {} walkers after {} steps done...'.format(run_id,nwalkers,steps_so_far))
     else:
         reader.reset(nwalkers, ndim)
 
-        print('Ready to run',run_id,'with',nwalkers,'walkers')
+        print('    Running run={} with {} walkers, target {} steps...'.format(run_id,nwalkers,nsteps))
+
+    print("# ---------------------------------------------------------------------------#")
             
-    print("Beginning sampling..")
-   
-    # try the multiprocessing (again) following the simple example here:
+    # implement multiprocessing following the simple example here:
     # https://emcee.readthedocs.io/en/stable/tutorials/parallel
     with Pool(processes=threads) as pool:
 
@@ -106,7 +112,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 	# positions, so have now merged them
 
         if pos is not None:
-            print ('** WARNING ** setting walkers at provided position vector')
+            print ('\n** WARNING ** setting walkers at provided position vector')
         elif restart == True:
             pos = sampler.get_last_sample()
         else:

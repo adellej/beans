@@ -410,11 +410,11 @@ class Beans:
         # Some housekeeping
 
         if 'ndim' in kwargs.keys():
-            print ('** WARNING ** parameter ndim is redundant (ignored), setting from len of param array')
+            print ('\n** WARNING ** parameter ndim is redundant (ignored), setting from len of param array')
         if 'numburstsobs' in kwargs.keys():
-            print ('** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
+            print ('\n** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
         if 'gti_checking' in kwargs.keys():
-            print ('** WARNING ** parameter gti_checking is redundant (ignored), setting from value of gtiname param')
+            print ('\n** WARNING ** parameter gti_checking is redundant (ignored), setting from value of gtiname param')
 
         # Conversion factor between model predicted burst energy and
         # observed fluence. Multiply by this value to convert the burst
@@ -570,7 +570,7 @@ class Beans:
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
         # # -------------------------------------------------------------------------#
-        print("# -------------------------------------------------------------------------#")
+        print("# ---------------------------------------------------------------------------#")
         print("Doing Initialisation..")
 
         if test_model:
@@ -965,7 +965,7 @@ Initial parameters:
                 model['iref'], np.array(model['time']))
 
             if imatch is None:
-                print ("** WARNING ** can't match predicted bursts to observations")
+                print ("\n** WARNING ** can't match predicted bursts to observations")
 
         full_model = False  # Flag to remember whether we're plotting the
                             # full model output of generate burst train or
@@ -1262,18 +1262,19 @@ Initial parameters:
         # Check here if we've already run the analysis
 
         if hasattr(self, 'reader'):
-            print (''' ** WARNING ** re-running the sampler after calling do_analysis can lead to
-                 memory issues; proceed with caution!''')
-            value = input('               Press [RETURN] to continue: ')
+            print ('''
+** WARNING ** re-running the sampler after calling do_analysis can lead to
+                memory issues; proceed with caution!''')
+            value = input('              Press [RETURN] to continue: ')
 
         # Want to avoid overwriting existing log & config files
 
         if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
-            print ('** ERROR ** run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
+            print ('\n** ERROR ** run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
             return
 
         if (os.path.exists(self.run_id+'.ini')):
-            print ('** WARNING ** run will overwrite existing config file {}'.format(self.run_id+'.ini'))
+            print ('\n** WARNING ** run will overwrite existing config file {}'.format(self.run_id+'.ini'))
             value = input('              enter Y[RETURN] to continue: ')
             if (value != 'y') and (value != 'Y'):
                 print ('do_run terminated')
@@ -1281,15 +1282,15 @@ Initial parameters:
         self.save_config(clobber=True)
 
 
-        print("# -------------------------------------------------------------------------#")
+        print("# ---------------------------------------------------------------------------#")
         print (self)
-        print("# -------------------------------------------------------------------------#")
+        print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         print("Testing the prior and likelihood functions..")
         print("lnprior:", self.lnprior(self.theta))
         print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
         print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
-        print("# -------------------------------------------------------------------------#")
+        print("# ---------------------------------------------------------------------------#")
         # print(f"The theta parameters will begin at: {self.theta}")
         # print("# -------------------------------------------------------------------------#")
         if plot:
@@ -1663,7 +1664,7 @@ Initial parameters:
             # if burnin >= self.nsteps_completed*0.9:
             if (self.nsteps_completed*self.nwalkers-burnin < 1000) | \
                 (self.nsteps_completed < burnin):
-                print ('** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
+                print ('\n** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
                 burnin = 0
 
             # print ("Reading in flattened samples to show posteriors...")
