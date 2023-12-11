@@ -16,7 +16,7 @@ from scipy.stats import gaussian_kde
 # import scipy.stats as stats
 from scipy.interpolate import splrep, BSpline, splint
 from chainconsumer import ChainConsumer
-from multiprocessing import Pool
+from multiprocessing import cpu_count
 import os
 import time
 from configparser import ConfigParser
@@ -506,6 +506,11 @@ class Beans:
             print ('** ERROR ** supplied parameter vector is excluded by the prior')
             return
 
+        ncpu = cpu_count()
+        if self.threads > ncpu:
+            print ('** ERROR ** number of threads is greater than number of CPUs ({} > {}); this seems ill-advised'.format(self.threads, ncpu))
+            return
+
         # below set the parameters which are not part of the config
         # file
 
@@ -921,7 +926,6 @@ Initial parameters:
         return lp + like, lp, model_str(model).encode('ASCII')
 
 
-
     def plot(self, show_model=True, model=None, mdot=True, title=None, 
         savefig=False):
         """
@@ -1254,6 +1258,13 @@ Initial parameters:
 
         :return:
         """
+
+        # Check here if we've already run the analysis
+
+        if hasattr(self, 'reader'):
+            print (''' ** WARNING ** re-running the sampler after calling do_analysis can lead to
+                 memory issues; proceed with caution!''')
+            value = input('               Press [RETURN] to continue: ')
 
         # Want to avoid overwriting existing log & config files
 
