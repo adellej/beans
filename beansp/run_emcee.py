@@ -44,8 +44,8 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
     :param nwalkers: number of walkers for the emcee run
     :param nsteps: number of MCMC steps to run
-    :param theta: model parameter tuple, with X, Z, Q_b, f_a, f_E, r1, r2, r3,
-      mass & radius
+    :param theta_in: parameter tuple, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
     :param lnprob: log-probability function to use with emcee
     :param prior: prior function to use with emcee, used to check the initial walker positions
     :param x: the "independent" variable, passed to lnlike

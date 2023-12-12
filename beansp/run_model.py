@@ -125,8 +125,8 @@ def runmodel(theta_in, bean, match=True, debug=False):
     It then assembles the predictions from the model into a form that can
     be compared to the observations (with appropriate scaling)
 
-    :param theta_in: parameter tuple: X, Z, Q_b, dist, xi_b, xi_p, mass,
-      radius, and (optionally) f_a & f_E
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
     :param bean: Beans object, from which the required parameters are drawn:
       y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
       ref_ind, gti_checking,train, gti_start=None, gti_end=None,

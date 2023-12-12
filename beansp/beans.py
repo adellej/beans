@@ -90,15 +90,14 @@ def prior_func(theta_in):
     This function is the default prior and implements a simple box prior
     for all the parameters
 
-    :param theta_in: parameter vector
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
 
     :return: prior probability
     """
 
-    f_a, f_E = 1.0, 1.0
-    X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
-    if len(theta_in) == 10:
-        f_a, f_E = theta_in[8:]
+    X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta_in
+    f_E, f_a = (sys+[1.0]*(2-len(sys)))
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -122,15 +121,14 @@ def prior_1808(theta_in):
     This prior is explicitly intended for use with SAX J1808.4-3658, and
     should only be used with extreme caution in other cases!
 
-    :param theta_in: parameter vector
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
 
     :return: prior probability
     """
 
-    f_a, f_E = 1.0, 1.0
-    X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
-    if len(theta_in) == 10:
-        f_a, f_E = theta_in[8:]
+    X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta_in
+    f_E, f_a = (sys+[1.0]*(2-len(sys)))
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -384,7 +382,7 @@ class Beans:
         :param smooth: smoothing factor for spline interpolation
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
-          (optionally) *f_a* & *f_E*
+          (optionally) *f_E* & *f_a*
         :param stretch_a: the Goodman & Weare (2010) stretch move scale parameter, passed to emcee
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
@@ -474,6 +472,9 @@ class Beans:
         self.nsteps = nsteps
         self.threads = threads
 
+        self.cmpr_fluen = fluen
+        self.cmpr_alpha = alpha
+
         # check for the config_file, and if detected read in (will
         # override the defaults above):
 
@@ -519,17 +520,17 @@ class Beans:
         self.restart = restart
 
         # number of dimensions for the parameter array
-        # working towards being able to include the systematic errors or
-        # not, but not quite there yet
+        # we want to record whether we're including systematic errors
+        # here; previously this was via the (boolean) has_systematic
 
         self.ndim = len(self.theta)
-        if self.ndim == 8:
-            self.has_systematic = False
-        elif self.ndim == 10:
-            self.has_systematic = True
-        else:
-            print ('** ERROR ** number of dimensions of input parameter vector should be 8/10')
+        if (self.ndim < 8) | (self.ndim > 10):
+            print ('** ERROR ** number of dimensions of input parameter vector should be 8-10')
             return
+        self.num_systematic = self.ndim-8
+        if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
+            ((self.ndim == 10) & (not (self.cmpr_alpha and self.cmpr_fluen))):
+            print ("\n** WARNING ** systematic errors are provided for ignored quantities!")
 
         self.gti_checking = self.gtiname is not None
 
@@ -626,13 +627,13 @@ Initial parameters:
         Could include the errors for a neatly formatted way to present
         results
 
-        :param theta: the model parameter tuple
+        :param theta: the model parameter tuple, with *X*, *Z*, *Q_b*, *d*,
+          *xi_b*, *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
         :param indent: number of characters to indent the string from the left
         """
 
-        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta[:8]
-        if self.has_systematic:
-            f_a, f_E = theta[8:]
+        X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta
+        f_E, f_a = (sys+[1.0]*(2-len(sys)))
 
         result = """#X = {:.3f} \\ hydrogen mass fraction
 #Z = {:.5f} \\ CNO mass fraction
@@ -643,10 +644,14 @@ Initial parameters:
 #xi_b = {:.3f} \\ anisotropy factor for burst emission
 #xi_p = {:.3f} \\ anisotropy factor for persistent emission""".format(
     X, Z, Q_b, mass, radius, dist, xi_b, xi_p)
-        if self.has_systematic:
+        if self.num_systematic == 1:
             return (result+"""
-#f_a, f_E = {:.3f}, {:.3f} \\ systematic error terms for alpha, fluence""".format(
-    f_a, f_E)).replace('#',' '*indent)
+#f_E = {:.3f} \\ systematic error term for fluence""".format(
+    f_E)).replace('#',' '*indent)
+        elif self.num_systematic == 2:
+            return (result+"""
+#f_E, f_a = {:.3f}, {:.3f} \\ systematic error terms for fluence, alpha""".format(
+    f_E, f_a)).replace('#',' '*indent)
 
         return result.replace('#', ' '*indent)
 
@@ -835,8 +840,8 @@ Initial parameters:
         burst train, or a set of runs for "ensemble" mode. Then extracts the
         relevant model outputs and calculates the likelihood.
 
-        :param theta_in: model parameter tuple, with X, Z, Q_b, dist, xi_b,
-          xi_p, mass, radius, f_a, f_E
+        :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+          *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
         :param x: the "independent" variable, passed to lnlike
         :param y: the "dependent" variable (i.e. measurements), passed to lnlike
         :param yerr: erorr estimates on y
@@ -846,10 +851,8 @@ Initial parameters:
 
         # define theta_in = model parameters, which we define priors for
 
-        f_a, f_E = 1.0, 1.0
-        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
-        if self.has_systematic:
-            f_a, f_E = theta_in[8:]
+        X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta_in
+        f_E, f_a = (sys+[1.0]*(2-len(sys)))
 
         # call model (function runmodel, in run_model.py) to generate the burst
         # train, or the set of bursts (for "ensemble" mode. In earlier versions
@@ -901,7 +904,8 @@ Initial parameters:
         :meth:`Beans.lnlike`), that is passed to ``runemcee`` when creating
         the sampler (in the :meth:`Beans.do_run` method).
 
-        :param theta_in: parameter vector
+        :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+          *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
         :param x: the "independent" variable, passed to :meth:`Beans.lnlike`
         :param y: the "dependent" variable (i.e. measurements), passed to
           :meth:`Beans.lnlike`
@@ -1422,7 +1426,7 @@ Initial parameters:
         f = plt.figure(figsize=figsize)
 
         param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$d$", "$\\xi_b$",
-            "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{a}}$", "$f_{\mathrm{E}}$"]
+            "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{E}}$", "$f_{\mathrm{a}}$"]
 
         for j in range(self.ndim):
             chain = samples[:, :, j].T
@@ -1683,9 +1687,10 @@ Initial parameters:
             labels = {"X": "$X$", "Z": "$Z$", "Qb": "$Q_b$ (MeV)",
                 "d": "$d$ (kpc)", "xi_b": "$\\xi_b$", "xi_p": "$\\xi_p$",
                 "M": "$M$ ($M_\odot$)", "R": "$R$ (km)"}
-            if self.ndim > 8:
-                labels["fa"] = "$f_a$"
+            if self.ndim == 9:
                 labels["fE"] = "$f_E$"
+            if self.ndim == 10:
+                labels["fa"] = "$f_a$"
 
             mass = self.samples[:,6]
             radius = self.samples[:,7]
@@ -1813,7 +1818,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             # plot the chains:
 
             print ("Plotting the chains...")
-            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$", "$f_a$","$f_E$"]
+            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_E$", "$f_a$"]
             # plt.clf()
             fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
 
