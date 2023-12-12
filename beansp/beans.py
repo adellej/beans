@@ -656,7 +656,7 @@ Initial parameters:
         return result.replace('#', ' '*indent)
 
 
-    def mdot_Edd(self):
+    def mdot_Edd(self, X, radius):
         """
         Calculate the Eddington accretion rate (per unit area) as used
         by Settle, for converting to physical units. The Eddington rate is
@@ -666,10 +666,11 @@ Initial parameters:
         (i.e. the conversion of  M_sun /yr to g/s) to better than 1 part
         in 1000) in the NS frame
 
+        :param X: accreted H-fraction
+        :param radius: NS radius (km)
+
         :return: accretion rate in g/cm^2/s
         """
-
-        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
 
         return (1.75e-8*1.7/(1+X)*5.01837638e24)/(radius*1e5)**2 * u.g/u.cm**2/u.s
 
@@ -830,7 +831,7 @@ Initial parameters:
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
 
         return (self.r1*flux*self.bc*dist**2*xi_p*opz**2
-            / (radius**2*(opz-1)) / self.mdot_Edd() ).decompose().value
+            / (radius**2*(opz-1)) / self.mdot_Edd(X, radius) ).decompose().value
 
 
     def lnlike(self, theta_in, x, y, yerr, components=False):
