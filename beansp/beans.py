@@ -1687,7 +1687,7 @@ Initial parameters:
             labels = {"X": "$X$", "Z": "$Z$", "Qb": "$Q_b$ (MeV)",
                 "d": "$d$ (kpc)", "xi_b": "$\\xi_b$", "xi_p": "$\\xi_p$",
                 "M": "$M$ ($M_\odot$)", "R": "$R$ (km)"}
-            if self.ndim == 9:
+            if self.ndim >= 9:
                 labels["fE"] = "$f_E$"
             if self.ndim == 10:
                 labels["fa"] = "$f_a$"
@@ -1713,7 +1713,6 @@ Initial parameters:
 
             # now create the chainconsumer object
 
-            _labels = list(labels.keys())[:self.ndim]+['cosi','g','1+z']
             _plot_labels = labels
             _plot_labels['cosi'] = '$\cos i$'
             _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
