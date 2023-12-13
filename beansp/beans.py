@@ -1289,6 +1289,27 @@ Initial parameters:
                 return
         self.save_config(clobber=True)
 
+        # for supplied positions, you want to check that they are all
+        # valid
+
+        if 'pos' in kwargs:
+            print ('Checking supplied positions...')
+            assert len(kwargs['pos']) == self.nwalkers
+            bad = np.full(len(kwargs['pos']), False)
+            for i, pos in enumerate(kwargs['pos']):
+                _test, _valid, _model = runmodel(pos, self)
+                bad[i] = _test is None
+            nbad = len(np.where(bad)[0])
+            print ('... done. {}/{} positions invalid; redistributing...'.format(nbad, self.nwalkers))
+            new_pos = kwargs['pos'].copy()
+            # if you have too many bad positions, you'll get an error
+            # running with too many duplicates; need to possibly trap that
+            # here
+            for i in (np.where(bad)[0]):
+                new_pos[i] = kwargs['pos'][np.random.choice(np.where(~bad)[0])] #+ scale*np.random.randn(ndim)
+
+            kwargs['pos'] = new_pos
+            print ('... done')
 
         print("# ---------------------------------------------------------------------------#")
         print (self)

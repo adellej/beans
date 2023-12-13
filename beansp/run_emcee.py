@@ -113,6 +113,8 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 	# positions, so have now merged them
 
         if pos is not None:
+            # warning is probably not necessary since we've already vetted
+            # the positions in beans.do_run
             print ('\n** WARNING ** setting walkers at provided position vector')
         elif restart == True:
             pos = sampler.get_last_sample()
