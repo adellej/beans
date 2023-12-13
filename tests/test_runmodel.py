@@ -45,10 +45,11 @@ def test_run_model():
     # and new mdot-to-flux conversion, v2.2.0 and later
     # and updates to pySettle 1.3.0, removing the 0.65 factor
     # and updates to the way the time offset is calculated, 2.11.x and later
+    # and the fix to the mdot_Edd function, v2.21.1
 
-    exp = [  0.55714447,  3.6045792 ,  5.64126058,    # burst times (d)
-           16.74921135, 16.80522968, 18.85323383, 22.82994974,  # fluences
-           58.40968246, 64.38403223, 70.46527038] # alphas
+    exp = [  0.3371498 ,  3.84590496,  6.76410934,    # burst times (d)
+           17.94856258, 17.35869927, 20.12729269, 27.51898359,  # fluences
+           60.40744506, 66.85451224, 74.21961878] # alphas
 
     result = np.allclose(test, exp, rtol=1e-3)
 
