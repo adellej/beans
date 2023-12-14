@@ -133,7 +133,7 @@ def prior_1808(theta_in):
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
     # reasonable limits.
-    if (0.00001 < X < 0.76) and (Z > 0.00001) and \
+    if (0.00001 < X < 0.76) and (Z > 0.000010000001) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
         (1 <= f_a < 100) and (1 <= f_E < 100):
