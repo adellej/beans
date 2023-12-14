@@ -1490,7 +1490,7 @@ Initial parameters:
         model and observed bursts.
 
         The table is returned as an astropy Table object that can be saved
-        as an MRT file, like so: tab.write('test.dat',format='mrt')
+        as an MRT file, like so: ``tab.write('test.dat',format='mrt')``
 	although you will have to then edit the file afterwards to
         complete the metadata
 
@@ -2131,7 +2131,7 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
                 # loop over all the different solutions
                 _label = 'matched'
                 for i, numburstssim in enumerate(times.keys()):
-                    print (i, numburstssim, times, ebs)
+                    # print (i, numburstssim, times, ebs)
                     timepred = [x[0] for x in times[numburstssim]]
                     timepred_errup = [x[1] for x in times[numburstssim]]
                     timepred_errlow = [x[2] for x in times[numburstssim]]
