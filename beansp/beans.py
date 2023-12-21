@@ -509,11 +509,6 @@ class Beans:
             print ('** ERROR ** supplied parameter vector is excluded by the prior')
             return
 
-        ncpu = cpu_count()
-        if self.threads > ncpu:
-            print ('** ERROR ** number of threads is greater than number of CPUs ({} > {}); this seems ill-advised'.format(self.threads, ncpu))
-            return
-
         # below set the parameters which are not part of the config
         # file
 
@@ -1275,6 +1270,13 @@ Initial parameters:
                 memory issues; proceed with caution!''')
             value = input('              Press [RETURN] to continue: ')
 
+        # Check the number of threads here
+
+        ncpu = cpu_count()
+        if self.threads > ncpu:
+            print ('** ERROR ** number of threads is greater than number of CPUs ({} > {}); this seems ill-advised'.format(self.threads, ncpu))
+            return
+
         # Want to avoid overwriting existing log & config files
 
         if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
@@ -1289,28 +1291,6 @@ Initial parameters:
                 return
         self.save_config(clobber=True)
 
-        # for supplied positions, you want to check that they are all
-        # valid
-
-        if 'pos' in kwargs:
-            print ('Checking supplied positions...')
-            assert len(kwargs['pos']) == self.nwalkers
-            bad = np.full(len(kwargs['pos']), False)
-            for i, pos in enumerate(kwargs['pos']):
-                _test, _valid, _model = runmodel(pos, self)
-                bad[i] = _test is None
-            nbad = len(np.where(bad)[0])
-            print ('... done. {}/{} positions invalid; redistributing...'.format(nbad, self.nwalkers))
-            new_pos = kwargs['pos'].copy()
-            # if you have too many bad positions, you'll get an error
-            # running with too many duplicates; need to possibly trap that
-            # here
-            for i in (np.where(bad)[0]):
-                new_pos[i] = kwargs['pos'][np.random.choice(np.where(~bad)[0])] #+ scale*np.random.randn(ndim)
-
-            kwargs['pos'] = new_pos
-            print ('... done')
-
         print("# ---------------------------------------------------------------------------#")
         print (self)
         print("# ---------------------------------------------------------------------------#")
@@ -1320,8 +1300,32 @@ Initial parameters:
         print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
         print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
         print("# ---------------------------------------------------------------------------#")
-        # print(f"The theta parameters will begin at: {self.theta}")
-        # print("# -------------------------------------------------------------------------#")
+
+        # for supplied positions, you want to check that they are all
+        # valid
+
+        if 'pos' in kwargs:
+            print ('\n** WARNING ** walkers will start at provided position vector.\n              Checking supplied positions...')
+            assert len(kwargs['pos']) == self.nwalkers
+            bad = np.full(len(kwargs['pos']), False)
+            for i, pos in enumerate(kwargs['pos']):
+                _test, _valid, _model = runmodel(pos, self)
+                bad[i] = _test is None
+            nbad = len(np.where(bad)[0])
+            if nbad == 0:
+                print ('... done. all OK, continuing')
+            else:
+                print ('... done. {}/{} positions invalid; redistributing...'.format(nbad, self.nwalkers))
+                new_pos = kwargs['pos'].copy()
+                # if you have too many bad positions, you'll get an error
+                # running with too many duplicates; need to possibly trap that
+                # here
+                for i in (np.where(bad)[0]):
+                    new_pos[i] = kwargs['pos'][np.random.choice(np.where(~bad)[0])] #+ scale*np.random.randn(ndim)
+                print ('... done')
+
+            kwargs['pos'] = new_pos
+
         if plot:
             print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
             # make plot of observed burst comparison with predicted bursts:
