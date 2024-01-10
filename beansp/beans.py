@@ -39,6 +39,8 @@ plt.rcParams['text.usetex'] = True
 # Some constants & standard units
 
 BSTART_ERR = 10*u.min # Default uncertainty for burst start times
+M_NS = 1.4 # canonical NS mass [M_sun]
+R_NS = 11.2 # canonical NS mass [km]
 FLUX_U = 1e-9*u.erg/u.cm**2/u.s
 FLUEN_U = 1e-6*u.erg/u.cm**2
 
@@ -91,13 +93,13 @@ def prior_func(theta_in):
     for all the parameters
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
 
     :return: prior probability
     """
 
-    X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta_in
-    f_E, f_a = (sys+[1.0]*(2-len(sys)))
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -127,8 +129,8 @@ def prior_1808(theta_in):
     :return: prior probability
     """
 
-    X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta_in
-    f_E, f_a = (sys+[1.0]*(2-len(sys)))
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -356,7 +358,7 @@ class Beans:
                  run_id="test", nwalkers=200, nsteps=100,
                  obsname=None, burstname=None, gtiname=None,
                  interp='linear', smooth=0.02,
-                 theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0, 1.0),
+                 theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
                  stretch_a=2.0, fluen=True, alpha=True, 
                  numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
@@ -381,8 +383,8 @@ class Beans:
           'linear', or 'spline'
         :param smooth: smoothing factor for spline interpolation
         :param theta: initial centroid values for walker model parameters, with
-          *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, *mass*, *radius*, and
-          (optionally) *f_E* & *f_a*
+          *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, and (optionally) *mass*,
+          *radius*, *f_E* & *f_a*
         :param stretch_a: the Goodman & Weare (2010) stretch move scale parameter, passed to emcee
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
@@ -519,8 +521,8 @@ class Beans:
         # here; previously this was via the (boolean) has_systematic
 
         self.ndim = len(self.theta)
-        if (self.ndim < 8) | (self.ndim > 10):
-            print ('** ERROR ** number of dimensions of input parameter vector should be 8-10')
+        if (self.ndim < 6) | (self.ndim > 10):
+            print ('** ERROR ** number of dimensions of input parameter vector should be 6-10')
             return
         self.num_systematic = self.ndim-8
         if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
@@ -537,6 +539,8 @@ class Beans:
         self.train = (self.obsname is not None)
 
         self.bstart_err = BSTART_ERR.to('d').value
+        self.M_NS = M_NS
+        self.R_NS = R_NS
 
         self.matches = None
 
@@ -627,18 +631,20 @@ Initial parameters:
         :param indent: number of characters to indent the string from the left
         """
 
-        X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta
-        f_E, f_a = (sys+[1.0]*(2-len(sys)))
+        X, Z, Q_b, dist, xi_b, xi_p, *extra = theta
+        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
 
         result = """#X = {:.3f} \\ hydrogen mass fraction
 #Z = {:.5f} \\ CNO mass fraction
 #Q_b = {:.3f} \\ base flux [MeV/nucleon]
-#M_NS = {:.3f} M_sun \\ neutron star mass
-#R_NS = {:.3f} km \\ neutron star radius
 #d = {:.2f} kpc \\ source distance
 #xi_b = {:.3f} \\ anisotropy factor for burst emission
 #xi_p = {:.3f} \\ anisotropy factor for persistent emission""".format(
-    X, Z, Q_b, mass, radius, dist, xi_b, xi_p)
+    X, Z, Q_b, dist, xi_b, xi_p)
+        if len(theta) > 6:
+            result = result+"\n#M_NS = {:.3f} M_sun \\ neutron star mass"
+        if len(theta) > 7:
+            result = result+"\n#R_NS = {:.3f} km \\ neutron star radius"
         if self.num_systematic == 1:
             return (result+"""
 #f_E = {:.3f} \\ systematic error term for fluence""".format(
@@ -847,8 +853,8 @@ Initial parameters:
 
         # define theta_in = model parameters, which we define priors for
 
-        X, Z, Q_b, dist, xi_b, xi_p, mass, radius, *sys = theta_in
-        f_E, f_a = (sys+[1.0]*(2-len(sys)))
+        X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
 
         # call model (function runmodel, in run_model.py) to generate the burst
         # train, or the set of bursts (for "ensemble" mode. In earlier versions
@@ -954,7 +960,8 @@ Initial parameters:
         if self.interp == 'spline':
             ls = ''
 
-        X, Z, Q_b, dist, xi_b, xi_p, mass, radius = self.theta[:8]
+        X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
+        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
 
         imatch = None
         if (model is None) & show_model:
@@ -1127,10 +1134,12 @@ Initial parameters:
 
         print ("Generating simulated data based on parameter vector\n  theta={}:".format(self.theta))
 
-        opz = 1./(np.sqrt(1.-self.gmrc2*self.theta[6]/self.theta[7]))
+        X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
+        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+
+        opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
         print ('  i.e. source at d={:.2f} kpc, xi_b={:.4f}, xi_p={:.4f}, X={:.2f}, Z={:.3f}, M_NS={:.2f}, R_NS={:.2f}, 1+z={:.3f}, Q_b={:.2f}'.format(
-            self.theta[3],  self.theta[4], self.theta[5], self.theta[0],
-            self.theta[1], self.theta[6], self.theta[7],opz,self.theta[2]))
+            dist,  xi_b, xi_p, X, Z, mass, radius, opz, Q_b))
         if self.obsname is not None:
             print ('  persistent fluxes from {}, interp={}, bc={}\n'.format(
                 self.obsname, self.interp, self.bc))
@@ -1160,7 +1169,8 @@ Initial parameters:
 
         assert len(distrange) == 2
 
-        X_0, Z, Q_b, f_a, f_E, r1_0, r2, r3, mass, radius = self.theta
+        X_0, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
+        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
 
         # Loop over the distance values
 
@@ -1312,11 +1322,12 @@ Initial parameters:
                 _test, _valid, _model = runmodel(pos, self)
                 bad[i] = _test is None
             nbad = len(np.where(bad)[0])
+
+            new_pos = kwargs['pos'].copy()
             if nbad == 0:
                 print ('... done. all OK, continuing')
             else:
                 print ('... done. {}/{} positions invalid; redistributing...'.format(nbad, self.nwalkers))
-                new_pos = kwargs['pos'].copy()
                 # if you have too many bad positions, you'll get an error
                 # running with too many duplicates; need to possibly trap that
                 # here
@@ -1707,45 +1718,58 @@ Initial parameters:
             self.samples = samples.reshape((-1,self.ndim))
             self.samples_burnin = burnin
 
+            cosi_2 = 1/(2*self.samples[:,5])
+            cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
+
             # here now create the overall chainconsumer object that will
             # enable the various posterior plots below
 
             labels = {"X": "$X$", "Z": "$Z$", "Qb": "$Q_b$ (MeV)",
-                "d": "$d$ (kpc)", "xi_b": "$\\xi_b$", "xi_p": "$\\xi_p$",
-                "M": "$M$ ($M_\odot$)", "R": "$R$ (km)"}
+                "d": "$d$ (kpc)", "xi_b": "$\\xi_b$", "xi_p": "$\\xi_p$"}
+
+            if self.ndim >= 7:
+                labels["M"] = "$M$ ($M_\odot$)"
+                mass = self.samples[:,6]
+                masspred = get_param_uncert(mass)
+            if self.ndim >= 8:
+                labels["R"] = "$R$ (km)"
+                radius = self.samples[:,7]
+                radiuspred = get_param_uncert(radius)
+
+                # calculate redshift and gravity from mass and radius:
+                # keep the parameters that we're going to calculate limits on
+                # below, dimensionless
+
+                R = np.array(radius)*1e5*u.cm #cgs
+                M = np.array(mass)*const.M_sun.to('g') #cgs
+
+                # ChainConsumer's plot method can't handle Quantity objects,
+                # so we need to convert gravity and redshift back to numpy
+                # arrays here
+                redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+                gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
+
+                redshiftpred = get_param_uncert(redshift)
+                gravitypred = get_param_uncert(gravity)
+
             if self.ndim >= 9:
                 labels["fE"] = "$f_E$"
             if self.ndim == 10:
                 labels["fa"] = "$f_a$"
 
-            mass = self.samples[:,6]
-            radius = self.samples[:,7]
-
-            # calculate redshift and gravity from mass and radius:
-            # keep the parameters that we're going to calculate limits on
-            # below, dimensionless
-
-            R = np.array(radius)*1e5*u.cm #cgs
-            M = np.array(mass)*const.M_sun.to('g') #cgs
-
-            # ChainConsumer's plot method can't handle Quantity objects,
-            # so we need to convert gravity and redshift back to numpy
-            # arrays here
-            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
-            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
-
-            cosi_2 = 1/(2*self.samples[:,5])
-            cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
 
             # now create the chainconsumer object
 
             _plot_labels = labels
             _plot_labels['cosi'] = '$\cos i$'
-            _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
-            _plot_labels['1+z'] = '$1+z$'
+            if self.ndim >= 8:
+                _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
+                _plot_labels['1+z'] = '$1+z$'
+                _samples =np.column_stack((self.samples, cosi, gravity, redshift))
+            else:
+                _samples =np.column_stack((self.samples, cosi))
 
             self.cc = ChainConsumer()
-            _samples =np.column_stack((self.samples, cosi, gravity, redshift))
             # self.cc.add_chain(_samples, parameters=_labels)
             self.cc.add_chain(_samples, parameters=list(_plot_labels.values()),
                 name=self.run_id)
@@ -1765,7 +1789,8 @@ Initial parameters:
             self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
 
-            # Now get parameter uncertainties and save to the text file
+	    # Now get the remainder of the parameter uncertainties and
+	    # save to the text file
 
             Xpred = get_param_uncert(self.samples[:,0])
             Zpred = get_param_uncert(self.samples[:,1])
@@ -1774,26 +1799,37 @@ Initial parameters:
             cosipred = get_param_uncert(cosi)
             xibpred = get_param_uncert(self.samples[:,4])
             xippred = get_param_uncert(self.samples[:,5])
-            masspred = get_param_uncert(mass)
-            radiuspred = get_param_uncert(radius)
-            redshiftpred = get_param_uncert(redshift)
-            gravitypred = get_param_uncert(gravity)
 
-            # save to text file with columns: value, upper uncertainty, lower uncertainty
+	    # save to text file with columns: value, upper uncertainty,
+	    # lower uncertainty
+            # have to have a few options here depending on whether the
+            # mass is included or not
+            # TODO also include f_E, f_a if they're included
 
-            np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
-                (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
-                masspred, radiuspred,gravitypred/1e14, redshiftpred),
-                fmt='%9.6f',
-                header='''beansp v{} parameter file
+            header='''beansp v{} parameter file
 run_id {}, nsteps_completed={}, skipping {} steps for burnin
+
+Each row has the 50th percentile value, upper & lower 68% uncertainties
 
 Rows are:
 H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
-cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b),
-NS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)
+cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
 
-Each row has the 50th percentile value, upper & lower 68% uncertainties'''.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin,))
+            if self.ndim == 6:
+                np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
+                    (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred),
+                    fmt='%9.6f', header=header.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin))
+            elif self.ndim == 7:
+                header = header+',\nNS mass (M_sun)'
+                np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
+                    (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
+                    masspred), fmt='%9.6f', header=header.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin,))
+            else:
+                header = header+', NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
+                np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
+                    (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
+                    masspred, radiuspred, gravitypred/1e14, redshiftpred),
+                    fmt='%9.6f', header=header.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin))
 
         # ---------------------------------------------------------------------#
         if 'last' in options:
@@ -1886,7 +1922,9 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties'''.forma
             print ("...done")
 
         # ---------------------------------------------------------------------#
-        if 'mrcorner' in options:
+        if ('mrcorner' in options) & (self.ndim < 8):
+            print ('** ERROR ** can''t show M-R posteriors as one or both of M & R are fixed')
+        elif 'mrcorner' in options:
 
             # mrgr = np.column_stack((mass, radius, gravity, redshift))
 

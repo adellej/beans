@@ -126,7 +126,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
     be compared to the observations (with appropriate scaling)
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
     :param bean: Beans object, from which the required parameters are drawn:
       y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
       ref_ind, gti_checking,train, gti_start=None, gti_end=None,
@@ -141,7 +141,8 @@ def runmodel(theta_in, bean, match=True, debug=False):
     if debug:
         print('Calling runmodel')
 
-    X, Z, Q_b, dist, xi_b, xi_p, mass, radius = theta_in[:8]
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius, f_E, f_a = extra+[bean.M_NS, bean.R_NS, 1.0, 1.0][len(extra):]
 
     # by default we assume the model is valid, i.e. has sufficient bursts
     # to match the observations, AND doesn't violate the GTI conditions
