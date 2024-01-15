@@ -641,10 +641,12 @@ Initial parameters:
 #xi_b = {:.3f} \\ anisotropy factor for burst emission
 #xi_p = {:.3f} \\ anisotropy factor for persistent emission""".format(
     X, Z, Q_b, dist, xi_b, xi_p)
-        if len(theta) > 6:
-            result = result+"\n#M_NS = {:.3f} M_sun \\ neutron star mass"
-        if len(theta) > 7:
-            result = result+"\n#R_NS = {:.3f} km \\ neutron star radius"
+        result = result+"\n#M_NS = {:.3f} M_sun \\ neutron star mass".format(mass)
+        if len(theta) <= 6:
+            result += ' (fixed)'
+        result = result+"\n#R_NS = {:.3f} km \\ neutron star radius".format(radius)
+        if len(theta) <= 7:
+            result += ' (fixed)'
         if self.num_systematic == 1:
             return (result+"""
 #f_E = {:.3f} \\ systematic error term for fluence""".format(
