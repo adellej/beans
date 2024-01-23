@@ -45,7 +45,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
     :param nwalkers: number of walkers for the emcee run
     :param nsteps: number of MCMC steps to run
     :param theta_in: parameter tuple, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
     :param lnprob: log-probability function to use with emcee
     :param prior: prior function to use with emcee, used to check the initial walker positions
     :param x: the "independent" variable, passed to lnlike
@@ -90,8 +90,6 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
         print('    Running run={} with {} walkers, target {} steps...'.format(run_id,nwalkers,nsteps))
 
-    print("# ---------------------------------------------------------------------------#")
-            
     # implement multiprocessing following the simple example here:
     # https://emcee.readthedocs.io/en/stable/tutorials/parallel
     with Pool(processes=threads) as pool:
@@ -112,13 +110,19 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 	# options, but the only difference was the choice of the starting
 	# positions, so have now merged them
 
-        if restart == True:
+        if pos is not None:
+            # warning is probably not necessary since we've already vetted
+            # the positions in beans.do_run
+            print ('\n    ** WARNING ** setting walkers at provided position vector')
+        elif restart == True:
             pos = sampler.get_last_sample()
         else:
             # set the intial position of the walkers
             # pos = [theta + 1e-4*np.random.randn(ndim) for i in range(nwalkers)]
             pos = set_initial_positions(theta,  nwalkers, prior)
 
+        print("# ---------------------------------------------------------------------------#")
+            
         for sample in sampler.sample(pos, iterations=nsteps, progress=True):
 
             # Only check convergence every 100 steps
