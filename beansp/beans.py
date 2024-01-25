@@ -1518,6 +1518,77 @@ Initial parameters:
         :return: astropy table of burst properties
         """
 
+        def strmeas(val, err, err_hi=None):
+            '''
+            Function to return nicely (TeX) formatted measurements, with errors
+            Adapted (and simplified) from strmeas.pro
+
+            For simplicity we consider only the case where the error is smaller 
+            than the value. Since the error and the value need to be
+            plotted to the same digit, we have essentially just two cases: 
+            integer and integer, or float and float
+            
+            :param val: central value (50th percentile or whatever)
+            :param err: if err_hi is not supplied, this is the symmetric error; otherwise, the lower error
+            :param err_hi: upper uncertainty
+            
+            :returns: formatted string
+            '''
+            
+            eta=1e-20     # Threshold for non-zero measurements
+            sym_templ = '${{{}}}\pm{{{}}}$'
+            asym_templ = '${{{}}}_{{{{{{{}}}}}}}^{{{{{{{}}}}}}}$'
+            
+            # get the number of significant figures of each of the errors
+            fudge=0.0222764
+            n_lo, n_hi = -1, -1
+            if abs(err) > eta:
+                n_lo=np.floor(np.log10(abs(err))+fudge)
+                
+            if err_hi is None:
+                err_hi = err
+
+            if abs(err_hi) > eta:
+                n_hi=np.floor(np.log10(abs(err_hi))+fudge)
+
+            lmin = int(min([n_lo, n_hi]))
+            if (err < 2.*10.**n_lo) | (err_hi < 2.*10.**n_hi):
+                # need an extra significant figure if the leading digit is 1
+                lmin -= 1
+
+            if (lmin < 0):
+
+                # Floating point value
+
+                rtnfmt = ':.{}f'.format(-lmin)
+                if np.allclose(round(err, -lmin), round(err_hi, -lmin)):
+                    # symmetric errors
+                    res = sym_templ.format(rtnfmt, rtnfmt).format(val, err)
+                else: 
+                    # asymmetric errors
+                    errfmt = ':+.{}f'.format(-lmin)
+                    res = asym_templ.format(rtnfmt, errfmt, errfmt).format(val, -err, err_hi)
+            else:
+
+                # Integer value
+
+                rtnfmt=':d'
+                # round the quantities and convert to integers
+                ival = int(np.floor(val/10.**lmin+0.5)*10.**lmin)
+                ierr_lo = int(np.floor(err/10.**lmin+0.5)*10**lmin)
+                ierr_hi = int(np.floor(err_hi/10.**lmin+0.5)*10**lmin)
+                if np.allclose(ierr_lo, ierr_hi):
+                    # symmetric errors
+                    res = sym_templ.format(rtnfmt, rtnfmt).format(ival, ierr_lo)
+                else:
+                    # asymmetric errors
+                    errfmt = ':+d'
+                    res = asym_templ.format(rtnfmt, errfmt, errfmt).format(ival, -ierr_lo, ierr_hi)
+
+
+            return res
+
+
         if not self.HAS_CONCORD:
             print ('** ERROR ** alpha calculation requires concord')
             return None
@@ -1568,30 +1639,42 @@ Initial parameters:
                     # one or more missed bursts, so use the model predictions for the previous time
                     _dt = (self.bstart[i] - np.array(self.model_pred['times'])[:,imatch[i]-1]) * 24.
                     perflx = [self.mean_flux(x, self.bstart[i], self) for x in np.array(self.model_pred['times'])[:,imatch[i]-1]]
-                _alpha = self.cd.alpha(_dt,(self.fluen[i], self.fluene[i]), perflx)
+                _alpha = self.cd.alpha(_dt,(self.fluen[i], self.fluene[i]), perflx).value
                 if np.shape(_dt) == ():
                     # scalar _dt, exact recurrence time
                     dt.append(_dt)
                     e_dt.append(0.)
                     if show:
-                        print ("{} & & {} & {:.2f} & ${:.3f} \pm {:.3f}$ & ${:.1f} \pm {:.1f}$ & ${:.1f}_{{-{:.1f}}}^{{+{:.1f}}}$ \\\\".format(bursts['num'][i], bursts['time'][i], dt[-1], bursts['bfluen'][i], bursts['e_bfluen'][i], bursts['alpha_obs'][i], bursts['e_alpha_obs'][i], _alpha[0], _alpha[1], _alpha[2]))
+                        print ("{} & [minbar ID] & {} & {:.2f} & {} & {} & {} \\\\".format(
+                            bursts['num'][i], bursts['time'][i], dt[-1],
+                            strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]),
+                            strmeas(bursts['alpha_obs'][i], bursts['e_alpha_obs'][i]),
+                            strmeas(_alpha[0], _alpha[1], _alpha[2])))
                 else:
                     dt_stats = np.percentile(np.array(_dt), [16,50,84])
                     dt.append(dt_stats[1])
                     e_dt.append((dt_stats[2]-dt_stats[0])*0.5)
                     if show:
-                        print ("{} & & {} & ${:.2f}\pm{:.2f}$ & ${:.3f} \pm {:.3f}$ & ${:.1f} \pm {:.1f}$ & ${:.1f}_{{-{:.1f}}}^{{+{:.1f}}}$ \\\\".format(bursts['num'][i], bursts['time'][i], dt[-1], e_dt[-1], bursts['bfluen'][i], bursts['e_bfluen'][i], bursts['alpha_obs'][i], bursts['e_alpha_obs'][i], _alpha[0], _alpha[1], _alpha[2]))
+                        print ("{} & [minbar ID] & {} & {} & {} & {} & {} \\\\".format(
+                            bursts['num'][i], bursts['time'][i], 
+                            strmeas(dt[-1], e_dt[-1]), 
+                            strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]),
+                            strmeas(bursts['alpha_obs'][i], bursts['e_alpha_obs'][i]),
+                            strmeas(_alpha[0], _alpha[1], _alpha[2])))
                 alpha.append(_alpha[0])
                 e_alpha.append(_alpha[1])
                 E_alpha.append(_alpha[2])
             else:
+                # not sure what this case is for (excluded bursts?)
                 dt.append(0.)
                 e_dt.append(0.)
                 alpha.append(0.)
                 e_alpha.append(0.)
                 E_alpha.append(0.)
                 if show:
-                    print ("{} & & {} & \\nodata & ${:.3f} \pm {:.3f}$ & \\nodata & \\nodata \\\\".format(bursts['num'][i], bursts['time'][i], bursts['bfluen'][i], bursts['e_bfluen'][i]))
+                    print ("{} & & {} & \\nodata & {} & \\nodata & \\nodata \\\\".format(
+                        bursts['num'][i], bursts['time'][i],
+                        strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i])))
 
         bursts['trec'] = MaskedColumn(dt, mask=np.array(dt) <=0., unit=u.hr, 
             description='Burst recurrence time')
