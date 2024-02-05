@@ -20,6 +20,7 @@ from multiprocessing import cpu_count
 import os
 import time
 from configparser import ConfigParser
+import pickle
 
 import pkg_resources  # part of setuptools
 try:
@@ -1317,15 +1318,29 @@ Initial parameters:
         # valid
 
         if 'pos' in kwargs:
+
+            # now also has the option to read in the positions from a
+            # pickle file
+
+            if type(kwargs['pos']) == str:
+                print ('\nReading in positions from file {}...'.format(kwargs['pos']))
+                new_pos = pickle.load(open(kwargs['pos'],'rb'))
+                print ('... done')
+            else:
+                new_pos = kwargs['pos'].copy()
+
+            if np.shape(new_pos) != (self.nwalkers, self.ndim):
+                print ('** ERROR ** supplied positions has wrong dimensions; {} != {}'.format(np.shape(new_pos), (self.nwalkers, self.ndim)))
+                return None
+
             print ('\n** WARNING ** walkers will start at provided position vector.\n              Checking supplied positions...')
-            assert len(kwargs['pos']) == self.nwalkers
-            bad = np.full(len(kwargs['pos']), False)
-            for i, pos in enumerate(kwargs['pos']):
+            # assert len(kwargs['pos']) == self.nwalkers
+            bad = np.full(len(new_pos), False)
+            for i, pos in enumerate(new_pos):
                 _test, _valid, _model = runmodel(pos, self)
                 bad[i] = _test is None
             nbad = len(np.where(bad)[0])
 
-            new_pos = kwargs['pos'].copy()
             if nbad == 0:
                 print ('... done. all OK, continuing')
             else:
@@ -2329,4 +2344,52 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
                 print ('Skipping burst comparison plot save')
             fig.show()
 
+    def prune(self, key=None, nwalkers=None, scale=0.0, savefile=None):
+        '''
+        This method will "prune" the walkers to keep only one set of
+        solutions. It is necessary that :meth:`Beans.do_analysis` has
+        already been called, with the `comparison` option, to identify the
+        model classes.
 
+        The method will return the new set of positions, and optionally
+        save them to a pickle file
+
+        :param key: model class to keep, usually labeled by the number of predicted bursts
+        :param nwalkers: number of samples to generate, if not the current number of walkers
+        :param scale: in case it's necessary to distribute the walker positions around the seed values, this parameter sets the Gaussian scale
+        :param savefile: name of pickle file to save to
+
+        :returns: array of walker positions, dimensions (nwalkers, ndim)
+        '''
+
+        if not hasattr(self, 'model_pred'):
+            print ('** ERROR ** no model predictions available, run the comparison first')
+            return None
+
+        if key is None:
+            print ("** ERROR ** no key supplied, don't know which set to keep")
+            return None
+
+        if not (key in set(self.model_pred['partition'])):
+            print ("** ERROR ** key not present in model prediction set: {}".format(set(self.model_pred['partition'])))
+            return None
+
+        new_pos, d1, d2, d3 = self.reader.get_last_sample()
+
+        # now redistribute the "bad" walkers
+
+        bad = np.array(self.model_pred['partition'])[-self.nwalkers:] != key
+
+        print ('Redistributing {} of {} walkers...'.format(len(np.where(bad)[0]), self.nwalkers))
+
+        for i in (np.where(bad)[0]):
+            new_pos[i] = new_pos[np.random.choice(np.where(~bad)[0])] + scale*np.random.randn(self.ndim)
+
+        if savefile is not None:
+            print ('Saving positions to {}'.format(savefile))
+            pickle.dump(new_pos, open(savefile, 'wb'))
+
+        return new_pos
+
+
+# end of beans.py
