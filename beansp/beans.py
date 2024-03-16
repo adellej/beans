@@ -1925,7 +1925,7 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
                     (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
                     masspred), fmt='%9.6f', header=header.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin,))
             else:
-                header = header+', NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
+                header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
                 np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
                     (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
                     masspred, radiuspred, gravitypred/1e14, redshiftpred),
