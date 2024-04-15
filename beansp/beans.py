@@ -587,6 +587,11 @@ class Beans:
             # MCU Note: commented out - no interactive windows for automated testing
             # self.plot_model(test2)
 
+            if not valid:
+                print ('''
+** WARNING ** the model is not valid. You need to adjust the model
+                parameters to better suit the data.  ''')
+
 
     def __str__(self):
         """
@@ -972,13 +977,15 @@ Initial parameters:
             test, valid, model = runmodel(self.theta, self, match=False,
                 debug=False)
 
-            # ... but it's useful to know if it's possible
+            imatch, show_model = None, valid
+            if valid:
+                # ... but it's useful to know if it's possible
 
-            imatch = burst_time_match(self.ref_ind, self.bstart,
-                model['iref'], np.array(model['time']))
+                imatch = burst_time_match(self.ref_ind, self.bstart,
+                    model['iref'], np.array(model['time']))
 
-            if imatch is None:
-                print ("\n** WARNING ** can't match predicted bursts to observations")
+                if imatch is None:
+                    print ("\n** WARNING ** can't match predicted bursts to observations")
 
         full_model = False  # Flag to remember whether we're plotting the
                             # full model output of generate burst train or
@@ -986,7 +993,7 @@ Initial parameters:
         if type(model) == dict:
             full_model = True
             timepred = model["time"]
-            if (len(timepred) == 0): # | (not valid):
+            if (len(timepred) == 1): # | (not valid):
                 print ('** ERROR ** no predicted times to show')
                 show_model = False
             else:
@@ -1533,7 +1540,7 @@ Initial parameters:
         :return: astropy table of burst properties
         """
 
-        def strmeas(val, err, err_hi=None):
+        def strmeas(val, err, err_hi=None, mask_str='--'):
             '''
             Function to return nicely (TeX) formatted measurements, with errors
             Adapted (and simplified) from strmeas.pro
@@ -1549,7 +1556,22 @@ Initial parameters:
             
             :returns: formatted string
             '''
-            
+
+            # check for string values
+            if (type(val) == str) | (type(val) == np.str_):
+                try:
+                    val, err = float(val), float(err)
+                    if err_hi is not None:
+                        err_hi = float(err_hi)
+                except:
+                    # if we have strings that are not floats, just return
+                    # them
+                    return val
+
+            # check for masked values
+            if np.ma.is_masked(val):
+                return mask_str
+
             eta=1e-20     # Threshold for non-zero measurements
             sym_templ = '${{{}}}\pm{{{}}}$'
             asym_templ = '${{{}}}_{{{{{{{}}}}}}}^{{{{{{{}}}}}}}$'
@@ -1637,13 +1659,20 @@ Initial parameters:
             unit=FLUEN_U, description='Integrated burst fluence')
         bursts['e_bfluen'] = MaskedColumn(self.fluene, mask=self.fluen <= 0.,
             unit=FLUEN_U, description='Error on burst fluence')
-        bursts['alpha_obs'] = MaskedColumn(self.alpha, mask=self.alpha <=0., 
+        # following list comprehension mask expression is to trap the
+        # blanks that come from MINBAR
+        # bursts['alpha_obs'] = MaskedColumn(self.alpha, mask=self.alpha <=0., 
+        bursts['alpha_obs'] = MaskedColumn(self.alpha,
+            mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
             description='Burst alpha-value')
-        bursts['e_alpha_obs'] = MaskedColumn(self.alphae, mask=self.alpha <=0., 
+        # bursts['e_alpha_obs'] = MaskedColumn(self.alphae, mask=self.alpha <=0., 
+        bursts['e_alpha_obs'] = MaskedColumn(self.alphae,
+            mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
             description='Error on alpha-value')
 
         # Now loop over the bursts and calculate the derived quantities
         dt, e_dt, alpha, e_alpha, E_alpha = [], [], [], [], []
+        _sel = np.where(np.array(self.model_pred['partition']) == key)[0]
         for i in np.arange(self.numburstsobs):
             if imatch[i] > 0: 
                 if imatch[i]-imatch[i-1] == 1:
@@ -1651,9 +1680,11 @@ Initial parameters:
                     _dt = (self.bstart[i]-self.bstart[i-1])*24.
                     perflx = self.mean_flux(self.bstart[i-1], self.bstart[i], self)
                 else:
-                    # one or more missed bursts, so use the model predictions for the previous time
-                    _dt = (self.bstart[i] - np.array(self.model_pred['times'])[:,imatch[i]-1]) * 24.
-                    perflx = [self.mean_flux(x, self.bstart[i], self) for x in np.array(self.model_pred['times'])[:,imatch[i]-1]]
+		    # one or more missed bursts, so use the model
+		    # predictions for the previous time
+                    # NOTE have to preserve the key selection here
+                    _dt = [(self.bstart[i] - self.model_pred['times'][x][imatch[i]-1])*24.0 for x in _sel]
+                    perflx = [self.mean_flux(self.model_pred['times'][x][imatch[i]-1], self.bstart[i], self) for x in _sel]
                 _alpha = self.cd.alpha(_dt,(self.fluen[i], self.fluene[i]), perflx).value
                 if np.shape(_dt) == ():
                     # scalar _dt, exact recurrence time

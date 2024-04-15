@@ -330,8 +330,10 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
         if not (forward or backward):
             break
 
-    if (mdot_max == -1) & (len(stime) > 0):
+    if (mdot_max == -1) & (len(stime) > 1):
 
+        # only run this if len(stime) > 1, because it is initialised as a
+        # list with a single value (sbt)
         mdot_max = max(smdot)
 
     result = dict()
