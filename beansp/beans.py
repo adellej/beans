@@ -1838,8 +1838,8 @@ Initial parameters:
             self.samples_burnin = None
             self.models_burnin = None
 
-        if ((burnin != self.samples_burnin) & (self.samples_burnin is not None)\
-            |((burnin != self.models_burnin) & (self.models_burnin is not None):
+        if (burnin != self.samples_burnin) | \
+            ((burnin != self.models_burnin)&(self.models_burnin is not None)):
 
             # moved burnin to be a parameter, so we can pass that from do_run
             # and also keep track of what we've used, so that we don't
