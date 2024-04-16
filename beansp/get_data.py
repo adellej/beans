@@ -91,18 +91,6 @@ def get_obs(bean, alpha=True, fluen=True):
         ta_1 = obsdata['col1']
         ta_2 = obsdata['col2']
 
-        # Define reference time as day of first burst/epoch, or day of
-        # first observation, unless it's already been defined (e.g. read
-        # in from the config file)
-        # Changed this to be the day of the first burst/obs instead of the
-        # time of the first burst from v2.11.0 onwards, so older runs need
-        # to specify the value in the config file
-        # bstart0 = bstart[0]
-
-        if not hasattr(bean, 'tref'):
-            bean.tref = np.min([np.floor(bean.bstart[0]),
-                np.floor(np.min(ta_1))])
-
         ssa_1 = ta_1
         ssa_2 = ta_2
 
@@ -127,6 +115,19 @@ def get_obs(bean, alpha=True, fluen=True):
         bean.pfluxe = pfluxe * bean.bc
 
         if bean.burstname is not None:
+
+            # Define reference time as day of first burst/epoch, or day of
+            # first observation, unless it's already been defined (e.g. read
+            # in from the config file)
+            # Changed this to be the day of the first burst/obs instead of the
+            # time of the first burst from v2.11.0 onwards, so older runs need
+            # to specify the value in the config file
+            # bstart0 = bstart[0]
+
+            if not hasattr(bean, 'tref'):
+                bean.tref = np.min([np.floor(bean.bstart[0]),
+                    np.floor(np.min(ta_1))])
+
             # We're using the start time in the MCMC so have to assign an error
             # This parameter is not returned to the init func, except
             # through the obs_err -> yerr parameters
@@ -134,9 +135,6 @@ def get_obs(bean, alpha=True, fluen=True):
             bstart_err = np.full(len(bean.bstart), bean.bstart_err)
             # bstart = bstart - bstart0
             bean.bstart = bean.bstart - bean.tref
-
-            # Define reference burst:
-            tref = bean.bstart[bean.ref_ind]
 
 	    # Set the y and yerr arrays (previously obs, obs_err), which
 	    # are what the MCMC code uses for comparison
@@ -155,7 +153,10 @@ def get_obs(bean, alpha=True, fluen=True):
             bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
             bean.yerr = np.delete(bean.yerr, bean.ref_ind)
         else:
-            bean.tref = tobs[np.argmax(bean.pflux)]
+            # if there's no burst data, define the tref in a different way
+            # (time of peak of outburst)
+            if not hasattr(bean, 'tref'):
+                bean.tref = tobs[np.argmax(bean.pflux)]
             # bstart0 = tobs[np.argmax(pflux)]
 
             bean.bstart, bean.fluen, bean.y, bean.yerr = None, None, None, None
@@ -174,6 +175,9 @@ def get_obs(bean, alpha=True, fluen=True):
         bean.pfluxe = np.array(burstdata['col7'])
         bean.tdel = np.array(burstdata['col8'])
         bean.tdele = np.array(burstdata['col9'])
+
+        if not hasattr(bean, 'tref'):
+            bean.tref = 0.
 
 	# Set the y and yerr arrays (previously obs and obs_err), which
 	# are what the MCMC code uses for comparison

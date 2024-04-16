@@ -947,7 +947,10 @@ Initial parameters:
         savefig=False):
         """
 	Display a plot of the data and model results, for a burst train
-        calculated with generate_burst_train Adapted from the example at
+	calculated with :function:`beansp.burstrain.generate_burst_train`;
+        or burst "ensemble" data calculated with
+        :function:`beansp.burstrain.burst_ensemble`. Adapted from the
+        example at
         https://matplotlib.org/gallery/api/two_scales.html
 
         :param show_model: set to False to skip the model generation step, in which case only the observed data will be plotted
@@ -978,8 +981,9 @@ Initial parameters:
                 debug=False)
 
             imatch, show_model = None, valid
-            if valid:
+            if valid & self.train:
                 # ... but it's useful to know if it's possible
+                # (not relevant for ensemble mode)
 
                 imatch = burst_time_match(self.ref_ind, self.bstart,
                     model['iref'], np.array(model['time']))
@@ -999,16 +1003,17 @@ Initial parameters:
             else:
                 ebpred = np.array(model["fluen"])
         elif type(model) == list:
-            breakpoint()
 	    # The other way to return the model is as an array with the
 	    # burst times, fluences and alphas all together. So unpack
 	    # those here
+            # This mode is deprecated hence the breakpoint
+            breakpoint()
             timepred = model[:self.numburstssim+1]
             ebpred = np.array(model[self.numburstssim+int(self.train):self.numburstssim*2+int(self.train)]) * self.fluen_fac/xi_b/dist**2
 
         # Now set up the figure
 
-        if show_model & (imatch is not None):
+        if self.train & show_model & (imatch is not None):
             fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']])
             ax1 = axs['main']
         else:
@@ -1016,7 +1021,7 @@ Initial parameters:
         # fig.figure(figsize=(10,7))
 
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-        if self.gti_checking:
+        if self.train & self.gti_checking:
             #plot satellite gtis
             for i in range(1,len(self.st)):
                 ax1.axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
@@ -1026,10 +1031,10 @@ Initial parameters:
         if mdot and full_model:
             # this is the usual (only?) plot style, showing mdot vs. time,
             # along with the burst model and observation comparison
-            _mdot, _mdot_err = self.flux_to_mdot(X, dist, xi_p, mass, radius)
             ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_colour)
+            _mdot, _mdot_err = self.flux_to_mdot(X, dist, xi_p, mass, radius)
             if self.train:
-                # show the burst train
+                # show the mdot values
                 ax1.errorbar(self.tobs, _mdot, _mdot_err,
                     marker='.', ls=ls, color=flux_colour, label='mdot')
                 if self.interp == 'spline':
@@ -1039,11 +1044,14 @@ Initial parameters:
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
                 ax2.axvline(self.bstart[self.ref_ind], c='k', ls='--')
+                ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
             else:
                 # show the ensemble comparison, which is much simpler
                 ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
                          color=flux_colour, label='mdot')
+                ax1.set_xlabel("Epoch (MJD)")
         else:
+            # showing here the persistent flux rather than mdot
             ax1.set_ylabel('Persistent flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}\\,s^{-1}}$)', color=flux_colour)
             if self.train:
                 ax1.errorbar(self.tobs, self.pflux, self.pfluxe,
@@ -1103,13 +1111,13 @@ Initial parameters:
                         np.sqrt(np.mean(resid**2))))
 
         else:
-            ax2.scatter(self.bstart,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
+            # ensemble mode plot here
+            ax2.scatter(self.bstart, self.fluen, color = 'darkgrey', marker = '.', label='observed', s =200)
             if show_model:
                 ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted')
 
         ax2.tick_params(axis='y', labelcolor=obs_colour)
 
-        ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
         if title is not None:
             plt.title(title)
 
