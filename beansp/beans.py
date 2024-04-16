@@ -18,6 +18,7 @@ from scipy.interpolate import splrep, BSpline, splint
 from chainconsumer import ChainConsumer
 from multiprocessing import cpu_count
 import os
+import gzip
 import time
 from configparser import ConfigParser
 import pickle
@@ -1837,10 +1838,14 @@ Initial parameters:
             self.samples_burnin = None
             self.models_burnin = None
 
-        if (burnin != self.samples_burnin) | \
-            (burnin != self.models_burnin):
+        if ((burnin != self.samples_burnin) & (self.samples_burnin is not None)\
+            |((burnin != self.models_burnin) & (self.models_burnin is not None):
 
             # moved burnin to be a parameter, so we can pass that from do_run
+            # and also keep track of what we've used, so that we don't
+            # need to read in the samples and create the ChainConsumer
+            # object every time
+
             # want to make sure we're using at least about 1000 samples for
             # our statistics
 
@@ -2382,6 +2387,76 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
             else:
                 print ('Skipping burst comparison plot save')
             fig.show()
+
+    def compare(self, alt, burnin=None, parameters=None, label='result 2'):
+        '''
+        This method will update the cc attribute to include data from a
+        different Beans object, or a different set of analyses, to be able
+        to plot both posteriors simultaneously
+
+        :param alt: object to compare with
+        :param label: label to give the second set of results
+
+        :returns: nothing, but updates the cc attribute
+        '''
+
+        # first re-define the main cc object
+        self.cc = ChainConsumer()
+        # augment with some additional parameters, e.g. as used in the
+        # 1826 work
+        # TODO probably should check if these have already been added
+        self.cc_parameters['dxi_b'] = '$d\\xi_b$ (kpc)'
+        self.cc_parameters['xi_p/xi_b'] = '$\\xi_p/\\xi_b$'
+        _samples = np.column_stack((self.samples,
+            self.samples[:,3]*self.samples[:,4],
+            self.samples[:,5]/self.samples[:,4]))
+
+        self.cc.add_chain(_samples,
+            parameters=list(self.cc_parameters.values()),
+            name=self.run_id)
+        self.samples = _samples
+
+        if type(alt) == Beans:
+            # don't really need to worry about common parameters here,
+            # just use whatever is in the other bean
+            self.cc.add_chain(alt.samples,
+                parameters=list(alt.cc_parameters.values()),
+                name=label)
+        elif type(alt) == str:
+            # read in the parameters from a file
+            if alt[-6:] == 'npy.gz':
+                # this option will read in parameters from the files
+                # distributed with Johnston et al. 2020 (MNRAS 494, 4576);
+                # see https://data.mendeley.com/datasets/nmb24z6jrp/2
+                f = gzip.GzipFile(alt, 'r')
+                chain = np.load(f)
+                print ('Read in array with {} walkers, {} steps and {} parameters from\n  {}'.format(*np.shape(chain), alt))
+                # shape is (nwalkers, nsteps, ndim)
+                assert np.shape(chain)[2] == 12 # won't work for the other files
+                if burnin is not None:
+                    chain_flat = chain[:, burnin:, :].reshape((-1, 12))
+                else:
+                    chain_flat = chain[:, :, :].reshape((-1, 12))
+                self.cc.add_chain(chain_flat,
+                    parameters=['$\dot{m}_1','$\dot{m}_2','$\dot{m}_3',
+                        '$Q_{b,1}$ (MeV)', '$Q_{b,2}$ (MeV)', '$Q_{b,3}$ (MeV)',
+                        '$X$', '$Z$', '$g$ (cm s$^{-2}$)', '$M$ ($M_\odot$)',
+                        '$d\\xi_b$ (kpc)', '$\\xi_p/\\xi_b$'],
+                    name=label)
+            else:
+                breakpoint()
+        else:
+            print ('** ERROR ** can only compare with another Beans object or chains read in from a file')
+
+        # and finally set all the plot options (have to do this last)
+        self.cc.configure(usetex=True, serif=True, 
+            flip=False, summary=False,
+            bins=0.7, # has the effect of light smoothing of the histograms
+            diagonal_tick_labels=False, max_ticks=3, shade=True, \
+            shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+            label_font_size='xx-large',smooth=True, \
+            sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
+        self.cc_nchain = 2
 
     def prune(self, key=None, nwalkers=None, scale=0.0, savefile=None):
         '''
