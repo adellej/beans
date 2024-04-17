@@ -2363,12 +2363,14 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
                 # different style plot for the ensemble mode; the bstart
                 # still records the burst time (epoch) but now we prefer
                 # to plot vs. recurrence time
-                timepred = [x[0] for x in times]
-                timepred_errup = [x[1] for x in times]
-                timepred_errlow = [x[2] for x in times]
-                ebpred = [x[0] for x in ebs]
-                ebpred_errup = [x[1] for x in ebs]
-                ebpred_errlow = [x[2] for x in ebs]
+                timepred = [x[0] for x in times[self.numburstssim]]
+                timepred_errup = [x[1] for x in times[self.numburstssim]]
+                timepred_errlow = [x[2] for x in times[self.numburstssim]]
+                ebpred = [x[0] for x in ebs[self.numburstssim]]
+                ebpred_errup = [x[1] for x in ebs[self.numburstssim]]
+                ebpred_errlow = [x[2] for x in ebs[self.numburstssim]]
+
+                fig = plt.figure()
                 plt.errorbar(self.tdel, self.fluen, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
                 plt.scatter(timepred, ebpred, marker='*', color=bursts_colour, s=100, label='Predicted')
