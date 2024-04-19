@@ -1990,11 +1990,15 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
             for _i in np.arange(np.shape(self.last)[0]):
                 ptot, model = self.lnlike(self.last[_i,:], None, self.y, self.yerr, components=True)
                 ato = int(self.train)
-                p_time = -0.5*np.sum(model['cpts'][:self.numburstsobs-ato])
-                if self.cmpr_fluen:
-                    p_fluen = -0.5*np.sum(model['cpts'][self.numburstsobs-ato:2*self.numburstsobs-ato])
-                if self.cmpr_alpha:
-                    p_alpha = -0.5*np.sum(model['cpts'][2*self.numburstsobs-ato:])
+                if model is None:
+                    # The model will not always be valid
+                    p_time, p_fluen, p_alpha = 0., 0., 0.
+                else:
+                    p_time = -0.5*np.sum(model['cpts'][:self.numburstsobs-ato])
+                    if self.cmpr_fluen:
+                        p_fluen = -0.5*np.sum(model['cpts'][self.numburstsobs-ato:2*self.numburstsobs-ato])
+                    if self.cmpr_alpha:
+                        p_alpha = -0.5*np.sum(model['cpts'][2*self.numburstsobs-ato:])
                 pprior = self.lnprior(self.last[_i,:])
                 probs.loc[_i] = [ptot, pprior, p_time, p_fluen, p_alpha]
 
