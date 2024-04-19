@@ -187,7 +187,7 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     flux measurements (tobs, pflux, pfluxe)
 
     :param bean: Beans object, from which the remaining parameters are drawn:
-      bstart, pflux, pfluxe, tobs, numburstssim, ref_ind,
+      bstart, pflux, pfluxe, tobs, numburstssim, ref_ind
     :param base: base flux [MeV/nucleon]
     :param x_0: accreted H-fraction
     :param z: accreted CNO metallicity
@@ -199,24 +199,24 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
       dict that is returned
     :param debug: set to True to show additional debugging information
 
-    :return: a dictionary with the following keys:
-    ['time', 'mdot', 'alpha', 'e_b', 'iref'], and optionally also
-    (if full_model is set to True):
-    ['base', 'z', 'x_0', 'dist', 'xi_p', 'mdot_max', 'mass', 'radius',
-    'forward', 'backward'] (all but the last 2 are copies of the input
-    parameters).
-    The main outputs are the 'time', 'e_b', 'alpha', and 'mdot'  elements
+    :return: a dictionary with the following keys: ``['time', 'mdot', 'alpha', 'e_b', 'iref']``, and optionally (if full_model is set to True) also: ``['base', 'z', 'x_0', 'dist', 'xi_p', 'mdot_max', 'mass', 'radius', 'forward', 'backward']`` (all but the last 2 are copies of the input parameters).
+
+    The main outputs are the ``time``, ``mdot``, ``alpha``, and ``e_b`` elements
     (numpy arrays) which are the predicted properties of the bursts and
-    the mdot inferred for each interval.
+    the accretion rate inferred for each interval.
+
     We have one more element of the time array than the other arrays, because
     we can't determine the properties for that burst, as we may not have
     enough data to back project. So the ith element of e_b, alpha etc.
     belongs with the (i+1)th element of time:
 
-    | time  [ 0  1  2  3  4  5  6  7  ...  n ]
-    | mdot     [ 0  1  2  3  4  5  6  ... n-1 ]
-    | alpha    [ 0  1  2  3  4  5  6  ... n-1 ]
-    | e_b      [ 0  1  2  3  4  5  6  ... n-1 ]
+    .. code-block:: text
+
+        time  [ 0  1  2  3  4  5  6  7  ...  n ]
+        mdot     [ 0  1  2  3  4  5  6  ... n-1 ]
+        alpha    [ 0  1  2  3  4  5  6  ... n-1 ]
+        e_b      [ 0  1  2  3  4  5  6  ... n-1 ]
+
     """
 
     fn = "generate_burst_train"
@@ -387,12 +387,12 @@ def burstensemble( bean, base, x_0, z, dist, xi_p, mass, radius, full_model=Fals
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
 
-    :return: a dictionary with the following keys:
-    ['base', 'z', 'x_0', 'dist', 'xi_p', 'time', 'mdot_max', 'mdot',
-    'iref', 'alpha', 'e_b', 'mass', 'radius']
-    The main outputs are the 'time', 'e_b', 'alpha', and 'mdot'  elements
-    (numpy arrays) which are the predicted properties of the bursts and
-    the mdot inferred for each interval.
+    :return: a dictionary with the following keys: ``['base', 'z', 'x_0', 'dist', 'xi_p', 'time', 'mdot_max', 'mdot', 'iref', 'alpha', 'e_b', 'mass', 'radius']``
+
+    The main outputs (as for :meth:`burstrain.generate_burst_train`) are
+    the ``time``, ``e_b``, ``alpha``, and ``mdot``  elements (numpy
+    arrays) which are the predicted properties of the bursts and the
+    accretion rate inferred for each interval.
     """
 
     salpha = []

@@ -120,7 +120,7 @@ def prior_1808(theta_in):
     """
     This function implements a simple box prior for all the parameters
     excluding mass, radius, and the metallicity, which come instead from
-    :function:`beansp.beans.lnZprior`
+    :meth:`Beans.lnZprior`
 
     This prior is explicitly intended for use with SAX J1808.4-3658, and
     should only be used with extreme caution in other cases!
@@ -948,9 +948,9 @@ Initial parameters:
         savefig=False):
         """
 	Display a plot of the data and model results, for a burst train
-	calculated with :function:`beansp.burstrain.generate_burst_train`;
+	calculated with :func:`burstrain.generate_burst_train`;
         or burst "ensemble" data calculated with
-        :function:`beansp.burstrain.burst_ensemble`. Adapted from the
+        :func:`burstrain.burstensemble`. Adapted from the
         example at
         https://matplotlib.org/gallery/api/two_scales.html
 

@@ -10,5 +10,9 @@ Classes and functions
 
 .. autofunction:: beansp.beans.corr_goodwin19
 
+.. autofunction:: beansp.burstrain.generate_burst_train
+
+.. autofunction:: beansp.burstrain.burstensemble
+
 .. autoclass:: beansp.Beans
-   :members: __init__, do_run, lnprob, do_analysis, plot, sim_data, burst_table
+   :members: __init__, do_run, lnprob, prune, do_analysis, plot, sim_data, burst_table
