@@ -2294,6 +2294,8 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
             obs_colour = 'tab:grey'
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
+            times = self.model_pred['time_stats']
+            ebs = self.model_pred['e_b_stats']
             if self.train:
                 # 2-panel plot like in plot
 
@@ -2316,8 +2318,6 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
                         ax1.axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
                     ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite GTIs')
 
-                times = self.model_pred['time_stats']
-                ebs = self.model_pred['e_b_stats']
                 # loop over all the different solutions
                 _label = 'matched'
                 for i, numburstssim in enumerate(times.keys()):
