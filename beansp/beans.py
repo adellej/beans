@@ -116,6 +116,34 @@ def prior_func(theta_in):
         return -np.inf
 
 
+def prior_kepler(theta_in):
+    """
+    This function applies a more restrictive prior suitable for use with
+    the corr_kepler correction function, which is only defined over the
+    ranges X in (0.2,0.8), Z in (0.005,0.1)
+
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+
+    :return: prior probability
+    """
+
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+
+    # upper bound and lower bounds of each parameter defined here. Bounds were
+    # found by considering an estimated value for each parameter then giving
+    # reasonable limits.
+    if (0.2 < X < 0.8) and (0.005 < Z < 0.1) and \
+        (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1.15 < mass < 2.5) and (9 < radius < 17):
+        return 0.0
+    else:
+        return -np.inf
+
+
 def prior_1808(theta_in):
     """
     This function implements a simple box prior for all the parameters
@@ -2134,7 +2162,7 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
                 fig.show()
 
         # ---------------------------------------------------------------------#
-        if ('comparison' in options) & (self.models_burnin != burnin):
+        if ('comparison' in options) & ((self.models_burnin != burnin) | (part is not None)):
 
             # and finally read in the model realisations
             # This loop can take a LOOOOOONG time for long runs
