@@ -79,6 +79,7 @@ def get_obs(bean, alpha=True, fluen=True):
 
     else:
         print ('** WARNING ** skipping read of burst data, assuming no bursts observed')
+        bean.numburstsobs = 0
         # if there's no burst data, define the start time as the first observation instead
 
     # -------------------------------------------------------------------------#
@@ -152,6 +153,10 @@ def get_obs(bean, alpha=True, fluen=True):
 
             bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
             bean.yerr = np.delete(bean.yerr, bean.ref_ind)
+
+            bean.ly = len(bean.y)
+            assert bean.ly == len(bean.yerr)
+
         else:
             # if there's no burst data, define the tref in a different way
             # (time of peak of outburst)
@@ -189,8 +194,8 @@ def get_obs(bean, alpha=True, fluen=True):
             bean.y = np.concatenate((bean.y, bean.alpha), axis=0)
             bean.yerr = np.concatenate((bean.yerr, bean.alphae), axis=0)
 
-    bean.ly = len(bean.y)
-    assert bean.ly == len(bean.yerr)
+        bean.ly = len(bean.y)
+        assert bean.ly == len(bean.yerr)
 
     # -------------------------------------------------------------------------#
 

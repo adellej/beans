@@ -148,7 +148,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
     # to match the observations, AND doesn't violate the GTI conditions
     # (if we are checking those)
 
-    valid = True
+    valid = bean.numburstsobs > 0
 
     if bean.train:
 
@@ -166,7 +166,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
 
         tpred = result["time"]
         npred = len(tpred)
-        if npred < bean.numburstsobs:
+        if (npred < bean.numburstsobs) & (bean.numburstsobs > 0):
             if debug:
                 print ('runmodel: insufficient number of bursts simulated ({} of {}'.format(npred, bean.numburstsobs))
             return None, False, result
