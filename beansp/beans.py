@@ -1191,7 +1191,7 @@ Initial parameters:
             print ('  persistent fluxes from {}, interp={}, bc={}\n'.format(
                 self.obsname, self.interp, self.bc))
 
-        test, valid, full_model = runmodel(self.theta, self)
+        test, valid, full_model = runmodel(self.theta, self, match=False)
 
         if self.train:
             for i in range(len(full_model['time'])):
