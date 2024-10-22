@@ -26,7 +26,7 @@ Build and installation from this github repository
       conda activate beans-3.8
 
       
-#. Install/upgarde pip, build and local install
+#. Install/upgrade pip, build and local install
 
    .. code-block:: console
   
@@ -52,12 +52,12 @@ Build and installation from this github repository
       python3 -m pip -v uninstall beansp
       python3 -m pip -v cache purge
 
-   After this, in that enviroment, beansp just works from every directorty, providing the conda environment is activated.
+   After this, in that enviroment, beansp just works from every directory, providing the conda environment is activated.
    Imports like:
 
    .. code-block:: python
    
-      from beansp.beans import Beans 
+      from beansp import Beans,beans
 
    (See `test_sft_beans.py <tests/test_sft_beans.py>`_.)
 

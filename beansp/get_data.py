@@ -201,6 +201,10 @@ def get_obs(bean, alpha=True, fluen=True):
 
     print ('...done')
 
+    # pre-calculate the sigmas
+
+    bean.inv_sigma2 = 1./bean.yerr**2
+
     # Shift the observations and gtis so that they start at bstart0:
 
     # tobs = tobs - bstart0
