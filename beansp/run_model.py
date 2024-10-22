@@ -32,8 +32,8 @@ def burst_time_match(iref1, time1, iref2, time2):
             elif ix[0] <= 0:
                 break
             else:
-                ix.insert(0, np.argmin(np.abs(time1[_i]-time2[:ix[0]])))   
-    
+                ix.insert(0, np.argmin(np.abs(time1[_i]-time2[:ix[0]])))
+
         return ix
 
     def match_right(ix, iref, time1, time2, first=None):
@@ -42,7 +42,7 @@ def burst_time_match(iref1, time1, iref2, time2):
 	ix[-1]'th to last elements of array time1, with the first guess
         optionally given
         """
-    
+
         for _i in np.arange(iref,len(time1)-1)+1:
             # print (_i, time1[_i], time2[ix[-1]+1:], ix[-1]+1, len(time2))#np.argmin(np.abs(time1[_i]-time2[ix[-1]+1:])))
             if (_i == iref+1) & (first is not None):
@@ -227,7 +227,8 @@ def runmodel(theta_in, bean, match=True, debug=False):
             # We only compare the times of the bursts for the events excluding
             # the reference burst, from which the train is calculated
             itime = imatch.copy()
-            itime.pop(bean.ref_ind)
+            # originally we omitted the ref_ind value
+            # itime.pop(bean.ref_ind)
 
             # We compare the fluences for all the bursts
             # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for

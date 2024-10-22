@@ -555,6 +555,9 @@ class Beans:
             print ('** ERROR ** number of dimensions of input parameter vector should be 6-10')
             return
         self.num_systematic = self.ndim-8
+        if self.num_systematic > 0:
+            print('''** WARNING ** likelihood calculation does not currently support systematic errors;
+                you need to swap out the lnlike method for lnlike_sys''')
         if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
             ((self.ndim == 10) & (not (self.cmpr_alpha and self.cmpr_fluen))):
             print ("\n** WARNING ** systematic errors are provided for ignored quantities!")
@@ -584,6 +587,13 @@ class Beans:
         # directly
 
         get_obs(self, alpha=alpha, fluen=fluen)
+
+        # pre-calculate the sigmas and other parameters, for use in lnlike
+
+        self.inv_sigma2 = 1. / self.yerr[:self.ly] ** 2
+        self.log_inv_sigma2 = np.log(self.inv_sigma2)
+        if self.train:
+            self.log_inv_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
 
         # Set interpolation mode, and define averaging function
 
@@ -872,7 +882,6 @@ Initial parameters:
         return (self.r1*flux*self.bc*dist**2*xi_p*opz**2
             / (radius**2*(opz-1)) / self.mdot_Edd(X, radius) ).decompose().value
 
-
     def lnlike(self, theta_in, x, y, yerr, components=False):
         """
         Calculate the "model" likelihood for the current walker position
@@ -881,7 +890,7 @@ Initial parameters:
         relevant model outputs and calculates the likelihood.
 
         :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-          *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+          *xi_p* and (optionally) *mass* & *radius*,
         :param x: the "independent" variable, passed to lnlike
         :param y: the "dependent" variable (i.e. measurements), passed to lnlike
         :param yerr: erorr estimates on y
@@ -892,7 +901,7 @@ Initial parameters:
         # define theta_in = model parameters, which we define priors for
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius = extra + [self.M_NS, self.R_NS][len(extra):]
 
         # call model (function runmodel, in run_model.py) to generate the burst
         # train, or the set of bursts (for "ensemble" mode. In earlier versions
@@ -900,7 +909,56 @@ Initial parameters:
         # modeldata(base, z, x, r1, r2 ,r3)
 
         assert np.allclose(y, self.y)
-        model, valid, model2 = runmodel( theta_in, self)
+        model, valid, model2 = runmodel(theta_in, self)
+        if not valid:
+            return -np.inf, model
+
+        # Final likelihood expression
+        # Because the y (observed value) vector may or may not include the
+        # alpha values, we need to truncate the other vectors here
+
+        # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
+        cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 - self.log_inv_sigma2
+
+        # if the components flag is set, also add those to the model dict
+
+        if components:
+            model2['cpts'] = cpts
+
+        # Test if the result string is defined here. It is, so we return the selected elements of result
+        # instead of the downselection in model
+
+        # Now also return the model
+        return -0.5 * np.sum(cpts), model2
+
+
+    def lnlike_sys(self, theta_in, x, y, yerr, components=False):
+        """
+        As for lnlike, but this version also allows the "systematic" error
+        factors for the fluence and the alphas. If you want to run with those
+        you need to swap this function out for lnlike
+
+        :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+          *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+        :param x: the "independent" variable, passed to lnlike
+        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+        :param yerr: erorr estimates on y
+
+        :return: likelihood, model result array
+        """
+
+        # define theta_in = model parameters, which we define priors for
+
+        X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+        mass, radius, f_E, f_a = extra + [self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+
+        # call model (function runmodel, in run_model.py) to generate the burst
+        # train, or the set of bursts (for "ensemble" mode. In earlier versions
+        # the corresponding IDL function was defined as
+        # modeldata(base, z, x, r1, r2 ,r3)
+
+        assert np.allclose(y, self.y)
+        model, valid, model2 = runmodel(theta_in, self)
         if not valid:
             return -np.inf, model
 
@@ -931,7 +989,6 @@ Initial parameters:
 
         # Now also return the model
         return -0.5 * np.sum(cpts), model2
-
 
     # -------------------------------------------------------------------------#
     # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee

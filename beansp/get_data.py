@@ -151,8 +151,10 @@ def get_obs(bean, alpha=True, fluen=True):
                 bean.y = np.concatenate((bean.y, bean.alpha[1:][bean.ifluen[1:]-1]), axis=0)
                 bean.yerr = np.concatenate((bean.yerr, bean.alphae[1:][bean.ifluen[1:]-1]), axis=0)
 
-            bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
-            bean.yerr = np.delete(bean.yerr, bean.ref_ind)
+            # originally we deleted the reference time, but because it will not contribute to the likelihood
+            # (it's copied to the model array) we can leave it in
+            # bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
+            # bean.yerr = np.delete(bean.yerr, bean.ref_ind)
 
             bean.ly = len(bean.y)
             assert bean.ly == len(bean.yerr)
@@ -200,10 +202,6 @@ def get_obs(bean, alpha=True, fluen=True):
     # -------------------------------------------------------------------------#
 
     print ('...done')
-
-    # pre-calculate the sigmas
-
-    bean.inv_sigma2 = 1./bean.yerr**2
 
     # Shift the observations and gtis so that they start at bstart0:
 
