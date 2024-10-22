@@ -19,4 +19,4 @@ scipy
 chainconsumer<=0.34.0
 pytest
 sphinx_rtd_theme
-tables>=3.9.0
+tables
