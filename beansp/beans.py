@@ -1847,6 +1847,95 @@ Initial parameters:
         return bursts
 
 
+    def write_param_uncert(self, clobber=False):
+        """
+        Calculate and save the parameter uncertainties; previously part of
+        do_analysis
+
+        :param clobber: if True, overwrite file without prompting
+        """
+
+        if not hasattr(self, 'reader'):
+            print ('** ERROR ** no samples available, run do_analysis first')
+            return
+
+        file = f'{self.run_id}_parameterconstraints_pred.txt'
+
+        if (clobber is False) and (os.path.exists(file)):
+            print ('\n** ERROR ** will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
+            return
+
+        header='''beansp v{} parameter file
+
+run_id {}, nsteps_completed={}, skipping {} steps for burnin
+
+Each row has the 50th percentile value, upper & lower 68% uncertainties
+
+Rows are:
+H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
+persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
+'''.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin)
+
+        # Now get the remainder of the parameter uncertainties and
+        # save to the text file
+
+        n_samples = np.shape(self.samples)[0]
+        if hasattr(self, 'model_pred'):
+            parts = list(set(self.model_pred['partition']))
+            sel = np.array(self.model_pred['partition']) == parts[0]
+            if len(parts) > 1:
+                pass
+        else:
+            # select all the samples for the parameter ranges
+            parts = ['all']
+            sel = np.full(n_samples, True)
+
+        with open(file, 'w') as f:
+
+            for i, _part in enumerate(parts):
+                Xpred = get_param_uncert(self.samples[sel,0])
+                Zpred = get_param_uncert(self.samples[sel,1])
+                basepred = get_param_uncert(self.samples[sel,2])
+                dpred = get_param_uncert(self.samples[sel,3])
+                # cosipred = get_param_uncert(cosi)
+                xibpred = get_param_uncert(self.samples[sel,4])
+                xippred = get_param_uncert(self.samples[sel,5])
+                if self.ndim >= 7:
+                    masspred = get_param_uncert(self.samples[sel,6])
+                if self.ndim >= 8:
+                    radiuspred = get_param_uncert(self.samples[sel,7])
+                    redshiftpred = get_param_uncert(redshift[sel])
+                    gravitypred = get_param_uncert(gravity[sel])
+
+                if len(parts) > 1:
+                    header += '''
+Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
+    100*self.model_pred['part_stats'][_part]/n_samples)
+
+	        # save to text file with columns: value, upper uncertainty,
+	        # lower uncertainty
+                # have to have a few options here depending on whether the
+                # mass is included or not
+                # TODO also include f_E, f_a if they're included
+
+                if self.ndim == 6:
+                    np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred),
+                        fmt='%9.6f', header=header)
+                elif self.ndim == 7:
+                    header = header+',\nNS mass (M_sun)'
+                    np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
+                        masspred), fmt='%9.6f', header=header)
+                else:
+                    header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
+                    np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
+                        masspred, radiuspred, gravitypred/1e14, redshiftpred),
+                        fmt='%9.6f', header=header)
+
+                if i < len(parts)-1:
+                    sel = np.array(self.model_pred['partition']) == parts[i+1]
+                    header = ''
+                
+
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=None, burnin=2000,
                           savefig=False):
@@ -1969,11 +2058,11 @@ Initial parameters:
             if self.ndim >= 7:
                 labels["M"] = "$M$ ($M_\odot$)"
                 mass = self.samples[:,6]
-                masspred = get_param_uncert(mass)
+                # masspred = get_param_uncert(mass)
             if self.ndim >= 8:
                 labels["R"] = "$R$ (km)"
                 radius = self.samples[:,7]
-                radiuspred = get_param_uncert(radius)
+                # radiuspred = get_param_uncert(radius)
 
                 # calculate redshift and gravity from mass and radius:
                 # keep the parameters that we're going to calculate limits on
@@ -1988,8 +2077,8 @@ Initial parameters:
                 redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
                 gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
-                redshiftpred = get_param_uncert(redshift)
-                gravitypred = get_param_uncert(gravity)
+                # redshiftpred = get_param_uncert(redshift)
+                # gravitypred = get_param_uncert(gravity)
 
             if self.ndim >= 9:
                 labels["fE"] = "$f_E$"
@@ -2027,48 +2116,6 @@ Initial parameters:
             self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
-
-	    # Now get the remainder of the parameter uncertainties and
-	    # save to the text file
-
-            Xpred = get_param_uncert(self.samples[:,0])
-            Zpred = get_param_uncert(self.samples[:,1])
-            basepred = get_param_uncert(self.samples[:,2])
-            dpred = get_param_uncert(self.samples[:,3])
-            cosipred = get_param_uncert(cosi)
-            xibpred = get_param_uncert(self.samples[:,4])
-            xippred = get_param_uncert(self.samples[:,5])
-
-	    # save to text file with columns: value, upper uncertainty,
-	    # lower uncertainty
-            # have to have a few options here depending on whether the
-            # mass is included or not
-            # TODO also include f_E, f_a if they're included
-
-            header='''beansp v{} parameter file
-run_id {}, nsteps_completed={}, skipping {} steps for burnin
-
-Each row has the 50th percentile value, upper & lower 68% uncertainties
-
-Rows are:
-H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
-cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
-
-            if self.ndim == 6:
-                np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
-                    (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred),
-                    fmt='%9.6f', header=header.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin))
-            elif self.ndim == 7:
-                header = header+',\nNS mass (M_sun)'
-                np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
-                    (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
-                    masspred), fmt='%9.6f', header=header.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin,))
-            else:
-                header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
-                np.savetxt(f'{self.run_id}_parameterconstraints_pred.txt',
-                    (Xpred, Zpred, basepred, dpred, cosipred, xippred, xibpred,
-                    masspred, radiuspred, gravitypred/1e14, redshiftpred),
-                    fmt='%9.6f', header=header.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin))
 
         # ---------------------------------------------------------------------#
         if 'last' in options:
@@ -2488,6 +2535,7 @@ cos i, persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''
             else:
                 print ('Skipping burst comparison plot save')
             fig.show()
+
 
     def compare(self, alt, burnin=None, parameters=None, label='result 2'):
         '''
