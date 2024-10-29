@@ -10,18 +10,19 @@ from beansp import beans,run_emcee
 class BeansLikelihood(bilby.Likelihood):
     def __init__(self, data):
         """
-        Adapted from the very simple Gaussian likelihood
+        Adapted from the very simple Gaussian likelihood, this function is really just a wrapper for lnlike
 
-        :param data: a Beans object
+        :param data: a Beans object, from which all the parameters are drawn
         """
+
         self.ndim = data.ndim
         if self.ndim == 6:
-            super().__init__(parameters={"X": None, "Z": None, "Q_b": None, 
-                                         # "f_a": None, "f_E": None, 
-                                         # "r1": None, "r2": None, "r3": None, 
+            super().__init__(parameters={"X": None, "Z": None, "Q_b": None,
+                                         # "f_a": None, "f_E": None,
+                                         # "r1": None, "r2": None, "r3": None,
                                          "d": None, "xi_b": None, "xi_p": None})
         elif self.ndim == 8:
-            super().__init__(parameters={"X": None, "Z": None, "Q_b": None, 
+            super().__init__(parameters={"X": None, "Z": None, "Q_b": None,
                                          "d": None, "xi_b": None, "xi_p": None,
                                          "M": None, "R": None})
         else:
@@ -30,45 +31,52 @@ class BeansLikelihood(bilby.Likelihood):
         self.data = data # this is a beans object
         self.N = len(data.y) # don't know if this is necessary
 
-        
+
     def log_likelihood(self):
-        # here we use Beans.lnlike; this returns the likelihood AND the model, so have
-        # to select only the first element
-        
+        '''
+        Here we call Beans.lnlike; this returns the likelihood AND the model, so have
+        to select only the first element
+        '''
+
         X = self.parameters["X"]
         Z = self.parameters["Z"]
         Q_b = self.parameters["Q_b"]
-        # f_a = self.parameters["f_a"]
-        # f_E = self.parameters["f_E"]
-        # r1 = self.parameters["r1"]
-        # r2 = self.parameters["r2"]
-        # r3 = self.parameters["r3"]
         d = self.parameters["d"]
         xi_b = self.parameters["xi_b"]
         xi_p = self.parameters["xi_p"]
+        # f_a = self.parameters["f_a"]
+        # f_E = self.parameters["f_E"]
 
         if self.ndim == 7:
             M = self.parameters["M"]
             theta = (X, Z, Q_b, d, xi_b, xi_p, M)
         elif self.ndim == 8:
+            M = self.parameters["M"]
             R = self.parameters["R"]
             theta = (X, Z, Q_b, d, xi_b, xi_p, M, R)
         else:
             theta = (X, Z, Q_b, d, xi_b, xi_p)
 
-        # lnlike is the model likelihood only
+        # lnlike first element is the model likelihood
         return self.data.lnlike(theta, None, self.data.y, self.data.yerr)[0]
 
 
-def runbilby(bean, outdir='bilby_out', sampler='emcee'):
+def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
     """
     Function to implement sampling via bilby
 
-    :param bean: Beans object, on which to do the sampling
     :param outdir: output directory
+    :param bean: Beans object, on which to do the sampling
+    :param sampler: sampling method. We filter the samplers in :meth:`Beans.do_run`
+    :param kwargs: any sampler-specific keywords, passed to :meth:`bilby.run_sampler`
 
     :return:
     """
+
+    print("\n# ---------------------------------------------------------------------------#")
+    # TODO: make this information less sampler-specific
+    print('    Running run={} with sampler {}, {} walkers, target {} steps...'.format(
+        sampler, bean.run_id, bean.nwalkers, bean.nsteps))
 
     bilby.utils.check_directory_exists_and_if_not_mkdir(outdir)
 
@@ -95,11 +103,15 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee'):
         R=bilby.core.prior.Uniform(9, 17, "R"), # km
 
     # set initial positions
-    pos_i = run_emcee.set_initial_positions(theta, bean.nwalkers, beans.prior_func)
+    if sampler == 'emcee':
+        pos_i = run_emcee.set_initial_positions(theta, bean.nwalkers, beans.prior_func)
+    else:
+        pos_i = None
 
     # define likelihood
     likelihood = BeansLikelihood(bean)
 
+    print("# ---------------------------------------------------------------------------#")
     # run sampler
     result = bilby.run_sampler(
         likelihood=likelihood,
@@ -116,6 +128,7 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee'):
         # dynesty:
         # nlive=1000,
         npool=bean.threads, # 4 threads?
+        **kwargs
     )
 
     return result

@@ -54,6 +54,7 @@ from .run_model import runmodel, burst_time_match
 from .get_data import get_obs
 from .mrprior import mr_prior
 from .run_emcee import runemcee
+from .run_bilby import runbilby
 from .analyse import get_param_uncert_obs, get_param_uncert_part, get_param_uncert
 
 # -------------------------------------------------------------------------#
@@ -768,15 +769,17 @@ Initial parameters:
                if self.interp == 'spline':
                    Config.set("data", "smooth", str(self.smooth))
 
-           Config.add_section("emcee")
-           Config.set("emcee", "theta", str(self.theta))
-           Config.set("emcee", "stretch_a", str(self.stretch_a))
-           Config.set("emcee", "numburstssim", str(self.numburstssim))
-           Config.set("emcee", "prior", str(self.lnprior))
-           Config.set("emcee", "corr", str(self.corr))
-           Config.set("emcee", "nwalkers", str(self.nwalkers))
-           Config.set("emcee", "nsteps", str(self.nsteps))
-           Config.set("emcee", "threads", str(self.threads))
+           # Config.add_section("emcee")
+           Config.add_section("sampler")
+           Config.set("sampler", "sampler", str(self.sampler))
+           Config.set("sampler", "theta", str(self.theta))
+           Config.set("sampler", "stretch_a", str(self.stretch_a))
+           Config.set("sampler", "numburstssim", str(self.numburstssim))
+           Config.set("sampler", "prior", str(self.lnprior))
+           Config.set("sampler", "corr", str(self.corr))
+           Config.set("sampler", "nwalkers", str(self.nwalkers))
+           Config.set("sampler", "nsteps", str(self.nsteps))
+           Config.set("sampler", "threads", str(self.threads))
 
            Config.write(cfgfile)
            cfgfile.close()
@@ -808,6 +811,9 @@ Initial parameters:
 
         for section in config.sections():
             # print("Section: %s" % section)
+            if section == 'emcee':
+                # read the older formats prior to the different sampling options
+                setattr(self, 'sampler', 'emcee')
             for option in config.options(section):
                 # print(
                 #     "x %s:::%s:::%s"
@@ -1426,13 +1432,14 @@ Initial parameters:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self, plot=False, analyse=True, burnin=2000, **kwargs):
+    def do_run(self, sampler=None, plot=False, analyse=True, burnin=2000, **kwargs):
         """
         This routine runs the chain for as many steps as is specified in
         the init call.  Emcee parameters are defined in runemcee module.
         Have previously used multiprocessing to speed things up, but that's
         not currently active
 
+        :param sampler: define the sampler to use; default is emcee
         :param plot: set to True to do the plot of the initial guess. This
           seems redundant since it's also plotted at the __init__ stage
         :param analyse: set to True to call do_analysis automatically once the
@@ -1443,25 +1450,41 @@ Initial parameters:
         :return:
         """
 
-        # Check here if we've already run the analysis
+        # sampler attribute passed to do_run overrides the existing value
+        if hasattr(self, 'sampler'):
+            if sampler is not None:
+                if sampler != self.sampler:
+                    print ('** WARNING ** sampler={} passed to do_run, overriding Beans attribute {}'.format(
+                        sampler, self.sampler))
+            else:
+                sampler = self.sampler
+        else:
+            sampler = 'emcee'
 
-        if hasattr(self, 'reader'):
-            print ('''
-** WARNING ** re-running the sampler after calling do_analysis can lead to
-                memory issues; proceed with caution!''')
-            value = input('              Press [RETURN] to continue: ')
+        if sampler not in ('emcee','bilby','dynesty'):
+            print ('** ERROR ** sampler {} not yet implemented'.format(sampler))
+
+        # store the most recent value of the sampler
+        self.sampler = sampler
+        if self.sampler == 'emcee':
+            # Check here if we've already run the analysis
+            if hasattr(self, 'reader'):
+                print ('''
+    ** WARNING ** re-running the sampler after calling do_analysis can lead to
+                    memory issues; proceed with caution!''')
+                value = input('              Press [RETURN] to continue: ')
+
+            # Want to avoid overwriting existing log & config files
+
+            if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
+                print ('\n** ERROR ** run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
+                return
 
         # Check the number of threads here
 
         ncpu = cpu_count()
         if self.threads > ncpu:
             print ('** ERROR ** number of threads is greater than number of CPUs ({} > {}); this seems ill-advised'.format(self.threads, ncpu))
-            return
-
-        # Want to avoid overwriting existing log & config files
-
-        if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
-            print ('\n** ERROR ** run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
             return
 
         if (os.path.exists(self.run_id+'.ini')):
@@ -1477,13 +1500,15 @@ Initial parameters:
         print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         print("Testing the prior and likelihood functions..")
-        print("lnprior:", self.lnprior(self.theta))
         print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
-        print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
+        if self.sampler == 'emcee':
+            print("lnprior:", self.lnprior(self.theta))
+            print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
         print("# ---------------------------------------------------------------------------#")
 
         # for supplied positions, you want to check that they are all
         # valid
+        # I think this is only necessary to define for emcee and bilby/emcee
 
         if 'pos' in kwargs:
 
@@ -1530,18 +1555,24 @@ Initial parameters:
 
         _start = time.time()
 
-        # run the chains and save the output as a h5 file
-        # TODO to simplify the subsequent analysis I think this object
-        # should be added to the Beans object
-        sampler = runemcee(self.nwalkers, self.nsteps,
-            self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
-            self.run_id, self.restart, self.threads, self.stretch_a, **kwargs)
+        if sampler == 'emcee':
+            # run the chains and save the output as a h5 file
+            # TODO to simplify the subsequent analysis I think this object should be added to the Beans object
+            result = runemcee(self.nwalkers, self.nsteps,
+                self.theta, self.lnprob, self.lnprior, None, self.y, self.yerr,
+                self.run_id, self.restart, self.threads, self.stretch_a, **kwargs)
+
+        elif sampler == 'bilby':
+            print ("** ERROR ** 'bilby' sampler not yet implemented; might call bilby/emcee, or bilby's native sampler")
+
+        elif sampler == 'dynesty':
+            result = runbilby(self, sampler=sampler, **kwargs)
 
         _end = time.time()
         print ("  run_id {} took {:.1f} seconds for {} steps".format(
             self.run_id, _end-_start, self.nsteps))
 
-        if analyse:
+        if analyse & (sampler == 'emcee'):
             print ("\nRunning analses with do_analysis...")
             self.do_analysis(burnin=burnin)
         #if self.restart == False:
@@ -1980,7 +2011,12 @@ Initial parameters:
             print ("Reading in samples...")# to calculate autocorrelation time...")
 
             # load in sampler:
-            self.reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
+            # self.reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
+            # temporary for bilby output, might work
+            # import pickle
+            # f = open('bilby_out/emcee_canon_b/sampler.pickle','rb')
+            # self.reader = pickle.load(f)
+            # f.close()
 
             # Read in the full chain to get the number of steps completed
             self.sampler = self.reader.get_chain(flat=False)
