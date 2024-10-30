@@ -6,6 +6,7 @@ from matplotlib.colors import LogNorm
 import numpy as np
 import pandas as pd
 import emcee
+import bilby
 from astropy.io import ascii
 import astropy.units as u
 import astropy.constants as const
@@ -45,6 +46,8 @@ M_NS = 1.4 # canonical NS mass [M_sun]
 R_NS = 11.2 # canonical NS mass [km]
 FLUX_U = 1e-9*u.erg/u.cm**2/u.s
 FLUEN_U = 1e-6*u.erg/u.cm**2
+
+BILBY_OUTPUT = 'bilby_out'
 
 # -------------------------------------------------------------------------#
 ## load local  modules
@@ -148,7 +151,8 @@ def prior_kepler(theta_in):
 def prior_1808(theta_in):
     """
     This function implements a simple box prior for all the parameters
-    excluding mass, radius, and the metallicity, which come instead from
+    excluding mass and radius, which comes instead from
+    :meth:`Beans.mr_prior` and the metallicity, which comes instead from
     :meth:`Beans.lnZprior`
 
     This prior is explicitly intended for use with SAX J1808.4-3658, and
@@ -651,7 +655,8 @@ GTI data file: {}
 Burst data file: {}
   comprising {} observed bursts, {}including alphas{}{}
 No. of bursts to simulate: {} ({} mode)
-  with {} walkers, {} steps, {} threads{}, a={}
+  sampler: {}{}
+  {}/{} threads
 Initial parameters:
 {}
 ==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
@@ -661,10 +666,12 @@ Initial parameters:
             '' if self.obsname is None else ', ref. to #{}'.format(self.ref_ind),
             self.train+self.numburstssim*(1+self.train),
             'train' if self.train else 'ensemble',
-            self.nwalkers, self.nsteps,
-            self.threads,
-            ', resuming' if self.restart else '', self.stretch_a,
-            self.theta_table(self.theta, indent=2) )
+            # sampler-specific part
+            self.sampler, (' with {} walkers, {} steps{}, a={}'.format(
+                self.nwalkers, self.nsteps, ', resuming' if self.restart else '', self.stretch_a)
+                if (self.sampler=='emcee') | (self.sampler=='bilby') else ''),
+            self.threads, cpu_count(),
+        self.theta_table(self.theta, indent=2) )
 
 
     def theta_table(self, theta, indent=0):
@@ -859,6 +866,8 @@ Initial parameters:
                         setattr(self, option, False)
                     else:
                         setattr(self, option, _value)
+        if sampler != 'emcee':
+            setattr(self, 'outdir', BILBY_OUTPUT)
 
 
     def flux_to_mdot(self, X, dist, xi_p, mass, radius, flux=None):
@@ -1556,6 +1565,8 @@ Initial parameters:
         _start = time.time()
 
         if sampler == 'emcee':
+            # This is the original MCMC implementation for beansp, which uses vanilla emcee
+            #   https://github.com/dfm/emcee
             # run the chains and save the output as a h5 file
             # TODO to simplify the subsequent analysis I think this object should be added to the Beans object
             result = runemcee(self.nwalkers, self.nsteps,
@@ -1563,9 +1574,13 @@ Initial parameters:
                 self.run_id, self.restart, self.threads, self.stretch_a, **kwargs)
 
         elif sampler == 'bilby':
+            # This is (will eventually?) be the native bilby sampler, or perhaps bilby's implementation of emcee,
+            # for comparison; see https://bilby-dev.github.io/bilby/api/bilby.core.sampler.emcee.Emcee.html#bilby.core.sampler.emcee.Emcee
             print ("** ERROR ** 'bilby' sampler not yet implemented; might call bilby/emcee, or bilby's native sampler")
 
         elif sampler == 'dynesty':
+            # bilby's implementation of dynesty, see
+            #
             result = runbilby(self, sampler=sampler, **kwargs)
 
         _end = time.time()
@@ -2022,7 +2037,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 if i < len(parts)-1:
                     sel = np.array(self.model_pred['partition']) == parts[i+1]
                     header = ''
-                
+
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=None, burnin=2000,
@@ -2100,7 +2115,14 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             print ("Reading in samples...")# to calculate autocorrelation time...")
 
             # load in sampler:
-            # self.reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
+            if self.sampler == 'emcee':
+                self.reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
+                self.result = self.reader.get_chain(flat=False)
+            else:
+                # bilby outputs
+                self.reader = bilby.result.read_in_result(outdir=self.outdir, label=self.run_id)
+                self.result = self.reader.walkers.transpose(1,0,2)
+
             # temporary for bilby output, might work
             # import pickle
             # f = open('bilby_out/emcee_canon_b/sampler.pickle','rb')
@@ -2108,12 +2130,21 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # f.close()
 
             # Read in the full chain to get the number of steps completed
-            self.sampler = self.reader.get_chain(flat=False)
-            self.nsteps_completed = np.shape(self.sampler)[0]
+            self.nsteps_completed = np.shape(self.result)[0]
 
             print ("... done. Got {} steps completed".format(self.nsteps_completed))
             self.samples_burnin = None
             self.models_burnin = None
+
+        # want to make sure we're using at least about 1000 samples for
+        # our statistics
+
+        # if burnin >= self.nsteps_completed*0.9:
+        if (self.sampler == 'emcee') & ((self.nwalkers * (self.nsteps_completed - burnin) < 1000) | \
+            (self.nsteps_completed <= burnin)):
+            print('\n** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin,
+                                                                                                              self.nsteps_completed))
+            burnin = 0
 
         if (burnin != self.samples_burnin) | \
             ((burnin != self.models_burnin)&(self.models_burnin is not None)):
@@ -2123,18 +2154,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # need to read in the samples and create the ChainConsumer
             # object every time
 
-            # want to make sure we're using at least about 1000 samples for
-            # our statistics
-
-            # if burnin >= self.nsteps_completed*0.9:
-            if (self.nsteps_completed*self.nwalkers-burnin < 1000) | \
-                (self.nsteps_completed < burnin):
-                print ('\n** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin, self.nsteps_completed))
-                burnin = 0
-
             # print ("Reading in flattened samples to show posteriors...")
             # samples = self.reader.get_chain(flat=True, discard=burnin)
-            samples = self.sampler[burnin:,:,:]
+            samples = self.result[burnin:,:,:]
             self.last = samples[-1,:,:]
             self.samples = samples.reshape((-1,self.ndim))
             self.samples_burnin = burnin
@@ -2177,7 +2199,6 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 labels["fE"] = "$f_E$"
             if self.ndim == 10:
                 labels["fa"] = "$f_a$"
-
 
             # now create the chainconsumer object
 
@@ -2270,7 +2291,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 # Previously the transposed sampler object below meant
                 # that we were plotting with walker number on the x-axis,
                 # instead of step. Now fixed
-                axes[i].plot(self.sampler[:,:,i], color="k", alpha=0.4)
+                axes[i].plot(self.result[:,:,i], color="k", alpha=0.4)
                 axes[i].yaxis.set_major_locator(MaxNLocator(5))
                 axes[i].set_ylabel(labels[i])
 

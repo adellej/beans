@@ -65,8 +65,8 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
     """
     Function to implement sampling via bilby
 
-    :param outdir: output directory
     :param bean: Beans object, on which to do the sampling
+    :param outdir: output directory
     :param sampler: sampling method. We filter the samplers in :meth:`Beans.do_run`
     :param kwargs: any sampler-specific keywords, passed to :meth:`bilby.run_sampler`
 
@@ -79,6 +79,7 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
         sampler, bean.run_id, bean.nwalkers, bean.nsteps))
 
     bilby.utils.check_directory_exists_and_if_not_mkdir(outdir)
+    bean.outdir = outdir
 
     theta = bean.theta
 
@@ -108,6 +109,12 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
     else:
         pos_i = None
 
+    # set up nburn param for bilby/emcee
+    nburn = 0 # to replicate beansp native behaviour, which doesn't discard any steps
+    if 'nburn' in kwargs:
+        nburn = kwargs['nburn']
+        kwargs.pop('nburn')
+
     # define likelihood
     likelihood = BeansLikelihood(bean)
 
@@ -124,7 +131,8 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
         # nsamples=100,
         # emcee settings:
         sampler=sampler,
-        nwalkers=bean.nwalkers, nsteps=bean.nsteps,
+        nwalkers=bean.nwalkers, nsteps=bean.nsteps, a=bean.stretch_a,
+        nburn=nburn,
         # dynesty:
         # nlive=1000,
         npool=bean.threads, # 4 threads?
