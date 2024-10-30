@@ -866,7 +866,7 @@ Initial parameters:
                         setattr(self, option, False)
                     else:
                         setattr(self, option, _value)
-        if sampler != 'emcee':
+        if self.sampler != 'emcee':
             setattr(self, 'outdir', BILBY_OUTPUT)
 
 

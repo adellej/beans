@@ -4,7 +4,7 @@
 
 __author__ = """Adelle Goodwin and Duncan Galloway"""
 __email__ = 'adelle.goodwin@curtin.edu.au'
-__version__ = '2.36.0dev'
+__version__ = '2.36.1dev'
 
 # this allows "from beans import *"
 # __all__ = ["beans"]
