@@ -2089,7 +2089,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         # list of available analyses
 
         analyses = {'autocor': 'autocorrelation times as a function of timestep',
-                    'chain': 'first 300 iterations of the chains',
+                    'chain': 'visualisation of the walker evolution',
                     'posteriors': 'raw posteriors and the input values',
                     'mrcorner': 'corner plot with M, R, g and 1+z',
                     'fig6': 'corner plot with xi_b, xi_p, d, Q_b, Z',
@@ -2110,6 +2110,18 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     print ('  {}: {}'.format(key, analyses[key]))
                 return
 
+        # blobs are not yet implemented for samplers other than emcee
+
+        if ('comparison' in options) & (self.sampler != 'emcee'):
+            print ('** ERROR ** blobs are not yet available for bilby runs')
+            return
+
+        # chains are not availabel for dynesty
+
+        if ('chain' in options) & (self.sampler == 'dynesty'):
+            print ('** ERROR ** chains are not available for dynesty runs')
+            return
+
         if not hasattr(self, 'reader'):
 
             print ("Reading in samples...")# to calculate autocorrelation time...")
@@ -2121,7 +2133,14 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             else:
                 # bilby outputs
                 self.reader = bilby.result.read_in_result(outdir=self.outdir, label=self.run_id)
-                self.result = self.reader.walkers.transpose(1,0,2)
+                if self.sampler == 'bilby':
+                    self.result = self.reader.walkers.transpose(1,0,2)
+                elif self.sampler == 'dynesty':
+                    self.result = None
+                    self.samples = self.reader.posterior.iloc[:,:self.ndim].to_numpy()
+                else:
+                    print ('** ERROR ** sampler {} not yet implemented'.format(self.sampler))
+                    return
 
             # temporary for bilby output, might work
             # import pickle
@@ -2130,9 +2149,13 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # f.close()
 
             # Read in the full chain to get the number of steps completed
-            self.nsteps_completed = np.shape(self.result)[0]
+            if self.result is not None:
+                self.nsteps_completed = np.shape(self.result)[0]
+                print ("... done. Got {} steps completed".format(self.nsteps_completed))
+            else:
+                self.nsteps_completed = 0
+                print ("... done.")
 
-            print ("... done. Got {} steps completed".format(self.nsteps_completed))
             self.samples_burnin = None
             self.models_burnin = None
 
@@ -2156,9 +2179,10 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # print ("Reading in flattened samples to show posteriors...")
             # samples = self.reader.get_chain(flat=True, discard=burnin)
-            samples = self.result[burnin:,:,:]
-            self.last = samples[-1,:,:]
-            self.samples = samples.reshape((-1,self.ndim))
+            if self.result is not None:
+                samples = self.result[burnin:,:,:]
+                self.last = samples[-1,:,:]
+                self.samples = samples.reshape((-1,self.ndim))
             self.samples_burnin = burnin
 
             cosi_2 = 1/(2*self.samples[:,5])
