@@ -1872,6 +1872,10 @@ Initial parameters:
             print ('\n** ERROR ** will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
             return
 
+        # constants:
+        c = const.c.to('cm s-1')
+        G = const.G.to('cm3 g-1 s-2')
+
         header='''beansp v{} parameter file
 
 run_id {}, nsteps_completed={}, skipping {} steps for burnin
@@ -1896,6 +1900,15 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
             # select all the samples for the parameter ranges
             parts = ['all']
             sel = np.full(n_samples, True)
+
+        # have to duplicate the calculation of redshift and gravity here, as
+        # those quantities are not saved to the samples 
+        if self.ndim >= 8:
+            M = np.array(self.samples[:,6])*const.M_sun.to('g') #cgs
+            R = np.array(self.samples[:,7])*1e5*u.cm #cgs
+
+            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
         with open(file, 'w') as f:
 
