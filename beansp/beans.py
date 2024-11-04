@@ -1,3 +1,10 @@
+# ___.                                    ___          ___    
+# \_ |__   ____ _____    ____   ______   /  / ______   \  \   
+#  | __ \_/ __ \\__  \  /    \ /  ___/  /  /  \____ \   \  \  
+#  | \_\ \  ___/ / __ \|   |  \\___ \  (  (   |  |_> >   )  ) 
+#  |___  /\___  >____  /___|  /____  >  \  \  |   __/   /  /  
+#      \/     \/     \/     \/     \/    \__\ |__|     /__/   
+#
 """Main module. This has functions that do the sampling, save the chains, and analyse the results."""
 
 ## Python packages required:
@@ -394,7 +401,7 @@ class Beans:
                  obsname=None, burstname=None, gtiname=None,
                  interp='linear', smooth=0.02,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
-                 stretch_a=2.0, fluen=True, alpha=True,
+                 sampler='emcee', stretch_a=2.0, fluen=True, alpha=True,
                  numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
         """
@@ -470,6 +477,9 @@ class Beans:
 
         self.gmrc2 = (2.*const.G*const.M_sun/(const.c**2*u.km)).decompose()
 
+        print("# ---------------------------------------------------------------------------#")
+        print("Initialising Beans object ...")
+
         # MCU: this is a solution to load packaged data compatible
         # with python 3.6 - 3.10
         # however for python 3.10 and later this might become deprecated
@@ -477,7 +487,7 @@ class Beans:
         # see https://setuptools.pypa.io/en/latest/userguide/datafiles.html
 
         data_path = os.path.join(os.path.dirname(__file__), 'data')
-        print("data_path = " + data_path)
+        # print("data_path = " + data_path)
 
         # Only want to set the default values if both obsname and burstname
         # are not set (indicating a default run). This because setting
@@ -500,6 +510,7 @@ class Beans:
         self.ref_ind = ref_ind
         self.bc = bc
 
+        self.sampler = sampler
         self.theta = theta
         self.stretch_a = stretch_a
         self.numburstssim = numburstssim
@@ -522,7 +533,7 @@ class Beans:
                 cmpr_alpha, cmpr_fluen = True, True
                 print ('Reading run params from {} ...'.format(config_file))
                 self.read_config(config_file)
-                print ("...done")
+                print ("... done")
                 # special here for the alpha and fluen parameters, which
 		# are replaced by the actual data values (if the option is
 		# True); (pre-v2.10 config files don't list alpha or fluen)
@@ -615,19 +626,19 @@ class Beans:
             self.tck_s = splrep(self.tobs, self.pflux, s=self.smooth)
             self.mean_flux = mean_flux_spline
 
+        print("# ---------------------------------------------------------------------------#")
+
         # # -------------------------------------------------------------------------#
         # # TEST THE MODEL WORKS
         # # -------------------------------------------------------------------------#
-        print("# ---------------------------------------------------------------------------#")
-        print("Doing Initialisation..")
-
         if test_model:
 
-            print("Testing the model works..")
+            print("\nTesting the model works & is valid ...")
 
 
             test, valid, test2 = runmodel(self.theta, self, debug=False) # set debug to True for testing
-            print("result: ", test, valid)
+            print("\nresult: {} ({})".format( test, "OK" if valid else
+                "can't match observations & model predictions"))
 
             # MCU Note: commented out - no interactive windows for automated testing
             # self.plot_model(test2)
@@ -1045,8 +1056,8 @@ Initial parameters:
         return lp + like, lp, model_str(model).encode('ASCII')
 
 
-    def plot(self, show_model=True, model=None, mdot=True, title=None,
-        savefig=False):
+    def plot(self, show_model=True, model=None, mdot=True, imatch=None,
+        title=None, savefig=False):
         """
 	Display a plot of the data and model results, for a burst train
 	calculated with :func:`burstrain.generate_burst_train`;
@@ -1058,6 +1069,7 @@ Initial parameters:
         :param show_model: set to False to skip the model generation step, in which case only the observed data will be plotted
         :param model: array of packed model prediction, OR dict giving full model results
         :param mdot: flag to show mdot rather than flux (only possible if you're passing the full model)
+        :param imatch: can pass a "matching" array for train models, to use instead of the automatically-calculated version
         :param title: add a title, if required
         :param savefig: set to True to save the figure to PDF
         """
@@ -1076,14 +1088,13 @@ Initial parameters:
         X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
         mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
 
-        imatch = None
         if (model is None) & show_model:
             # no need to do the matching here
             test, valid, model = runmodel(self.theta, self, match=False,
                 debug=False)
 
-            imatch, show_model = None, valid
-            if valid & self.train & (self.numburstsobs > 0):
+            show_model = valid
+            if (imatch is None) & (valid & self.train & (self.numburstsobs > 0)):
                 # ... but it's useful to know if it's possible
                 # (not relevant for ensemble mode)
 
@@ -2297,7 +2308,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             else:
                 self.plot_autocorr(reader=self.reader, savefile=None)
                 print ('Skipping autocorrelation plot save')
-            print ("...done")
+            print ("... done")
 
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
 
@@ -2328,7 +2339,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 print ('Skipping chain plot save')
 
             plt.show()
-            print ("...done")
+            print ("... done")
 
         # ---------------------------------------------------------------------#
         if 'posteriors' in options:
@@ -2347,7 +2358,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
                     figsize="page", truth=truths)
                 fig.show()
-            print ("...done")
+            print ("... done")
 
         # ---------------------------------------------------------------------#
         if ('mrcorner' in options) & (self.ndim < 8):
@@ -2433,7 +2444,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 alpha.append(_model['alpha'])
                 mdot.append(_model['mdot'])
                 # X.append(_model['x_0'][0])
-            print ("...done")
+            print ("... done")
 
             # to get the parameter middle values and uncertainty use the
             # functions get_param_uncert_obs and get_param_uncert_part
@@ -2706,9 +2717,15 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         if type(alt) == Beans:
             # don't really need to worry about common parameters here,
             # just use whatever is in the other bean
+
+            if not hasattr(alt, 'samples'):
+                print ('** ERROR ** comparison object has no samples, run do_analysis first')
+                return
+
             self.cc.add_chain(alt.samples,
                 parameters=list(alt.cc_parameters.values()),
                 name=label)
+
         elif type(alt) == str:
             # read in the parameters from a file
             if alt[-6:] == 'npy.gz':
@@ -2744,6 +2761,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             label_font_size='xx-large',smooth=True, \
             sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
         self.cc_nchain = 2
+
+        print ('Added posteriors for run_id {} to the ChainConsumer object; re-run do_analysis\n  to show the posterior comparison'.format(alt.run_id))
+
 
     def prune(self, key=None, nwalkers=None, scale=0.0, savefile=None):
         '''
