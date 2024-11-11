@@ -159,8 +159,9 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
         # create array
     #print(f'{fn}: mdot={mdot}, tdel={trial.tdel}')
     result = np.recarray(
-        (1,), dtype=[("t2", np.float64), ("e_b", np.float64), ("alpha", np.float64)]
-    )
+        (1,), dtype=[("t2", np.float64), ("e_b", np.float64),
++        ("alpha", np.float64), ("mdot", np.float64)])
+
     # assign elements
     result.t2 = t1 + direction * trial.tdel / 24.0
     # at one point we were multiplying eb by 0.8 to account for incomlpete
