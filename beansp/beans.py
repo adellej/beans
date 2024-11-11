@@ -987,10 +987,19 @@ Initial parameters:
             return self.flux_to_mdot(X, dist, xi_p, mass, radius, self.pflux), \
                 self.flux_to_mdot(X, dist, xi_p, mass, radius, self.pfluxe)
 
+        # Johnston et al. 2020: The Eddington-limited accretion rate, 
+        # scaled independent of composition or NS radius.
+        # for use with the grid_interp model
+
+        _mdot_Edd = 8.775E4*u.g/u.cm**2/u.s
+        if self.model == 'settle':
+            # different prescription for settle, via the mdot_Edd function
+            _mdot_Edd = self.mdot_Edd(X, radius) 
+
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
 
         return (self.r1*flux*self.bc*dist**2*xi_p*opz**2
-            / (radius**2*(opz-1)) / self.mdot_Edd(X, radius) ).decompose().value
+            / (radius**2*(opz-1)) / _mdot_Edd ).decompose().value
 
 
     def lnlike(self, theta_in, x, y, yerr, components=False):
