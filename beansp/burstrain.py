@@ -4,9 +4,6 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 
-# load local  modules
-from .settle import settle
-
 # Next we define the different functions that will generate the burst train: generate_burst_train and next_burst
 
 # ------------------------------------------------------------------------- #
@@ -69,7 +66,8 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
             fn, z, x_0, mdot0, itobs[-1] ))
 
     # Calculate the burst properties for the trial mdot value
-    trial = settle(base, z, x_0, mdot0, mass, radius, corr=bean.corr)
+    trial = bean.model(base, z, x_0, mdot0, mass, radius,
+        corr=bean.corr, interpolator=bean.gi)
 
     if debug:
         print ('{}: initial guess mdot0={} @ t1={}, tdel={}, direction={}'.format(fn,mdot0,t1,trial.tdel,direction))
@@ -94,7 +92,8 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
             or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
         and (mdot > minmdot and mdot < maxmdot):
 
-        trial = settle(base, z, x_0, mdot, mass, radius, corr=bean.corr)
+        trial = bean.model(base, z, x_0, mdot, mass, radius, 
+            corr=bean.corr, interpolator=bean.gi)
         nreturn = nreturn + 1
         nreturn_total = nreturn_total + 1
 
@@ -141,7 +140,8 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
             for t in t_arr[1:]:
                 _mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius,
                     bean.mean_flux(t1, t, bean) )
-                _tmp = settle(base, z, x_0, _mdot, mass, radius, corr=bean.corr)
+                _tmp = bean.model(base, z, x_0, _mdot, mass, radius,
+                    corr=bean.corr, interpolator=bean.gi)
                 t_arr2.append(t1+_tmp.tdel[0]/24.)
                 m_arr.append(_mdot)
             plt.plot(t_arr, np.array(t_arr2), '-', label='tdel')
@@ -371,7 +371,7 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     return result
 
 
-def burstensemble( bean, base, x_0, z, dist, xi_p, mass, radius, full_model=False ):
+def burstensemble(bean, base, x_0, z, dist, xi_p, mass, radius, full_model=False ):
     """
     This routine generates as many burst predictions as there are burst
     measurements.
@@ -402,9 +402,15 @@ def burstensemble( bean, base, x_0, z, dist, xi_p, mass, radius, full_model=Fals
 
     mdot = bean.flux_to_mdot(x_0, dist, xi_p, mass, radius, bean.pflux)
 
+    if bean.model_name == 'grid_interp':
+        if np.any((mdot > bean.grid_mdot_max) | 
+            (mdot < bean.grid_mdot_min)):
+            return None
+
     for i in range(0, bean.numburstsobs):
 
-        tmp = settle(base, z, x_0, mdot[i], mass, radius, corr=bean.corr)
+        tmp = bean.model(base, z, x_0, mdot[i], mass, radius, 
+            corr=bean.corr, interpolator=bean.gi)
 
         # accumulate the predictions into the arrays here
 

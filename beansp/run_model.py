@@ -179,7 +179,10 @@ def runmodel(theta_in, bean, match=True, debug=False):
 
         result = burstensemble( bean, Q_b, X, Z, dist, xi_p, mass, radius)
 
-    valid = valid | (len(result['time']) > 1)
+    if result is None:
+        return None, False, result
+
+    valid = (valid | (len(result['time']) > 1))
 
     # Here we convert the model-predicted values to observational
     # quantities, for comparison with the observations. Previously

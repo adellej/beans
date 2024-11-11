@@ -2,7 +2,7 @@ from pySettle import settler as se
 import numpy as np
 
 
-def settle(base, z, x_0, mdot, mass, radius, corr=None):
+def settle(base, z, x_0, mdot, mass, radius, corr=None, **kwargs):
     """
     Runs settle based on the input parameters and extracts the recurrence
     time, fluence and alphas

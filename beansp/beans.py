@@ -31,6 +31,14 @@ import time
 from configparser import ConfigParser
 import pickle
 
+# multiepoch_mcmc is required to use the grid_interp model
+has_multiepoch_mcmc = True
+try:
+    sys.path.append('/Users/duncan/python/multiepoch_mcmc')
+    from multiepoch_mcmc import grid_interpolator
+except:
+    has_multiepoch_mcmc = False
+
 import pkg_resources  # part of setuptools
 try:
     # this will fail if the package is not pip-installed
@@ -59,6 +67,7 @@ BILBY_OUTPUT = 'bilby_out'
 # -------------------------------------------------------------------------#
 ## load local  modules
 from .settle import settle
+from .grid_interp import grid_interp
 from .burstrain import generate_burst_train, next_burst, burstensemble
 from .run_model import runmodel, burst_time_match
 from .get_data import get_obs
@@ -183,6 +192,40 @@ def prior_1808(theta_in):
         (1 <= f_a < 100) and (1 <= f_E < 100):
 
         return 0.0 + lnZprior(Z) + mr_prior(mass, radius)
+    else:
+        return -np.inf
+
+
+def prior_grid(theta_in):
+    """
+    This function is to accompany grid_interp and implements a simple 
+    box prior for all the parameters, respecting the grid range
+
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+
+    :return: prior probability
+    """
+    
+    c = const.c.to('cm s-1')
+    G = const.G.to('cm3 g-1 s-2')
+
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+
+    R = radius*1e5*u.cm #cgs
+    M = mass*const.M_sun.to('g') #cgs 
+    redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+    gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value / 1e14 #cgs
+
+    # upper bound and lower bounds of each parameter defined here. Bounds are
+    # determined by the limits of the grid
+    if (0.64 <= X <= 0.76) and (0.0025 <= Z <= 0.03) and \
+        (0.0 <= Q_b <= 0.6) and (1 < dist < 20) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1.86 < gravity < 3.45):
+        return 0.0
     else:
         return -np.inf
 
@@ -399,7 +442,7 @@ class Beans:
     def __init__(self, prior=prior_func, corr=None, config_file=None,
                  run_id="test", nwalkers=200, nsteps=100,
                  obsname=None, burstname=None, gtiname=None,
-                 interp='linear', smooth=0.02,
+                 interp='linear', smooth=0.02, model = settle,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
                  sampler='emcee', stretch_a=2.0, fluen=True, alpha=True,
                  numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
@@ -424,6 +467,7 @@ class Beans:
         :param interp: interpolation mode for the flux; possible values are
           'linear', or 'spline'
         :param smooth: smoothing factor for spline interpolation
+        :param model: burst model to use, one of settle or grid_interp
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, and (optionally) *mass*,
           *radius*, *f_E* & *f_a*
@@ -486,8 +530,30 @@ class Beans:
         # alternative method is "from importlib.resources import files"
         # see https://setuptools.pypa.io/en/latest/userguide/datafiles.html
 
-        data_path = os.path.join(os.path.dirname(__file__), 'data')
+        self.data_path = os.path.join(os.path.dirname(__file__), 'data')
         # print("data_path = " + data_path)
+
+        # here we want to parse the model function, which should have a
+        # string representation something like <function settle at 0x1599b68b0>
+        _tmp = str(model).split(' ')
+        model_type, self.model_name = _tmp[0], None
+        if len(_tmp) > 1:
+            self.model_name = _tmp[1]
+        if (model_type != '<function') | (self.model_name not in['settle','grid_interp']):
+            print ('\n** ERROR ** model unknown or invalid, use one of settle or grid_interp')
+            return
+        elif self.model_name == 'grid_interp':
+            if not has_multiepoch_mcmc:
+                print ('** ERROR ** can\'t find multiepoch_mcmc, cannot initialise GridInterpolator')
+                return
+            # initialise the GridInterpolator object
+            self.model_file = '/'.join((self.data_path, 'burst_model_grid.txt'))
+            self.gi = grid_interpolator.GridInterpolator(file=self.model_file,
+                reconstruct=True)
+            self.grid_mdot_min = min(self.gi.grid['mdot'])
+            self.grid_mdot_max = max(self.gi.grid['mdot'])
+        else:
+            self.model_file, self.gi = None, None
 
         # Only want to set the default values if both obsname and burstname
         # are not set (indicating a default run). This because setting
@@ -495,11 +561,13 @@ class Beans:
         # and we might want to set burstname=None if we're doing some
         # simulations, e.g. using the :meth:`Beans.sim_data` method).
         if (obsname is None) & (burstname is None):
-            obsname = os.path.join(data_path, '1808_obs.txt')
-            burstname = os.path.join(data_path, '1808_bursts.txt')
+            obsname = os.path.join(self.data_path, '1808_obs.txt')
+            burstname = os.path.join(self.data_path, '1808_bursts.txt')
 
         if run_id is None:
-            run_id = os.path.join(data_path, '1808/test1')
+            # run_id = os.path.join(self.data_path, '1808/test1')
+            # moving away from including the path in the run_id
+            run_id = 'test1'
 
         # apply the keyword values or defaults
 
@@ -516,6 +584,7 @@ class Beans:
         self.numburstssim = numburstssim
         self.lnprior = prior
         self.corr = corr
+        self.model = model
         self.nwalkers = nwalkers
         self.nsteps = nsteps
         self.threads = threads
@@ -551,6 +620,10 @@ class Beans:
 
         if alpha and (not fluen):
             print ('** ERROR ** need to include fluences as well as alphas')
+            return
+
+        if alpha and (model == 'grid_interp'):
+            print ('** ERROR ** grid_interp doesn\'t currently provide alphas, set alpha=False')
             return
 
         if self.lnprior(self.theta) == -np.inf:
@@ -740,7 +813,10 @@ Initial parameters:
         :return: accretion rate in g/cm^2/s
         """
 
-        return (1.75e-8*1.7/(1+X)*5.01837638e24)/(radius*1e5)**2 * u.g/u.cm**2/u.s
+        # temp here for the grid interpolation
+        # return (1.75e-8*1.7/(1+X)*5.01837638e24)/(radius*1e5)**2 * u.g/u.cm**2/u.s
+        # Johnston et al. 2020: The Eddington-limited accretion rate, 
+        return 8.775E4*u.g/u.cm**2/u.s
 
 
     def save_config(self, file=None, clobber=True):
@@ -812,8 +888,7 @@ Initial parameters:
         """
 
         if file is None:
-            data_path = os.path.join(os.path.dirname(__file__), 'data')
-            run_id = os.path.join(data_path, 'beans.ini')
+            run_id = os.path.join(self.data_path, 'beans.ini')
 
         int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
         float_params = ('bc', 'smooth', 'tref', 'stretch_a')
@@ -850,6 +925,15 @@ Initial parameters:
               To fully replicate the previous run you need to specify the
                 same prior using the prior=beans.{} flag on init
 '''.format(function_name, str(self.lnprior).split(' ')[1], function_name))
+                elif (option == 'model'):
+                    function_name = config.get(section, option).split(' ')[1]
+                    if (function_name != str(self.model).split(' ')[1]):
+                        print ('''
+** WARNING ** config file lists the model as {},
+                but supplied value is {}
+              To fully replicate the previous run you need to specify the
+                same model using the model={} specification on init
+'''.format(function_name, str(self.model).split(' ')[1], function_name))
                 elif (option == 'corr'):
                     function_name = config.get(section, option)
                     if function_name != 'None':
@@ -907,6 +991,7 @@ Initial parameters:
 
         return (self.r1*flux*self.bc*dist**2*xi_p*opz**2
             / (radius**2*(opz-1)) / self.mdot_Edd(X, radius) ).decompose().value
+
 
     def lnlike(self, theta_in, x, y, yerr, components=False):
         """
