@@ -2,6 +2,11 @@
 *.p
 *.h5
 
+# ignore output, test directories
+bilby_out/
+outdir/
+verification/
+
 #ignore plots
 *.pdf
 

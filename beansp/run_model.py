@@ -119,9 +119,9 @@ def burst_time_match(iref1, time1, iref2, time2):
 
 def runmodel(theta_in, bean, match=True, debug=False):
     """
-    This routine calls one of two functions that generate the burst model
-    predictions, either generate_burst_train or burstensemble, depending on
-    which mode the analysis is in
+    This routine calls one of three functions that generate the burst model
+    predictions, either generate_burst_train or punkt_train (for burst trains),
+    or burstensemble, depending on which mode the analysis is in.
     It then assembles the predictions from the model into a form that can
     be compared to the observations (with appropriate scaling)
 
@@ -129,7 +129,8 @@ def runmodel(theta_in, bean, match=True, debug=False):
       *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
     :param bean: Beans object, from which the required parameters are drawn:
       y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
-      ref_ind, gti_checking,train, gti_start=None, gti_end=None,
+      ref_ind, gti_checking,train, gti_start=None, gti_end=None, as well as
+      the train_model, for burst trains
     :param match: set to False to skip the burst matching stage, which is useful for exploratory/diagnostic purposes
     :param debug: set to True to display more diagnostic information, passed also to generate_burst_train
 
@@ -158,7 +159,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
         # predicted values.
         # We now pass on the debug flag to help with exploratory work
 
-        result = generate_burst_train( bean,  Q_b, X, Z, dist, xi_p, mass, radius, debug=debug)
+        result = bean.train_model( bean,  Q_b, X, Z, dist, xi_p, mass, radius, debug=debug)
 
         # we need to reject unsuitable models here. The simplest (although
         # insufficiently strict) criterion is to at least simulate as many

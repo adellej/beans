@@ -1,9 +1,9 @@
-# ___.                                    ___          ___    
-# \_ |__   ____ _____    ____   ______   /  / ______   \  \   
-#  | __ \_/ __ \\__  \  /    \ /  ___/  /  /  \____ \   \  \  
-#  | \_\ \  ___/ / __ \|   |  \\___ \  (  (   |  |_> >   )  ) 
-#  |___  /\___  >____  /___|  /____  >  \  \  |   __/   /  /  
-#      \/     \/     \/     \/     \/    \__\ |__|     /__/   
+# ___.                                    ___          ___
+# \_ |__   ____ _____    ____   ______   /  / ______   \  \
+#  | __ \_/ __ \\__  \  /    \ /  ___/  /  /  \____ \   \  \
+#  | \_\ \  ___/ / __ \|   |  \\___ \  (  (   |  |_> >   )  )
+#  |___  /\___  >____  /___|  /____  >  \  \  |   __/   /  /
+#      \/     \/     \/     \/     \/    \__\ |__|     /__/
 #
 """Main module. This has functions that do the sampling, save the chains, and analyse the results."""
 
@@ -30,14 +30,6 @@ import gzip
 import time
 from configparser import ConfigParser
 import pickle
-
-# multiepoch_mcmc is required to use the grid_interp model
-has_multiepoch_mcmc = True
-try:
-    sys.path.append('/Users/duncan/python/multiepoch_mcmc')
-    from multiepoch_mcmc import grid_interpolator
-except:
-    has_multiepoch_mcmc = False
 
 import pkg_resources  # part of setuptools
 try:
@@ -67,8 +59,7 @@ BILBY_OUTPUT = 'bilby_out'
 # -------------------------------------------------------------------------#
 ## load local  modules
 from .settle import settle
-from .grid_interp import grid_interp
-from .burstrain import generate_burst_train, next_burst, burstensemble
+from .burstrain import punkt_train, generate_burst_train
 from .run_model import runmodel, burst_time_match
 from .get_data import get_obs
 from .mrprior import mr_prior
@@ -76,6 +67,16 @@ from .run_emcee import runemcee
 from .run_bilby import runbilby
 from .analyse import get_param_uncert_obs, get_param_uncert_part, get_param_uncert
 
+# multiepoch_mcmc is required to use the grid_interp model
+has_multiepoch_mcmc = True
+try:
+    # TODO perhaps pull the path from an environment variable instead
+    sys.path.append('/Users/duncan/python/multiepoch_mcmc')
+    from multiepoch_mcmc import grid_interpolator
+except:
+    has_multiepoch_mcmc = False
+
+from .grid_interp import grid_interp
 # -------------------------------------------------------------------------#
 
 
@@ -198,7 +199,7 @@ def prior_1808(theta_in):
 
 def prior_grid(theta_in):
     """
-    This function is to accompany grid_interp and implements a simple 
+    This function is to accompany grid_interp and implements a simple
     box prior for all the parameters, respecting the grid range
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
@@ -206,7 +207,7 @@ def prior_grid(theta_in):
 
     :return: prior probability
     """
-    
+
     c = const.c.to('cm s-1')
     G = const.G.to('cm3 g-1 s-2')
 
@@ -214,7 +215,7 @@ def prior_grid(theta_in):
     mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
 
     R = radius*1e5*u.cm #cgs
-    M = mass*const.M_sun.to('g') #cgs 
+    M = mass*const.M_sun.to('g') #cgs
     redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
     gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value / 1e14 #cgs
 
@@ -442,6 +443,7 @@ class Beans:
     def __init__(self, prior=prior_func, corr=None, config_file=None,
                  run_id="test", nwalkers=200, nsteps=100,
                  obsname=None, burstname=None, gtiname=None,
+                 continuous=False, maxgap=2,
                  interp='linear', smooth=0.02, model = settle,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
                  sampler='emcee', stretch_a=2.0, fluen=True, alpha=True,
@@ -464,6 +466,9 @@ class Beans:
         :param burstname: name of the burst data file, listing the bursts
         :param gtiname: name of the GTI file, set to ``None`` to turn off
           checking
+        :param continuous: for burst "train" modes, set to True to generate a
+          continuous train (i.e. using generate_burst_train rather than
+          the newer punkt_train)
         :param interp: interpolation mode for the flux; possible values are
           'linear', or 'spline'
         :param smooth: smoothing factor for spline interpolation
@@ -577,6 +582,14 @@ class Beans:
         self.gtiname = gtiname
         self.ref_ind = ref_ind
         self.bc = bc
+        if continuous | (maxgap <= 0):
+            # the original "train" model generates a continuous train of
+            # bursts covering the entire history
+            self.train_model = generate_burst_train
+        else:
+            # the newer version generates a train but limits the
+            self.train_model = punkt_train
+            self.maxgap = maxgap
 
         self.sampler = sampler
         self.theta = theta
@@ -815,7 +828,7 @@ Initial parameters:
 
         # temp here for the grid interpolation
         # return (1.75e-8*1.7/(1+X)*5.01837638e24)/(radius*1e5)**2 * u.g/u.cm**2/u.s
-        # Johnston et al. 2020: The Eddington-limited accretion rate, 
+        # Johnston et al. 2020: The Eddington-limited accretion rate,
         return 8.775E4*u.g/u.cm**2/u.s
 
 
@@ -987,14 +1000,14 @@ Initial parameters:
             return self.flux_to_mdot(X, dist, xi_p, mass, radius, self.pflux), \
                 self.flux_to_mdot(X, dist, xi_p, mass, radius, self.pfluxe)
 
-        # Johnston et al. 2020: The Eddington-limited accretion rate, 
+        # Johnston et al. 2020: The Eddington-limited accretion rate,
         # scaled independent of composition or NS radius.
         # for use with the grid_interp model
 
         _mdot_Edd = 8.775E4*u.g/u.cm**2/u.s
         if self.model == 'settle':
             # different prescription for settle, via the mdot_Edd function
-            _mdot_Edd = self.mdot_Edd(X, radius) 
+            _mdot_Edd = self.mdot_Edd(X, radius)
 
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
 
