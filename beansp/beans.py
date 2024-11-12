@@ -2010,7 +2010,14 @@ Initial parameters:
                     # NOTE have to preserve the key selection here
                     _dt = [(self.bstart[i] - self.model_pred['times'][x][imatch[i]-1])*24.0 for x in _sel]
                     perflx = [self.mean_flux(self.model_pred['times'][x][imatch[i]-1], self.bstart[i], self) for x in _sel]
-                _alpha = self.cd.alpha(_dt,(self.fluen[i], self.fluene[i]), perflx).value
+
+                # calculate the alpha based on the model-predicted time, but only
+                # if the measured fluence is nonzero
+                if self.fluen[i] > 0.0:
+                    _alpha = self.cd.alpha(_dt,(self.fluen[i], self.fluene[i]), perflx).value
+                else:
+                    _alpha = (0.0, 0.0, 0.0)
+
                 if np.shape(_dt) == ():
                     # scalar _dt, exact recurrence time
                     dt.append(_dt)
@@ -2018,9 +2025,9 @@ Initial parameters:
                     if show:
                         print ("{} & [minbar ID] & {} & {:.2f} & {} & {} & {} \\\\".format(
                             bursts['num'][i], bursts['time'][i], dt[-1],
-                            strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]),
+                            (strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]) if bursts['bfluen'][i] > 0. else '--'),
                             strmeas(bursts['alpha_obs'][i], bursts['e_alpha_obs'][i]),
-                            strmeas(_alpha[0], _alpha[1], _alpha[2])))
+                            (strmeas(_alpha[0], _alpha[1], _alpha[2]) if bursts['bfluen'][i] > 0. else '--')))
                 else:
                     dt_stats = np.percentile(np.array(_dt), [16,50,84])
                     dt.append(dt_stats[1])
@@ -2029,9 +2036,9 @@ Initial parameters:
                         print ("{} & [minbar ID] & {} & {} & {} & {} & {} \\\\".format(
                             bursts['num'][i], bursts['time'][i],
                             strmeas(dt[-1], e_dt[-1]),
-                            strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]),
+                            (strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]) if bursts['bfluen'][i] > 0. else '--'),
                             strmeas(bursts['alpha_obs'][i], bursts['e_alpha_obs'][i]),
-                            strmeas(_alpha[0], _alpha[1], _alpha[2])))
+                            (strmeas(_alpha[0], _alpha[1], _alpha[2]) if bursts['bfluen'][i] > 0. else '--')))
                 alpha.append(_alpha[0])
                 e_alpha.append(_alpha[1])
                 E_alpha.append(_alpha[2])
@@ -2086,6 +2093,10 @@ Initial parameters:
             print ('\n** ERROR ** will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
             return
 
+        # constants:
+        c = const.c.to('cm s-1')
+        G = const.G.to('cm3 g-1 s-2')
+
         header='''beansp v{} parameter file
 
 run_id {}, nsteps_completed={}, skipping {} steps for burnin
@@ -2110,6 +2121,15 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
             # select all the samples for the parameter ranges
             parts = ['all']
             sel = np.full(n_samples, True)
+
+        # have to duplicate the calculation of redshift and gravity here, as
+        # those quantities are not saved to the samples 
+        if self.ndim >= 8:
+            M = np.array(self.samples[:,6])*const.M_sun.to('g') #cgs
+            R = np.array(self.samples[:,7])*1e5*u.cm #cgs
+
+            redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+            gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
         with open(file, 'w') as f:
 
