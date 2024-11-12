@@ -131,8 +131,11 @@ def runmodel(theta_in, bean, match=True, debug=False):
       y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
       ref_ind, gti_checking,train, gti_start=None, gti_end=None, as well as
       the train_model, for burst trains
-    :param match: set to False to skip the burst matching stage, which is useful for exploratory/diagnostic purposes
-    :param debug: set to True to display more diagnostic information, passed also to generate_burst_train
+    :param match: set to False to skip the burst matching stage, which is
+      useful for exploratory/diagnostic purposes; ignored for non-continuous
+      trains (i.e. using punkt_train)
+    :param debug: set to True to display more diagnostic information,
+      passed also to generate_burst_train/punkt_train
 
     :return: model array with predicted burst parameters, Boolean giving
       the validity of the solution (i.e. consistent with the GTI information),
@@ -204,9 +207,10 @@ def runmodel(theta_in, bean, match=True, debug=False):
         model = np.concatenate((result['time'], result['fluen'],
             result['alpha_obs']))
 
-    elif match & (bean.y is not None) & (npred > 0):
+    elif match & ('imatch' not in result) & (bean.y is not None) & (npred > 0):
 
-        # Assemble the array for comparison with the data
+        # Assemble the array for comparison with the data, for output from
+        # generate_burst_train
         # First need to match the burst times; this is surprisingly
         # difficult to do robustly.
 
@@ -250,6 +254,15 @@ def runmodel(theta_in, bean, match=True, debug=False):
             model =  np.concatenate((result['time'][itime],
                 result['fluen'][ie_b][bean.ifluen],
                 result['alpha_obs'][ialpha][bean.ifluen[1:]-1]))
+
+    else:
+        # if we already have an imatch element, i.e. from punkt_train, we
+        # have a simpler process to assemble the model
+
+        imatch = result['imatch']
+        model = np.concatenate((result['time'][imatch],
+            result['fluen'][imatch][bean.ifluen],
+            result['alpha_obs'][imatch][bean.ifluen[1:] - 1]))
 
     # Check here if the model instance is valid, i.e. the bursts that are NOT
     # matched with the observed ones must fall in gaps

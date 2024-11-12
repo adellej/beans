@@ -582,11 +582,11 @@ class Beans:
         self.gtiname = gtiname
         self.ref_ind = ref_ind
         self.bc = bc
-        if continuous | (maxgap <= 0):
-            # the original "train" model generates a continuous train of
-            # bursts covering the entire history
-            self.train_model = generate_burst_train
-        else:
+        self.continuous = continuous
+        # the original "train" model generates a continuous train of
+        # bursts covering the entire history
+        self.train_model = generate_burst_train
+        if ~continuous & (maxgap > 0):
             # the newer version generates a train but limits the
             self.train_model = punkt_train
             self.maxgap = maxgap
@@ -748,21 +748,24 @@ See https://beans-7.readthedocs.io
 Run ID: {}
 Observation data file: {}
   bolometric correction: {}
-GTI data file: {}
-Burst data file: {}
+{}Burst data file: {}
   comprising {} observed bursts, {}including alphas{}{}
-No. of bursts to simulate: {} ({} mode)
+No. of bursts to simulate: {} ({} mode{})
+  model: {}
   sampler: {}{}
   {}/{} threads
 Initial parameters:
 {}
-==============================================================================""".format(self.run_id, self.obsname, self.bc, self.gtiname, self.burstname,
-            self.numburstsobs,
+==============================================================================""".format(self.run_id,
+            self.obsname, self.bc,
+            '' if self.gtiname is None else 'GTI data file: {}\n'.format(self.gtiname),
+            self.burstname, self.numburstsobs,
             '' if self.cmpr_alpha else 'not ',
             '' if self.cmpr_fluen else ' or fluences',
-            '' if self.obsname is None else ', ref. to #{}'.format(self.ref_ind),
-            self.train+self.numburstssim*(1+self.train),
-            'train' if self.train else 'ensemble',
+            '' if (self.obsname is None) | ~self.continuous else ', ref. to #{}'.format(self.ref_ind),
+            self.train+self.numburstssim*(1+self.train) if self.continuous else self.numburstsobs,
+            'train' if self.train else 'ensemble', ', continuous' if self.continuous else ', gaps allowed',
+            self.model_name,
             # sampler-specific part
             self.sampler, (' with {} walkers, {} steps{}, a={}'.format(
                 self.nwalkers, self.nsteps, ', resuming' if self.restart else '', self.stretch_a)
@@ -836,7 +839,8 @@ Initial parameters:
         """
         Routine to write all the configuration parameters to a file, as a
         record of the run; but also to more easily replicate or continue
-        a run. List of all the parameters saved to the configuration file:
+        a run. (Incomplete) list of all the parameters saved to the
+        configuration file:
         ``run_id``, ``obsname``, ``burstname``, ``gtiname``, ``alpha``,
         ``fluen``, ``ref_ind``, ``bc``, ``interp``, ``smooth``, ``theta``,
         ``numburstssim``, ``prior``, ``nwalkers``, ``nsteps``, ``threads``
@@ -859,6 +863,10 @@ Initial parameters:
            Config.add_section("beans")
            Config.set("beans", "run_id", self.run_id)
            Config.set("beans", "version", __version__)
+           Config.set("beans", "model", str(self.model))
+           Config.set("beans", "continuous", str(self.continuous))
+           if ~self.continuous:
+               Config.set("beans", "maxgap", str(self.maxgap))
 
            Config.add_section("data")
            Config.set("data", "obsname", str(self.obsname))
@@ -879,6 +887,7 @@ Initial parameters:
            # Config.add_section("emcee")
            Config.add_section("sampler")
            Config.set("sampler", "sampler", str(self.sampler))
+           # TODO need to also add dynesty parameters here
            Config.set("sampler", "theta", str(self.theta))
            Config.set("sampler", "stretch_a", str(self.stretch_a))
            Config.set("sampler", "numburstssim", str(self.numburstssim))
@@ -903,7 +912,7 @@ Initial parameters:
         if file is None:
             run_id = os.path.join(self.data_path, 'beans.ini')
 
-        int_params = ('ref_ind','numburstssim','nwalkers','nsteps','threads')
+        int_params = ('ref_ind', 'numburstssim', 'nwalkers', 'nsteps', 'threads', 'maxgap')
         float_params = ('bc', 'smooth', 'tref', 'stretch_a')
 
         if not os.path.isfile(file):
@@ -963,6 +972,8 @@ Initial parameters:
 '''.format(function_name, _scorr, function_name))
                 elif option in int_params:
                     setattr(self, option, config.getint(section, option))
+                elif (option == 'continuous') & (config.get(section, option) == 'False'):
+                    self.train_model = punkt_train
                 else:
                     # string options (including "None")
                     _value = config.get(section, option)
@@ -1166,8 +1177,8 @@ Initial parameters:
     def plot(self, show_model=True, model=None, mdot=True, imatch=None,
         title=None, savefig=False):
         """
-	Display a plot of the data and model results, for a burst train
-	calculated with :func:`burstrain.generate_burst_train`;
+	    Display a plot of the data and model results, for a burst train
+	    calculated with :func:`burstrain.generate_burst_train`;
         or burst "ensemble" data calculated with
         :func:`burstrain.burstensemble`. Adapted from the
         example at
@@ -1195,21 +1206,26 @@ Initial parameters:
         X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
         mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
 
+        itoff = 1 # time offset for models produced with generate_burst_train
         if (model is None) & show_model:
             # no need to do the matching here
             test, valid, model = runmodel(self.theta, self, match=False,
                 debug=False)
 
             show_model = valid
-            if (imatch is None) & (valid & self.train & (self.numburstsobs > 0)):
+            if (imatch is None) & ('imatch' not in model) & (valid & self.train & (self.numburstsobs > 0)):
                 # ... but it's useful to know if it's possible
-                # (not relevant for ensemble mode)
+                # (not relevant for punkt_train, or ensemble mode)
 
                 imatch = burst_time_match(self.ref_ind, self.bstart,
                     model['iref'], np.array(model['time']))
 
                 if imatch is None:
                     print ("\n** WARNING ** can't match predicted bursts to observations")
+
+            elif 'imatch' in model:
+                imatch = model['imatch']
+                itoff = 0
 
         full_model = False  # Flag to remember whether we're plotting the
                             # full model output of generate burst train or
@@ -1306,9 +1322,10 @@ Initial parameters:
                         ax2.axvline(self.bstart[i], color=obs_colour, ls='--')
 
             if show_model:
-                ax2.scatter(timepred[1:], ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted bursts')
+                ax2.scatter(timepred[itoff:], ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted bursts')
             # we have time but not fluence for the first burst
-                ax2.axvline(timepred[0], color=bursts_colour, ls='--')
+                if itoff == 1:
+                    ax2.axvline(timepred[0], color=bursts_colour, ls='--')
                 # and the averaged mdot over the burst interval (predicted)
                 av_mdot = []
                 for i in range(len(timepred)-1):
@@ -2123,7 +2140,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
             sel = np.full(n_samples, True)
 
         # have to duplicate the calculation of redshift and gravity here, as
-        # those quantities are not saved to the samples 
+        # those quantities are not saved to the samples
         if self.ndim >= 8:
             M = np.array(self.samples[:,6])*const.M_sun.to('g') #cgs
             R = np.array(self.samples[:,7])*1e5*u.cm #cgs
@@ -2717,6 +2734,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             if self.train:
                 # 2-panel plot like in plot
 
+                # itoff = 1  # time offset for models produced with generate_burst_train
+                itoff = 0  # time offset for models produced with punkt_train
+
                 fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
                 ax1 = axs['main']
 
@@ -2746,34 +2766,36 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     ebpred = [x[0] for x in ebs[numburstssim]]
                     ebpred_errup = [x[1] for x in ebs[numburstssim]]
                     ebpred_errlow = [x[2] for x in ebs[numburstssim]]
-                    ax1.errorbar(timepred[1:], ebpred,
+                    ax1.errorbar(timepred[itoff:], ebpred,
                         yerr=[ebpred_errup, ebpred_errlow],
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i),
                         label='predicted ({})'.format(numburstssim))
 
-                    ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
-                    imatch = burst_time_match(self.ref_ind, self.bstart,
-                        ref_tpred, np.array(timepred))
-                    print (numburstssim, imatch)
-                    # Not sure this will work so well if there are
-                    # multiple sets of solutions
-                    # if len(times.keys()) == 1:
-                    imatchm1 = [x-1 for x in imatch if x-1 >= 0]
-                    ax1.plot(np.array(timepred[1:])[imatchm1],
-                        np.array(ebpred)[imatchm1],
-                        marker='*', ms=5, linestyle='', color='tab:red',
-                        label=_label,zorder=99)
-                    _label = None # only give the label the first time
+                    if itoff == 1:
+                        # only relevant for train mode with generate_burst_train
+                        ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
+                        imatch = burst_time_match(self.ref_ind, self.bstart,
+                            ref_tpred, np.array(timepred))
+                        print (numburstssim, imatch)
+                        # Not sure this will work so well if there are
+                        # multiple sets of solutions
+                        # if len(times.keys()) == 1:
+                        imatchm1 = [x-1 for x in imatch if x-1 >= 0]
+                        ax1.plot(np.array(timepred[itoff:])[imatchm1],
+                            np.array(ebpred)[imatchm1],
+                            marker='*', ms=5, linestyle='', color='tab:red',
+                            label=_label,zorder=99)
+                        _label = None # only give the label the first time
 
-                    resid = -(self.bstart-np.array(timepred)[imatch])*24.
-                    axs['resid'].errorbar(self.bstart, resid,
-                        yerr=[np.array(timepred_errup)[imatch]*24.,
-                        np.array(timepred_errlow)[imatch]*24.],
-                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
-                    print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
-                        numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
-                        np.sqrt(np.mean(resid**2))))
+                        resid = -(self.bstart-np.array(timepred)[imatch])*24.
+                        axs['resid'].errorbar(self.bstart, resid,
+                            yerr=[np.array(timepred_errup)[imatch]*24.,
+                            np.array(timepred_errlow)[imatch]*24.],
+                            marker='*', ms=11, linestyle='', color='C{}'.format(i))
+                        print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
+                            numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
+                            np.sqrt(np.mean(resid**2))))
 
                 ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
                 axs['resid'].axhline(0.0, color=obs_colour, ls='--')
@@ -2793,7 +2815,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 ebpred_errlow = [x[2] for x in ebs[self.numburstssim]]
 
                 fig = plt.figure()
-                plt.errorbar(self.tdel, self.fluen, yerr=self.fluene,
+                plt.errorbar(self.tdel, self.fluen, xerr=self.tdele, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
                 plt.scatter(timepred, ebpred, marker='*', color=bursts_colour, s=100, label='Predicted')
                 plt.errorbar(timepred, ebpred,

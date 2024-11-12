@@ -344,6 +344,7 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
         result["mdot"] = np.array(smdot)
         result["alpha"] = np.array(salpha)
         result["e_b"] = np.array(se_b)
+        result["imatch"] = imatch
         # print(f"In burstrain fluence is {se_b}")
 
     if debug:
