@@ -14,14 +14,11 @@ import numpy as np
 import pandas as pd
 import emcee
 import bilby
-from astropy.io import ascii
 import astropy.units as u
 import astropy.constants as const
-from astropy.table import Table, Column, MaskedColumn
-from astropy.time import Time, TimeDelta
+from astropy.table import Table, MaskedColumn
+from astropy.time import Time
 from matplotlib.ticker import MaxNLocator
-from scipy.stats import gaussian_kde
-# import scipy.stats as stats
 from scipy.interpolate import splrep, BSpline, splint
 from chainconsumer import ChainConsumer
 from multiprocessing import cpu_count
@@ -65,7 +62,7 @@ from .get_data import get_obs
 from .mrprior import mr_prior
 from .run_emcee import runemcee
 from .run_bilby import runbilby
-from .analyse import get_param_uncert_obs, get_param_uncert_part, get_param_uncert
+from .analyse import get_param_uncert_part, get_param_uncert
 
 # multiepoch_mcmc is required to use the grid_interp model
 has_multiepoch_mcmc = True
@@ -296,10 +293,10 @@ def model_str(model):
     :return: string representation of the model dict
     """
 
-    return ("{'time': ["+','.join(['{:.4f}'.format(x) for x in model['time']]) \
-        +"], 'mdot': ["+','.join(['{:.5f}'.format(x) for x in model['mdot']]) \
-        +"], 'alpha': ["+','.join(['{:.3f}'.format(x) for x in model['alpha']]) \
-        +"], 'e_b': ["+','.join(['{:.4f}'.format(x) for x in model['e_b']]) \
+    return ("{'time': ["+','.join(['{:.4f}'.format(x) for x in model['time']])
+        +"], 'mdot': ["+','.join(['{:.5f}'.format(x) for x in model['mdot']])
+        +"], 'alpha': ["+','.join(['{:.3f}'.format(x) for x in model['alpha']])
+        +"], 'e_b': ["+','.join(['{:.4f}'.format(x) for x in model['e_b']])
         +"]}").replace(' ','')
 
 
@@ -746,9 +743,7 @@ class Beans:
 See https://beans-7.readthedocs.io
 
 Run ID: {}
-Observation data file: {}
-  bolometric correction: {}
-{}Burst data file: {}
+{}{}Burst data file: {}
   comprising {} observed bursts, {}including alphas{}{}
 No. of bursts to simulate: {} ({} mode{})
   model: {}
@@ -757,14 +752,15 @@ No. of bursts to simulate: {} ({} mode{})
 Initial parameters:
 {}
 ==============================================================================""".format(self.run_id,
-            self.obsname, self.bc,
+            'Observation data file: {}\n  bolometric correction: {}\n'.format( self.obsname, self.bc) if self.train else '',
             '' if self.gtiname is None else 'GTI data file: {}\n'.format(self.gtiname),
             self.burstname, self.numburstsobs,
             '' if self.cmpr_alpha else 'not ',
             '' if self.cmpr_fluen else ' or fluences',
             '' if (self.obsname is None) | ~self.continuous else ', ref. to #{}'.format(self.ref_ind),
             self.train+self.numburstssim*(1+self.train) if self.continuous else self.numburstsobs,
-            'train' if self.train else 'ensemble', ', continuous' if self.continuous else ', gaps allowed',
+            'train' if self.train else 'ensemble',
+            ', continuous' if (self.continuous & self.train) else '',
             self.model_name,
             # sampler-specific part
             self.sampler, (' with {} walkers, {} steps{}, a={}'.format(
