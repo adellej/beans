@@ -1049,7 +1049,7 @@ Initial parameters:
         # modeldata(base, z, x, r1, r2 ,r3)
 
         assert np.allclose(y, self.y)
-        model, valid, model2 = runmodel(theta_in, self)
+        model, valid, model2 = runmodel(theta_in, self, debug=False)
         if not valid:
             return -np.inf, model
 

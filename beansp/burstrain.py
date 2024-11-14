@@ -202,7 +202,11 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
     :param debug: set to True to show additional debugging information
     """
 
+    fn = 'punkt_train'
     cfac = 1.0 # no longer used
+
+    if debug:
+        print (fn, base, x_0, z, dist, xi_p, mass, radius)
 
     # array of observed bursts is bean.bstart
 
@@ -244,7 +248,11 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
                 result_f = next_burst(bean, base, x_0, z, stime[-1],
                                       dist, xi_p, cfac, mass, radius, direction=1, debug=debug)
                 if result_f is None:
-                    # this can happen if we've gone out beyond the end of the flux history, presumably
+                    # this can happen if we've gone out beyond the end of
+                    # the flux history, presumably
+                    # need to trigger the exit criterion as well as
+                    # breaking out of the loop
+                    iburst = bean.numburstsobs
                     break
                 buffer.append(result_f)
                 if debug:
@@ -413,10 +421,10 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
     if bean.bstart is not None:
         sbt = bean.bstart[bean.ref_ind]
     else:
-	# In the absence of any bursts, set the reference time to ref_ind
-	# (can be any time within the outburst)
-	# TODO check if this is consistent with the usage for initial
-	# value of earliest/latest below; not sure of the use case
+        # In the absence of any bursts, set the reference time to ref_ind
+        # (can be any time within the outburst)
+        # TODO check if this is consistent with the usage for initial
+        # value of earliest/latest below; not sure of the use case
         # sbt = 0.0
         sbt = bean.ref_ind
 
@@ -435,12 +443,12 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
             print ("{}: simulating burst {} of {}".format(fn, i, bean.numburstssim))
 
         # Here we adopted recurrence time corrections for SAX
-	# J1808.4--3658 ,since the accretion rate is not constant over the
-	# extrapolated time, resulting in the recurrence time being
-	# underestimated by settle. Correction factors are from Zac
-	# Johnston, calculated using KEPLER
+        # J1808.4--3658 ,since the accretion rate is not constant over the
+        # extrapolated time, resulting in the recurrence time being
+        # underestimated by settle. Correction factors are from Zac
+        # Johnston, calculated using KEPLER
 
-	# if i == 0:  # This is observed burst at 1.89 cfac1 = 1.02041
+        # if i == 0:  # This is observed burst at 1.89 cfac1 = 1.02041
         #     cfac2 = 1.02041
         # if (
         #     i == 1

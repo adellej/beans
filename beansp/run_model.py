@@ -168,7 +168,11 @@ def runmodel(theta_in, bean, match=True, debug=False):
         # insufficiently strict) criterion is to at least simulate as many
         # bursts as are observed.
 
-        tpred = result["time"]
+        if 'imatch' in result.keys():
+            # for punkt_train we need to make sure the bursts match up
+            tpred = np.array(result['time'])[result['imatch']]
+        else:
+            tpred = result["time"]
         npred = len(tpred)
         if (npred < bean.numburstsobs) & (bean.numburstsobs > 0):
             if debug:
