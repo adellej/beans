@@ -480,7 +480,7 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
                 iref += 1
                 salpha.insert(0, result_b.alpha[0])
                 se_b.insert(0, result_b.e_b[0])
-                smdot.insert(0, result_b.mdot)
+                smdot.insert(0, result_b.mdot[0])
                 earliest = result_b.t2[0]
             else:
                 # if the earlier burst has failed, we don't need to pursue any further
@@ -498,7 +498,7 @@ def generate_burst_train( bean, base, x_0, z, dist, xi_p, mass, radius,
                 stime.append(result_f.t2[0])
                 salpha.append(result_f.alpha[0])
                 se_b.append(result_f.e_b[0])
-                smdot.append(result_f.mdot)
+                smdot.append(result_f.mdot[0])
                 latest = result_f.t2[0]
             else:
 
