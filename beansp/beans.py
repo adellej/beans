@@ -2317,7 +2317,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         if burnin < 0:
             if -burnin > self.nsteps_completed:
                 print ('\n** WARNING ** steps to retain {} is > total ({}), ignoring'.format(-burnin, self.nsteps_completed))
-            burnin = min([0, self.nsteps_completed+burnin])
+            burnin = max([0, self.nsteps_completed+burnin])
 
         # want to make sure we're using at least about 1000 samples for
         # our statistics
