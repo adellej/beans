@@ -440,7 +440,7 @@ class Beans:
     def __init__(self, prior=prior_func, corr=None, config_file=None,
                  run_id="test", nwalkers=200, nsteps=100,
                  obsname=None, burstname=None, gtiname=None,
-                 continuous=False, maxgap=2,
+                 continuous=True, maxgap=2,
                  interp='linear', smooth=0.02, model = settle,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
                  sampler='emcee', stretch_a=2.0, fluen=True, alpha=True,
@@ -2730,8 +2730,10 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             if self.train:
                 # 2-panel plot like in plot
 
-                # itoff = 1  # time offset for models produced with generate_burst_train
-                itoff = 0  # time offset for models produced with punkt_train
+                if self.continuous:
+                    itoff = 1  # time offset for models produced with generate_burst_train
+                else:
+                    itoff = 0  # time offset for models produced with punkt_train
 
                 fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
                 ax1 = axs['main']
