@@ -1993,7 +1993,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
           plots (TODO: need to check if >1 corner plot are selected
           +truths, which will likely result in an error due to
           incompatible number of parameters)
-        :param burnin: number of steps to discard when plotting the posteriors
+        :param burnin: number of steps to discard when plotting the
+          posteriors. If -ve, discard all but that number
         :param savefig: set to True to save figures to .pdf files, False to skip
 
         :return: none
@@ -2041,6 +2042,12 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             print ("... done. Got {} steps completed".format(self.nsteps_completed))
             self.samples_burnin = None
             self.models_burnin = None
+
+        # convert -ve burnin here
+        if burnin < 0:
+            if -burnin > self.nsteps_completed:
+                print ('** WARNING ** steps to retain {} is > total ({}), ignoring'.format(-burnin, self.nsteps_completed))
+            burnin = min([0, self.nsteps_completed+burnin])
 
         if (burnin != self.samples_burnin) | \
             ((burnin != self.models_burnin)&(self.models_burnin is not None)):
