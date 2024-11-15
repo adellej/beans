@@ -2313,23 +2313,21 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             self.samples_burnin = None
             self.models_burnin = None
 
-<<<<<<< HEAD
+        # convert -ve burnin here
+        if burnin < 0:
+            if -burnin > self.nsteps_completed:
+                print ('\n** WARNING ** steps to retain {} is > total ({}), ignoring'.format(-burnin, self.nsteps_completed))
+            burnin = min([0, self.nsteps_completed+burnin])
+
         # want to make sure we're using at least about 1000 samples for
         # our statistics
 
         # if burnin >= self.nsteps_completed*0.9:
         if (self.sampler == 'emcee') & ((self.nwalkers * (self.nsteps_completed - burnin) < 1000) | \
             (self.nsteps_completed <= burnin)):
-            print('\n** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(burnin,
-                                                                                                              self.nsteps_completed))
+            print('\n** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(
+                burnin, self.nsteps_completed))
             burnin = 0
-=======
-        # convert -ve burnin here
-        if burnin < 0:
-            if -burnin > self.nsteps_completed:
-                print ('** WARNING ** steps to retain {} is > total ({}), ignoring'.format(-burnin, self.nsteps_completed))
-            burnin = min([0, self.nsteps_completed+burnin])
->>>>>>> master
 
         if (burnin != self.samples_burnin) | \
             ((burnin != self.models_burnin)&(self.models_burnin is not None)):
