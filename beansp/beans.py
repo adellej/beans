@@ -584,7 +584,7 @@ class Beans:
         # the original "train" model generates a continuous train of
         # bursts covering the entire history
         self.train_model = generate_burst_train
-        if ~continuous & (maxgap > 0):
+        if (not continuous) & (maxgap > 0):
             # the newer version generates a train but limits the
             self.train_model = punkt_train
             self.maxgap = maxgap
@@ -970,6 +970,7 @@ Initial parameters:
                 elif option in int_params:
                     setattr(self, option, config.getint(section, option))
                 elif (option == 'continuous') & (config.get(section, option) == 'False'):
+                    self.continuous = False
                     self.train_model = punkt_train
                 else:
                     # string options (including "None")
@@ -2771,30 +2772,34 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         marker='*', ms=11, linestyle='', color='C{}'.format(i),
                         label='predicted ({})'.format(numburstssim))
 
-                    if itoff == 1:
+                    if self.continuous:
                         # only relevant for train mode with generate_burst_train
                         ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
                         imatch = burst_time_match(self.ref_ind, self.bstart,
                             ref_tpred, np.array(timepred))
-                        print (numburstssim, imatch)
-                        # Not sure this will work so well if there are
-                        # multiple sets of solutions
-                        # if len(times.keys()) == 1:
-                        imatchm1 = [x-1 for x in imatch if x-1 >= 0]
-                        ax1.plot(np.array(timepred[itoff:])[imatchm1],
-                            np.array(ebpred)[imatchm1],
-                            marker='*', ms=5, linestyle='', color='tab:red',
-                            label=_label,zorder=99)
-                        _label = None # only give the label the first time
+                    else:
+                        imatch = burst_time_match(0, self.bstart,
+                            0, np.array(timepred))
 
-                        resid = -(self.bstart-np.array(timepred)[imatch])*24.
-                        axs['resid'].errorbar(self.bstart, resid,
-                            yerr=[np.array(timepred_errup)[imatch]*24.,
-                            np.array(timepred_errlow)[imatch]*24.],
-                            marker='*', ms=11, linestyle='', color='C{}'.format(i))
-                        print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
-                            numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
-                            np.sqrt(np.mean(resid**2))))
+                    print (numburstssim, imatch)
+                    # Not sure this will work so well if there are
+                    # multiple sets of solutions
+                    # if len(times.keys()) == 1:
+                    imatchm1 = [x-1 for x in imatch if x-1 >= 0]
+                    ax1.plot(np.array(timepred[itoff:])[imatchm1],
+                        np.array(ebpred)[imatchm1],
+                        marker='*', ms=5, linestyle='', color='tab:red',
+                        label=_label,zorder=99)
+                    _label = None # only give the label the first time
+
+                    resid = -(self.bstart-np.array(timepred)[imatch])*24.
+                    axs['resid'].errorbar(self.bstart, resid,
+                        yerr=[np.array(timepred_errup)[imatch]*24.,
+                        np.array(timepred_errlow)[imatch]*24.],
+                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
+                    print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
+                        numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
+                        np.sqrt(np.mean(resid**2))))
 
                 ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
                 axs['resid'].axhline(0.0, color=obs_colour, ls='--')
