@@ -70,10 +70,11 @@ try:
     # TODO perhaps pull the path from an environment variable instead
     sys.path.append('/Users/duncan/python/multiepoch_mcmc')
     from multiepoch_mcmc import grid_interpolator
+
+    from .grid_interp import grid_interp
 except:
     has_multiepoch_mcmc = False
 
-from .grid_interp import grid_interp
 # -------------------------------------------------------------------------#
 
 
@@ -861,7 +862,7 @@ Initial parameters:
            Config.set("beans", "version", __version__)
            Config.set("beans", "model", str(self.model))
            Config.set("beans", "continuous", str(self.continuous))
-           if ~self.continuous:
+           if not self.continuous:
                Config.set("beans", "maxgap", str(self.maxgap))
 
            Config.add_section("data")

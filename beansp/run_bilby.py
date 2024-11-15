@@ -76,7 +76,7 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
     print("\n# ---------------------------------------------------------------------------#")
     # TODO: make this information less sampler-specific
     print('    Running run={} with sampler {}, {} walkers, target {} steps...'.format(
-        sampler, bean.run_id, bean.nwalkers, bean.nsteps))
+        bean.run_id, sampler, bean.nwalkers, bean.nsteps))
 
     bilby.utils.check_directory_exists_and_if_not_mkdir(outdir)
     bean.outdir = outdir
