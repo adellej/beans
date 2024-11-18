@@ -285,6 +285,7 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
             elif len(buffer) == 1:
                 # if only one burst has been simulated, it must be > the next burst, so add to
                 # the train
+                result_f = buffer.pop(0)
                 stime.append(result_f.t2[0])
                 if len(imatch) < bean.numburstsobs:
                     # only do this if imatch does not already have all the bursts matched
@@ -296,7 +297,6 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
                 smdot.append(result_f.mdot[0])
                 if debug:
                     print(f'solo buffer #{iburst + 1}, adding time {result_f.t2[0]}')
-                buffer.pop(0)
             else:
                 if debug:
                     print(len(buffer), iburst, bean.numburstsobs)
