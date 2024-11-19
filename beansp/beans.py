@@ -2774,7 +2774,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     ebpred_errup = [x[1] for x in ebs[numburstssim]]
                     ebpred_errlow = [x[2] for x in ebs[numburstssim]]
                     ax1.errorbar(timepred[itoff:], ebpred,
-                        yerr=[ebpred_errup, ebpred_errlow],
+                        yerr=[ebpred_errlow, ebpred_errup],
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i),
                         label='predicted ({})'.format(numburstssim))
@@ -2801,8 +2801,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
                     resid = -(self.bstart-np.array(timepred)[imatch])*24.
                     axs['resid'].errorbar(self.bstart, resid,
-                        yerr=[np.array(timepred_errup)[imatch]*24.,
-                        np.array(timepred_errlow)[imatch]*24.],
+                        yerr=[np.array(timepred_errlow)[imatch]*24.,
+                        np.array(timepred_errup)[imatch]*24.],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i))
                     print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
                         numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
@@ -2830,7 +2830,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
                 plt.scatter(timepred, ebpred, marker='*', color=bursts_colour, s=100, label='Predicted')
                 plt.errorbar(timepred, ebpred,
-                    yerr=[ebpred_errup, ebpred_errlow],
+                    yerr=[ebpred_errlow, ebpred_errup],
                     xerr=[timepred_errup, timepred_errlow], fmt='.',
                     color=bursts_colour)
                 plt.xlabel("Recurrence time (hr)")
