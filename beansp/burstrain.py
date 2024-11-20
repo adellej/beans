@@ -211,7 +211,7 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
     # array of observed bursts is bean.bstart
 
     iburst = 0  # running index of observed bursts
-    stime, salpha, se_b, smdot, imatch = [bean.bstart[0]], [], [], [], []
+    stime, sgap, salpha, se_b, smdot, imatch = [bean.bstart[0]], [], [], [], [], []
 
     while iburst < bean.numburstsobs:
 
@@ -259,12 +259,12 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
                     print(f'\n1st step: buffer = {buffer}')
             else:
                 result_f = buffer[0]
-                buffer = []
+                # buffer = []
 
             if debug:
                 print(result_f, result_f.t2, type(buffer), type(result_f.t2))
             while ((result_f.t2[0] < bean.bstart[min([iburst + 1, bean.numburstsobs - 1])])
-                   & (len(buffer) < bean.maxgap)):
+                   & (len(buffer) <= bean.maxgap)):
                 # loop until the current simulated burst time is later than the next observed time
                 # (or we've exceeded the missed burst count)
                 result_f = next_burst(bean, base, x_0, z, result_f.t2[0],
@@ -292,6 +292,7 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
                     # this can happen at the end of the train, where we might want to add
                     # a last burst past the end of the train BUT it's not matching
                     imatch.append(len(stime) - 1)
+                    sgap.append(False)
                 salpha.append(result_f.alpha[0])
                 se_b.append(result_f.e_b[0])
                 smdot.append(result_f.mdot[0])
@@ -318,9 +319,11 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
                         # print (stime, salpha, se_b)
                         smdot.append(result_f.mdot[0])
                     imatch.append(len(stime) - 1)
+                    sgap.append(False)
                 else:
                     # we don't have a match, so need to trigger the gap logic
                     gap = True
+                    sgap.append(True)
                     if debug:
                         print(f'set gap={gap}! iburst={iburst} diff_2last={diff_2last} sep_last={sep_last}')
                     stime.append(bean.bstart[iburst + 1])
@@ -354,6 +357,7 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
         result["e_b"] = np.array(se_b)
         result["imatch"] = imatch
         # print(f"In burstrain fluence is {se_b}")
+        result["gap"] = sgap
 
     if debug:
         print("{}: train complete, result={}".format(fn, result))

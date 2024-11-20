@@ -171,6 +171,10 @@ def runmodel(theta_in, bean, match=True, debug=False):
         if 'imatch' in result.keys():
             # for punkt_train we need to make sure the bursts match up
             tpred = np.array(result['time'])[result['imatch']]
+            if np.all(result['gap']):
+                if debug:
+                    print ('runmodel: all gaps')
+                return None, False, result
         else:
             tpred = result["time"]
         npred = len(tpred)

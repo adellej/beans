@@ -2792,7 +2792,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     # Not sure this will work so well if there are
                     # multiple sets of solutions
                     # if len(times.keys()) == 1:
-                    imatchm1 = [x-1 for x in imatch if x-1 >= 0]
+                    imatchm1 = [x-itoff for x in imatch if x-itoff >= 0]
                     ax1.plot(np.array(timepred[itoff:])[imatchm1],
                         np.array(ebpred)[imatchm1],
                         marker='*', ms=5, linestyle='', color='tab:red',
