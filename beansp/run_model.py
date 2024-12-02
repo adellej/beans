@@ -215,7 +215,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
         model = np.concatenate((result['time'], result['fluen'],
             result['alpha_obs']))
 
-    elif match & ('imatch' not in result) & (bean.y is not None) & (npred > 0):
+    elif match & bean.continuous & (bean.y is not None) & (npred > 0):
 
         # Assemble the array for comparison with the data, for output from
         # generate_burst_train
@@ -263,7 +263,7 @@ def runmodel(theta_in, bean, match=True, debug=False):
                 result['fluen'][ie_b][bean.ifluen],
                 result['alpha_obs'][ialpha][bean.ifluen[1:]-1]))
 
-    else:
+    elif (not bean.continuous):
         # if we already have an imatch element, i.e. from punkt_train, we
         # have a simpler process to assemble the model
 

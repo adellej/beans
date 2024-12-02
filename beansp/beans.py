@@ -1261,8 +1261,8 @@ Initial parameters:
     def plot(self, show_model=True, model=None, mdot=True, imatch=None,
         title=None, savefig=False):
         """
-	    Display a plot of the data and model results, for a burst train
-	    calculated with :func:`burstrain.generate_burst_train`;
+        Display a plot of the data and model results, for a burst train
+        calculated with :func:`burstrain.generate_burst_train`;
         or burst "ensemble" data calculated with
         :func:`burstrain.burstensemble`. Adapted from the
         example at
@@ -1293,7 +1293,8 @@ Initial parameters:
         itoff = 1 # time offset for models produced with generate_burst_train
         if (model is None) & show_model:
             # no need to do the matching here
-            test, valid, model = runmodel(self.theta, self, match=False,
+            test, valid, model = runmodel(self.theta, self,
+                match=(False or not self.continuous),
                 debug=False)
 
             show_model = valid
@@ -1317,8 +1318,8 @@ Initial parameters:
         if type(model) == dict:
             full_model = True
             timepred = model["time"]
-            if (len(timepred) == 1): # | (not valid):
-                print ('** ERROR ** no predicted times to show')
+            if (len(timepred) == 1) | (not valid):
+                print ('** ERROR ** no/insufficient predicted times to show')
                 show_model = False
             else:
                 ebpred = np.array(model["fluen"])
@@ -2482,8 +2483,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             axes[self.ndim-1].set_xlabel("step number")
             plt.tight_layout(h_pad=0.0)
             if savefig:
-                print ('Saving chain plot to {}chain-plot.pdf'.format(self.run_id))
-                plt.savefig(self.run_id+'chain-plot.pdf')
+                print ('Saving chain plot to {}_chain-plot.pdf'.format(self.run_id))
+                plt.savefig(self.run_id+'_chain-plot.pdf')
             else:
                 print ('Skipping chain plot save')
 
