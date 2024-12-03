@@ -1822,8 +1822,9 @@ Initial parameters:
                 # if you have too many bad positions, you'll get an error
                 # running with too many duplicates; need to possibly trap that
                 # here
+                breakpoint()
                 for i in (np.where(bad)[0]):
-                    new_pos[i] = kwargs['pos'][np.random.choice(np.where(~bad)[0])] #+ scale*np.random.randn(ndim)
+                    new_pos[i] = new_pos[np.random.choice(np.where(~bad)[0])] #+ scale*np.random.randn(ndim)
                 print ('... done')
 
             kwargs['pos'] = new_pos
