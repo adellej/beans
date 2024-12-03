@@ -525,16 +525,19 @@ class Beans:
         pass
 
     def __init__(self, prior=prior_func, corr=None, config_file=None,
-                 run_id="test", nwalkers=200, nsteps=100,
-                 obsname=None, burstname=None, gtiname=None,
+                 run_id="test", obsname=None, burstname=None, gtiname=None,
                  continuous=True, maxgap=2,
                  interp='linear', smooth=0.02, model = settle,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
-                 sampler='emcee', stretch_a=2.0, fluen=True, alpha=True,
+                 sampler='emcee', fluen=True, alpha=True,
                  numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
         """
-        Initialise a Beans object
+        Initialise a Beans object. In addition to the parameters below,
+        the user can specify additional parameter relevant to the various
+        samplers: nwalkers, nsteps, stretch_a for emcee; and nlive, dlogz
+        for dynesty. If these are not specified default values will be
+        applied (when :meth:`Beans.do_run` is called).
 
         :param prior: prior function to use
         :param corr: correction function for bursts, or None
@@ -542,8 +545,6 @@ class Beans:
           which case the keyword params below are ignored)
         :param run_id: string identifier for the run, used to label all the
           result files, and where you want output to be saved
-        :param nwalkers: number of walkers for the emcee run
-        :param nsteps: number of MCMC steps to run
         :param obsname: name of the file including the flux history, from which
           the mdot is estimated to generate to generate the burst train
           (set ``obsname=None`` for a non-contiguous, or "ensemble" mode run)
@@ -560,7 +561,6 @@ class Beans:
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, and (optionally) *mass*,
           *radius*, *f_E* & *f_a*
-        :param stretch_a: the Goodman & Weare (2010) stretch move scale parameter, passed to emcee
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
         :param alpha: set to True (default) to include the alphas in the
@@ -675,16 +675,30 @@ class Beans:
             self.train_model = punkt_train
             self.maxgap = maxgap
 
-        self.sampler = sampler
         self.theta = theta
-        self.stretch_a = stretch_a
         self.numburstssim = numburstssim
         self.lnprior = prior
         self.corr = corr
         self.model = model
-        self.nwalkers = nwalkers
-        self.nsteps = nsteps
         self.threads = threads
+        self.sampler = sampler
+
+        # Here we want to be agnostic about the sampler, so as to avoid
+        # having to code up every possible attribute for the __init__
+        # method. Instead we check the kwargs for these parameters,
+        # including:
+        #
+        # :param nwalkers: number of walkers for the emcee run
+        # :param nsteps: number of MCMC steps to run
+        # :param stretch_a: the Goodman & Weare (2010) stretch move scale parameter, passed to emcee
+
+        for key in kwargs:
+            if key in ['stretch_a','nwalkers','nsteps', # emcee params
+                'nlive','dlogz', # dynesty params
+                'outdir']: # bilby param
+                setattr(self, key, kwargs[key])
+            else:
+                print ('\n** WARNING ** ignored init option {}={}'.format(key, kwargs[key]))
 
         self.cmpr_fluen = fluen
         self.cmpr_alpha = alpha
@@ -852,7 +866,8 @@ Initial parameters:
             # sampler-specific part
             self.sampler, (' with {} walkers, {} steps{}, a={}'.format(
                 self.nwalkers, self.nsteps, ', resuming' if self.restart else '', self.stretch_a)
-                if (self.sampler=='emcee') | (self.sampler=='bilby') else ''),
+                if (self.sampler=='emcee') | (self.sampler=='bilby') else 
+                ' with nlive={}, dlogz={}'.format(self.nlive, self.dlogz)),
             self.threads, cpu_count(),
         self.theta_table(self.theta, indent=2) )
 
@@ -947,9 +962,6 @@ Initial parameters:
            Config.set("beans", "run_id", self.run_id)
            Config.set("beans", "version", __version__)
            Config.set("beans", "model", str(self.model))
-           Config.set("beans", "continuous", str(self.continuous))
-           if not self.continuous:
-               Config.set("beans", "maxgap", str(self.maxgap))
 
            Config.add_section("data")
            Config.set("data", "obsname", str(self.obsname))
@@ -966,19 +978,28 @@ Initial parameters:
                Config.set("data", "interp", str(self.interp))
                if self.interp == 'spline':
                    Config.set("data", "smooth", str(self.smooth))
+               Config.set("beans", "continuous", str(self.continuous))
+               if not self.continuous:
+                   Config.set("beans", "maxgap", str(self.maxgap))
 
            # Config.add_section("emcee")
            Config.add_section("sampler")
-           Config.set("sampler", "sampler", str(self.sampler))
-           # TODO need to also add dynesty parameters here
            Config.set("sampler", "theta", str(self.theta))
-           Config.set("sampler", "stretch_a", str(self.stretch_a))
            Config.set("sampler", "numburstssim", str(self.numburstssim))
            Config.set("sampler", "prior", str(self.lnprior))
            Config.set("sampler", "corr", str(self.corr))
-           Config.set("sampler", "nwalkers", str(self.nwalkers))
-           Config.set("sampler", "nsteps", str(self.nsteps))
            Config.set("sampler", "threads", str(self.threads))
+           Config.set("sampler", "sampler", str(self.sampler))
+           if (self.sampler == 'emcee') | (self.sampler == 'bilby'):
+               Config.set("sampler", "nwalkers", str(self.nwalkers))
+               Config.set("sampler", "nsteps", str(self.nsteps))
+           elif (self.sampler == 'dynesty'):
+               Config.set("sampler", "nlive", str(self.nlive))
+               Config.set("sampler", "dlogz", str(self.dlogz))
+           if (self.sampler == 'emcee'):
+               Config.set("sampler", "stretch_a", str(self.stretch_a))
+           if (self.sampler != 'emcee'):
+               Config.set("sampler", "outdir", self.outdir)
 
            Config.write(cfgfile)
            cfgfile.close()
@@ -995,8 +1016,8 @@ Initial parameters:
         if file is None:
             run_id = os.path.join(self.data_path, 'beans.ini')
 
-        int_params = ('ref_ind', 'numburstssim', 'nwalkers', 'nsteps', 'threads', 'maxgap')
-        float_params = ('bc', 'smooth', 'tref', 'stretch_a')
+        int_params = ('ref_ind', 'numburstssim', 'nwalkers', 'nsteps', 'threads', 'maxgap', 'nlive')
+        float_params = ('bc', 'smooth', 'tref', 'stretch_a', 'dlogz')
 
         if not os.path.isfile(file):
             print ('** ERROR ** config file not found')
@@ -1069,7 +1090,8 @@ Initial parameters:
                         setattr(self, option, False)
                     else:
                         setattr(self, option, _value)
-        if self.sampler != 'emcee':
+
+        if (self.sampler != 'emcee') & (not hasattr(self, 'outdir')):
             setattr(self, 'outdir', BILBY_OUTPUT)
 
 
@@ -1696,6 +1718,7 @@ Initial parameters:
         # store the most recent value of the sampler
         self.sampler = sampler
         if self.sampler == 'emcee':
+
             # Check here if we've already run the analysis
             if hasattr(self, 'reader'):
                 print ('''
@@ -1708,6 +1731,34 @@ Initial parameters:
             if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
                 print ('\n** ERROR ** run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
                 return
+
+        else:
+            if not hasattr(self, 'outdir'):
+                self.outdir = BILBY_OUT
+
+        if (self.sampler == 'emcee') | (self.sampler == 'bilby'):
+
+            # check for start parameters and set defaults
+
+            if not hasattr(self, 'nwalkers'):
+                self.nwalkers = 200
+            if not hasattr(self, 'nsteps'):
+                self.nsteps = 100
+            if not hasattr(self, 'stretch_a'):
+                self.stretch_a = 2.0
+
+        elif (self.sampler == 'dynesty'):
+
+            # check for start parameters and set defaults
+
+            if not hasattr(self, 'nlive'):
+                self.nlive = 1000
+            if not hasattr(self, 'dlogz'):
+                self.nlive = 1.
+            # params are passed via kwargs, so need to make sure they're
+            # set here
+            kwargs['nlive'] = self.nlive
+            kwargs['dlogz'] = self.dlogz
 
         # Check the number of threads here
 
@@ -1722,6 +1773,7 @@ Initial parameters:
             if (value != 'y') and (value != 'Y'):
                 print ('do_run terminated')
                 return
+
         self.save_config(clobber=True)
 
         print("# ---------------------------------------------------------------------------#")
