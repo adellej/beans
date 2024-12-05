@@ -2144,12 +2144,13 @@ Initial parameters:
         return bursts
 
 
-    def write_param_uncert(self, clobber=False):
+    def write_param_uncert(self, clobber=False, latex=True):
         """
         Calculate and save the parameter uncertainties; previously part of
         do_analysis
 
         :param clobber: if True, overwrite file without prompting
+        :param latex: if True, also display the information in LaTeX form, suitable for inclusion in a paper
         """
 
         if not hasattr(self, 'reader'):
@@ -2157,6 +2158,12 @@ Initial parameters:
             return
 
         file = f'{self.run_id}_parameterconstraints_pred.txt'
+
+        latex_header = "Parameter"
+        latex_rows = ["$X$", "$Z$", "$Q_{\\rm b}$", "$d$", "$\\xi_b$",
+            "$\\xi_p$", "$M_{\\rm NS}$", "$R_{\\rm NS}$", "$g$", "$1+z$"]
+        latex_unit = ["", "", "MeV/nucleon", "kpc", "", "", "$M_\\odot$",
+            "km", "$10^{14}\\ {\\rm cm\\,s^{-2}}$", ""]
 
         if (clobber is False) and (os.path.exists(file)):
             print ('\n** ERROR ** will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
@@ -2185,6 +2192,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
             parts = list(set(self.model_pred['partition']))
             sel = np.array(self.model_pred['partition']) == parts[0]
             if len(parts) > 1:
+                # something missing here?
                 pass
         else:
             # select all the samples for the parameter ranges
@@ -2210,12 +2218,29 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
                 # cosipred = get_param_uncert(cosi)
                 xibpred = get_param_uncert(self.samples[sel,4])
                 xippred = get_param_uncert(self.samples[sel,5])
+
+                if len(parts) > 1:
+                    latex_header += ' & {} ({:.2f}%)'.format(_part,
+                        100*self.model_pred['part_stats'][_part]/n_samples)
+                else:
+                    latex_header += ' & Value'
+                latex_rows[0] += ' & {}'.format(strmeas(Xpred[0], Xpred[2], Xpred[1]))
+                latex_rows[1] += ' & {}'.format(strmeas(Zpred[0], Zpred[2], Zpred[1]))
+                latex_rows[2] += ' & {}'.format(strmeas(basepred[0], basepred[2], basepred[1]))
+                latex_rows[3] += ' & {}'.format(strmeas(dpred[0], dpred[2], dpred[1]))
+                latex_rows[4] += ' & {}'.format(strmeas(xibpred[0], xibpred[2], xibpred[1]))
+                latex_rows[5] += ' & {}'.format(strmeas(xippred[0], xippred[2], xippred[1]))
+
                 if self.ndim >= 7:
                     masspred = get_param_uncert(self.samples[sel,6])
+                    latex_rows[6] += ' & {}'.format(strmeas(massppred[0], massppred[2], massppred[1]))
                 if self.ndim >= 8:
                     radiuspred = get_param_uncert(self.samples[sel,7])
                     redshiftpred = get_param_uncert(redshift[sel])
                     gravitypred = get_param_uncert(gravity[sel])
+                    latex_rows[7] += ' & {}'.format(strmeas(radiusppred[0], radiusppred[2], radiusppred[1]))
+                    latex_rows[8] += ' & {}'.format(strmeas(redshiftppred[0], redshiftppred[2], redshiftppred[1]))
+                    latex_rows[9] += ' & {}'.format(strmeas(gravityppred[0], gravityppred[2], gravityppred[1]))
 
                 if len(parts) > 1:
                     header += '''
@@ -2244,6 +2269,13 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 if i < len(parts)-1:
                     sel = np.array(self.model_pred['partition']) == parts[i+1]
                     header = ''
+
+            breakpoint()
+            print ('\\hline\n\\begin{tabular}{c'+'c' * len(parts)+'l}\n\\hline')
+            print (latex_header+' & Units \\\\\n\\hline')
+            for i, row in enumerate(latex_rows):
+                print (row+' & '+latex_unit[i]+' \\\\')
+            print ('\\hline')
 
 
     def do_analysis(self, options=['autocor','posteriors'],
@@ -2649,11 +2681,18 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 # X.append(_model['x_0'][0])
             print ("... done")
 
-            # to get the parameter middle values and uncertainty use the
-            # functions get_param_uncert_obs and get_param_uncert_part
-            # e.g.
+            # here we split up the solutions based on the number of bursts
+            # in the model train, and populate the model_pred attribute,
+            # which we use also in the plotting part
+            # This approach is not perfect, as some solutions with different
+            # numbers of bursts have the same imatch, so are effectively
+            # equivalent;
+	    # TODO should combine the matching section in the plot segment
+	    # with this analysis, along with checks to combine solutions
+	    # with different burst numbers but the same imatch
 
             numbursts_pred = [len(x) for x in time]
+
             # special here for the base20 run, to 3500 steps at least;
             # more generally want to have a way of doing this on the fly
             # part = ['loX-36' if ((_n == 36) & (self.samples[i,0] < 0.3))
@@ -2662,6 +2701,11 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             #     for i, _n in enumerate(numbursts_pred)]
             if (part is None): # & (len(set(numbursts_pred)) > 1):
                 part = numbursts_pred
+
+            # to get the parameter middle values and uncertainty use the
+            # functions get_param_uncert_obs and get_param_uncert_part
+            # e.g.
+
             times = get_param_uncert_part(time, partition=part)
 
             # Here we calculate the parameter uncertainties on the
