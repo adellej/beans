@@ -2233,7 +2233,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
 
                 if self.ndim >= 7:
                     masspred = get_param_uncert(self.samples[sel,6])
-                    latex_rows[6] += ' & {}'.format(strmeas(massppred[0], massppred[2], massppred[1]))
+                    latex_rows[6] += ' & {}'.format(strmeas(masspred[0], masspred[2], masspred[1]))
                 if self.ndim >= 8:
                     radiuspred = get_param_uncert(self.samples[sel,7])
                     redshiftpred = get_param_uncert(redshift[sel])
