@@ -4,15 +4,14 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 
-# Next we define the different functions that will generate the burst train: generate_burst_train and next_burst
+# Here we define the different functions that will simulate the bursts:
+# generate_burst_train & punkt_train for burst trains (each of these rely
+# on next_burst), and burstensemble for ensemble mode
 
 # ------------------------------------------------------------------------- #
 
-run=1
-debug=0
-
 def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
-    direction=1, debug=False ):
+    mdot_res = 5e-7, direction=1, debug=False ):
     """
     Routine to find the next burst in the series and return its properties
     Adapted from sim_burst.pro
@@ -28,6 +27,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
     :param cfac: scale factor for recurrence time, fluence
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
+    :param mdot_res: convergence precision for mdot iteration
     :param direction: forward (+1) or backward (-1) in time
     :param debug: set to True to show additional debugging information
     :return:
@@ -37,7 +37,6 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
 
     debug_plot=False # for now don't do the debug plots
 
-    mdot_res = 1e-6
     fn = "next_burst"
     assert direction in (1,-1)
 
@@ -87,7 +86,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
 
     nreturn = 0
     nreturn_total = 0
-    while (abs(mdot - mdot_hist[-1]) > mdot_res / 2.0) \
+    while (abs(mdot - mdot_hist[-1]) > mdot_res) \
         and (((t1 + trial.tdel / 24.0 < 2.*max(tobs)) & (direction == 1)) \
             or ((t1 - trial.tdel / 24.0 > min(tobs)-(max(tobs)-min(tobs))) & (direction == -1))) \
         and (mdot > minmdot and mdot < maxmdot):
@@ -153,7 +152,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
             plt.show()
 
     # if mdot < minmdot or mdot > maxmdot:
-    if abs(mdot - mdot_hist[-2]) > mdot_res / 2.0:
+    if abs(mdot - mdot_hist[-2]) > mdot_res:
         return None
 
         # create array
