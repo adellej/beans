@@ -61,6 +61,13 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
     ndim = len(theta)
 
+    conv_check_interval = 100
+
+    accept_frac_range = [0.2, 0.5]
+    accept_frac_warn = False    # flag to record if we've already warned
+                                # about acceptance fraction falling outside
+                                # the desired range
+
     # This section now defines the initial walker positions and next defines the chain and runs emcee.
 
     print("\n# ---------------------------------------------------------------------------#")
@@ -96,8 +103,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
             args=(x, y, yerr), backend=reader, blobs_dtype=dtype, pool=pool,
-            moves=emcee.moves.StretchMove(a=stretch_a),
-            **kwargs)
+            moves=emcee.moves.StretchMove(a=stretch_a), **kwargs)
     
         # We'll track how the average autocorrelation time estimate changes
         index = 0
@@ -125,12 +131,21 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
             
         for sample in sampler.sample(pos, iterations=nsteps, progress=True):
 
-            # Only check convergence every 100 steps
-            if sampler.iteration % 100:
+            # Only check convergence every few steps
+            if sampler.iteration % conv_check_interval:
+                # skip the remaining part of this loop
                 continue
     
-            # accumulate the acceptance fraction in the file
+            # calculate the acceptance fraction and accumulate in the file
+            # the mean below is over the walkers (not sure if it is the
+            # average over the whole run, or instantaneous)
             accept_frac = np.mean(sampler.acceptance_fraction)
+            # print (np.shape(sampler.acceptance_fraction))
+            if ((accept_frac < accept_frac_range[0]) | 
+                (accept_frac > accept_frac_range[1])) & (not accept_frac_warn):
+                print ('** WARNING ** acceptance fraction {:.3f} outside desired range {}-{}'.format(accept_frac, *accept_frac_range))
+                accept_frac_warn = True
+
             with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
                 np.savetxt(f, np.c_[float(sampler.iteration), stretch_a, accept_frac],
                     fmt='%1.4e, %1.4f, %1.4f')

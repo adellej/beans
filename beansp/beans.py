@@ -23,6 +23,7 @@ from scipy.interpolate import splrep, BSpline, splint
 from chainconsumer import ChainConsumer
 from multiprocessing import cpu_count
 import os, sys
+import logging
 import gzip
 import time
 from configparser import ConfigParser
@@ -74,6 +75,25 @@ try:
     from .grid_interp import grid_interp
 except:
     has_multiepoch_mcmc = False
+
+
+def create_logger():
+    """
+    Create a logger instance where messages are sent
+    See https://docs.python.org/3/library/logging.html
+    """
+    logger = logging.getLogger(__name__)
+    if not logger.handlers: # Check if created before, otherwise a reload will add handlers
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    return logger
+
+
+logger = create_logger()
+
 
 # -------------------------------------------------------------------------#
 
@@ -420,7 +440,7 @@ def mean_flux_linear(t1, t2, bean):
     na = len(a)
 
     if len(tobs) != na + 1 or len(b) != na:
-        print("** ERROR ** some problem with tobs, a, b arrays")
+        logger.error("some problem with tobs, a, b arrays")
         return -1
     # i1 is max of where t1 > tobs
 
@@ -586,11 +606,11 @@ class Beans:
         # Some housekeeping
 
         if 'ndim' in kwargs.keys():
-            print ('\n** WARNING ** parameter ndim is redundant (ignored), setting from len of param array')
+            logger.warning('parameter ndim is redundant (ignored), setting from len of param array')
         if 'numburstsobs' in kwargs.keys():
-            print ('\n** WARNING ** parameter numburstsobs is redundant (ignored), setting from len of burst data')
+            logger.warning('parameter numburstsobs is redundant (ignored), setting from len of burst data')
         if 'gti_checking' in kwargs.keys():
-            print ('\n** WARNING ** parameter gti_checking is redundant (ignored), setting from value of gtiname param')
+            logger.warning('parameter gti_checking is redundant (ignored), setting from value of gtiname param')
 
         # Conversion factor between model predicted burst energy and
         # observed fluence. Multiply by this value to convert the burst
@@ -611,7 +631,7 @@ class Beans:
         self.gmrc2 = (2.*const.G*const.M_sun/(const.c**2*u.km)).decompose()
 
         print("# ---------------------------------------------------------------------------#")
-        print("Initialising Beans object ...")
+        logger.info("initialising Beans object ...")
 
         # MCU: this is a solution to load packaged data compatible
         # with python 3.6 - 3.10
@@ -629,11 +649,11 @@ class Beans:
         if len(_tmp) > 1:
             self.model_name = _tmp[1]
         if (model_type != '<function') | (self.model_name not in['settle','grid_interp']):
-            print ('\n** ERROR ** model unknown or invalid, use one of settle or grid_interp')
+            logger.error('model unknown or invalid, use one of settle or grid_interp')
             return
         elif self.model_name == 'grid_interp':
             if not has_multiepoch_mcmc:
-                print ('** ERROR ** can\'t find multiepoch_mcmc, cannot initialise GridInterpolator')
+                logger.error('can\'t find multiepoch_mcmc, cannot initialise GridInterpolator')
                 return
             # initialise the GridInterpolator object
             self.model_file = '/'.join((self.data_path, 'burst_model_grid.txt'))
@@ -698,7 +718,7 @@ class Beans:
                 'outdir']: # bilby param
                 setattr(self, key, kwargs[key])
             else:
-                print ('\n** WARNING ** ignored init option {}={}'.format(key, kwargs[key]))
+                logger.warning('ignored init option {}={}'.format(key, kwargs[key]))
 
         self.cmpr_fluen = fluen
         self.cmpr_alpha = alpha
@@ -711,9 +731,9 @@ class Beans:
             if (os.path.exists(config_file)):
                 config_file_exists = True
                 cmpr_alpha, cmpr_fluen = True, True
-                print ('Reading run params from {} ...'.format(config_file))
+                logger.info('Reading run params from {} ...'.format(config_file))
                 self.read_config(config_file)
-                print ("... done")
+                logger.info('... done')
                 # special here for the alpha and fluen parameters, which
 		# are replaced by the actual data values (if the option is
 		# True); (pre-v2.10 config files don't list alpha or fluen)
@@ -724,21 +744,21 @@ class Beans:
                     self.cmpr_fluen = self.fluen
                     fluen = self.fluen
             else:
-                print ('\n** ERROR ** config file not found, applying keywords\n')
+                logger.error('config file not found, applying keywords')
                 config_file_exists = False
 
         # Some checks here
 
         if alpha and (not fluen):
-            print ('** ERROR ** need to include fluences as well as alphas')
+            logger.error('need to include fluences as well as alphas')
             return
 
         if alpha and (model == 'grid_interp'):
-            print ('** ERROR ** grid_interp doesn\'t currently provide alphas, set alpha=False')
+            logger.error('grid_interp doesn\'t currently provide alphas, set alpha=False')
             return
 
         if self.lnprior(self.theta) == -np.inf:
-            print ('** ERROR ** supplied parameter vector is excluded by the prior')
+            logger.error('supplied parameter vector is excluded by the prior')
             return
 
         # below set the parameters which are not part of the config
@@ -752,15 +772,15 @@ class Beans:
 
         self.ndim = len(self.theta)
         if (self.ndim < 6) | (self.ndim > 10):
-            print ('** ERROR ** number of dimensions of input parameter vector should be 6-10')
+            logger.error('number of dimensions of input parameter vector should be 6-10')
             return
         self.num_systematic = self.ndim-8
         if self.num_systematic > 0:
-            print('''** WARNING ** likelihood calculation does not currently support systematic errors;
+            logger.warning('''likelihood calculation does not currently support systematic errors;
                 you need to swap out the lnlike method for lnlike_sys''')
         if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
             ((self.ndim == 10) & (not (self.cmpr_alpha and self.cmpr_fluen))):
-            print ("\n** WARNING ** systematic errors are provided for ignored quantities!")
+            logger.warning("systematic errors are provided for ignored quantities!")
 
         self.gti_checking = self.gtiname is not None
 
@@ -817,19 +837,19 @@ class Beans:
         # # -------------------------------------------------------------------------#
         if test_model:
 
-            print("\nTesting the model works & is valid ...")
+            logger.info("testing the model works & is valid ...")
 
 
             test, valid, test2 = runmodel(self.theta, self, debug=False) # set debug to True for testing
-            print("\nresult: {} ({})".format( test, "OK" if valid else
+            logger.info("\nresult: {} ({})".format( test, "OK" if valid else
                 "can't match observations & model predictions"))
 
             # MCU Note: commented out - no interactive windows for automated testing
             # self.plot_model(test2)
 
             if (not valid) & (self.numburstsobs > 0):
-                print ('''
-** WARNING ** the model is not valid. You need to adjust the model
+                logger.warning ('''
+the model is not valid. You need to adjust the model
                 parameters to better suit the data.  ''')
 
 
@@ -952,7 +972,7 @@ Initial parameters:
             file = self.run_id+'.ini'
 
         if (not clobber) and (os.path.isfile(file)):
-            print ('** ERROR ** config file already exists, skipping write')
+            logger.error('config file already exists, skipping write')
             return
         else:
            cfgfile = open(file, "w")
@@ -1020,7 +1040,7 @@ Initial parameters:
         float_params = ('bc', 'smooth', 'tref', 'stretch_a', 'dlogz')
 
         if not os.path.isfile(file):
-            print ('** ERROR ** config file not found')
+            logger.error('config file not found')
             return
 
         config = ConfigParser(allow_no_value=True)
@@ -1045,8 +1065,7 @@ Initial parameters:
                 elif (option == 'prior'):
                     function_name = config.get(section, option).split(' ')[1]
                     if (option == 'prior') & (function_name != str(self.lnprior).split(' ')[1]):
-                        print ('''
-** WARNING ** config file lists the prior function as {},
+                        logger.warning ('''config file lists the prior function as {},
                 but supplied prior is {}
               To fully replicate the previous run you need to specify the
                 same prior using the prior=beans.{} flag on init
@@ -1054,8 +1073,7 @@ Initial parameters:
                 elif (option == 'model'):
                     function_name = config.get(section, option).split(' ')[1]
                     if (function_name != str(self.model).split(' ')[1]):
-                        print ('''
-** WARNING ** config file lists the model as {},
+                        logger.warning('''config file lists the model as {},
                 but supplied value is {}
               To fully replicate the previous run you need to specify the
                 same model using the model={} specification on init
@@ -1068,8 +1086,7 @@ Initial parameters:
                     if _scorr != 'None':
                         _scorr = _scorr.split(' ')[1]
                     if (function_name != _scorr):
-                        print ('''
-** WARNING ** config file lists {} for the correction,
+                        logger.warning('''config file lists {} for the correction,
                 but supplied value is {}
               To fully replicate the previous run you need to specify the
                 same option/condition using the corr=beans.{} flag on init
@@ -1328,7 +1345,7 @@ Initial parameters:
                     model['iref'], np.array(model['time']))
 
                 if imatch is None:
-                    print ("\n** WARNING ** can't match predicted bursts to observations")
+                    logger.warning ("can't match predicted bursts to observations")
 
             elif 'imatch' in model:
                 imatch = model['imatch']
@@ -1341,7 +1358,7 @@ Initial parameters:
             full_model = True
             timepred = model["time"]
             if (len(timepred) == 1) | (not valid):
-                print ('** ERROR ** no/insufficient predicted times to show')
+                logger.error('no/insufficient predicted times to show')
                 show_model = False
             else:
                 ebpred = np.array(model["fluen"])
@@ -1452,7 +1469,7 @@ Initial parameters:
                     axs['resid'].axhline(0.0, color=obs_colour, ls='--')
                     axs['resid'].set_xlabel('Burst number (predicted)')
                     axs['resid'].set_ylabel('Time offset (hr)')
-                    print ('RMS obs-model offset = {:.4f} hr'.format(
+                    logger.info ('RMS obs-model offset = {:.4f} hr'.format(
                         np.sqrt(np.mean(resid**2))))
 
         else:
@@ -1472,7 +1489,7 @@ Initial parameters:
 
         if savefig:
             file = f'{self.run_id}_plot.pdf'
-            print ('Saving figure plot to {}'.format(file))
+            logger.info ('Saving figure plot to {}'.format(file))
             fig.savefig(file)
 
         fig.show()
@@ -1496,14 +1513,14 @@ Initial parameters:
         :return:
         """
 
-        print ("Generating simulated data based on parameter vector\n theta={}...".format(self.theta))
+        logger.info ("generating simulated data based on parameter vector\n theta={}...".format(self.theta))
 
         test, valid, full_model = runmodel(self.theta, self,
             match=(self.numburstsobs > 0))
         _n = len(full_model['time'])
 
         if _n <= 1:
-            print ('** ERROR ** no bursts generated by model, adjust your model parameters')
+            logger.error('no bursts generated by model, adjust your model parameters')
             return
 
         if file is None:
@@ -1586,7 +1603,7 @@ Initial parameters:
 
         if file is not None:
             f.close()
-            print ('Simulated data saved in file {}.'.format(file))
+            logger.info('Simulated data saved in file {}.'.format(file))
 
     # -------------------------------------------------------------- #
 
@@ -1705,7 +1722,7 @@ Initial parameters:
         if hasattr(self, 'sampler'):
             if sampler is not None:
                 if sampler != self.sampler:
-                    print ('** WARNING ** sampler={} passed to do_run, overriding Beans attribute {}'.format(
+                    logger.warning ('sampler={} passed to do_run, overriding Beans attribute {}'.format(
                         sampler, self.sampler))
             else:
                 sampler = self.sampler
@@ -1713,7 +1730,7 @@ Initial parameters:
             sampler = 'emcee'
 
         if sampler not in ('emcee','bilby','dynesty'):
-            print ('** ERROR ** sampler {} not yet implemented'.format(sampler))
+            logger.error('sampler {} not yet implemented'.format(sampler))
 
         # store the most recent value of the sampler
         self.sampler = sampler
@@ -1721,15 +1738,14 @@ Initial parameters:
 
             # Check here if we've already run the analysis
             if hasattr(self, 'reader'):
-                print ('''
-    ** WARNING ** re-running the sampler after calling do_analysis can lead to
-                    memory issues; proceed with caution!''')
+                logger.warning ('''re-running the sampler after calling do_analysis can lead
+                    to memory issues; proceed with caution!''')
                 value = input('              Press [RETURN] to continue: ')
 
             # Want to avoid overwriting existing log & config files
 
             if (self.restart is False) and (os.path.exists(self.run_id+'.h5')):
-                print ('\n** ERROR ** run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
+                logger.error ('run will overwrite existing log file {}, set restart=True to extend'.format(self.run_id+'.h5'))
                 return
 
         else:
@@ -1764,14 +1780,14 @@ Initial parameters:
 
         ncpu = cpu_count()
         if self.threads > ncpu:
-            print ('** ERROR ** number of threads is greater than number of CPUs ({} > {}); this seems ill-advised'.format(self.threads, ncpu))
+            logger.error ('number of threads is greater than number of CPUs ({} > {}); this seems ill-advised'.format(self.threads, ncpu))
             return
 
         if (os.path.exists(self.run_id+'.ini')):
-            print ('\n** WARNING ** run will overwrite existing config file {}'.format(self.run_id+'.ini'))
+            logger.warning ('run will overwrite existing config file {}'.format(self.run_id+'.ini'))
             value = input('              enter Y[RETURN] to continue: ')
             if (value != 'y') and (value != 'Y'):
-                print ('do_run terminated')
+                logger.info ('do_run terminated')
                 return
 
         self.save_config(clobber=True)
@@ -1780,7 +1796,7 @@ Initial parameters:
         print (self)
         print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
-        print("Testing the prior and likelihood functions..")
+        logger.info("testing the prior and likelihood functions..")
         print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
         if self.sampler == 'emcee':
             print("lnprior:", self.lnprior(self.theta))
@@ -1797,17 +1813,17 @@ Initial parameters:
             # pickle file
 
             if type(kwargs['pos']) == str:
-                print ('\nReading in positions from file {}...'.format(kwargs['pos']))
+                logger.info ('reading in positions from file {}...'.format(kwargs['pos']))
                 new_pos = pickle.load(open(kwargs['pos'],'rb'))
-                print ('... done')
+                logger.info ('... done')
             else:
                 new_pos = kwargs['pos'].copy()
 
             if np.shape(new_pos) != (self.nwalkers, self.ndim):
-                print ('** ERROR ** supplied positions has wrong dimensions; {} != {}'.format(np.shape(new_pos), (self.nwalkers, self.ndim)))
+                logger.error ('supplied positions array has wrong dimensions; {} != {}'.format(np.shape(new_pos), (self.nwalkers, self.ndim)))
                 return None
 
-            print ('\n** WARNING ** walkers will start at provided position vector.\n              Checking supplied positions...')
+            logger.warning('walkers will start at provided position vector.\n              checking supplied positions...')
             # assert len(kwargs['pos']) == self.nwalkers
             bad = np.full(len(new_pos), False)
             for i, pos in enumerate(new_pos):
@@ -1816,21 +1832,21 @@ Initial parameters:
             nbad = len(np.where(bad)[0])
 
             if nbad == 0:
-                print ('... done. all OK, continuing')
+                logger.info ('... done. all OK, continuing')
             else:
-                print ('... done. {}/{} positions invalid; redistributing...'.format(nbad, self.nwalkers))
+                logger.info ('... done. {}/{} positions invalid; redistributing...'.format(nbad, self.nwalkers))
                 # if you have too many bad positions, you'll get an error
                 # running with too many duplicates; need to possibly trap that
                 # here
                 breakpoint()
                 for i in (np.where(bad)[0]):
                     new_pos[i] = new_pos[np.random.choice(np.where(~bad)[0])] #+ scale*np.random.randn(ndim)
-                print ('... done')
+                logger.info ('... done')
 
             kwargs['pos'] = new_pos
 
         if plot:
-            print("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
+            logger.info("plotting the initial guess.. (you want the predicted bursts to match approximately the observed bursts here)")
             # make plot of observed burst comparison with predicted bursts:
             self.plot(title='Initial guess of parameters')
             value = input('Press [RETURN] to continue: ')
@@ -1849,7 +1865,7 @@ Initial parameters:
         elif sampler == 'bilby':
             # This is (will eventually?) be the native bilby sampler, or perhaps bilby's implementation of emcee,
             # for comparison; see https://bilby-dev.github.io/bilby/api/bilby.core.sampler.emcee.Emcee.html#bilby.core.sampler.emcee.Emcee
-            print ("** ERROR ** 'bilby' sampler not yet implemented; might call bilby/emcee, or bilby's native sampler")
+            logger.error ("'bilby' sampler not yet implemented; might call bilby/emcee, or bilby's native sampler")
 
         elif sampler == 'dynesty':
             # bilby's implementation of dynesty, see
@@ -1857,11 +1873,11 @@ Initial parameters:
             result = runbilby(self, sampler=sampler, **kwargs)
 
         _end = time.time()
-        print ("  run_id {} took {:.1f} seconds for {} steps".format(
+        logger.info ("  run_id {} took {:.1f} seconds for {} steps".format(
             self.run_id, _end-_start, self.nsteps))
 
         if analyse & (sampler == 'emcee'):
-            print ("\nRunning analses with do_analysis...")
+            logger.info ("running analses with do_analysis...")
             self.do_analysis(burnin=burnin)
         #if self.restart == False:
             #sampler.reset()
@@ -1944,7 +1960,7 @@ Initial parameters:
 
         if (samples is None) and (reader is None):
             # load in sampler:
-            print ('Loading reader from {}.h5...'.format(self.run_id))
+            logger.info ('loading reader from {}.h5...'.format(self.run_id))
             reader = emcee.backends.HDFBackend(filename=self.run_id+".h5")
 
         if reader is not None:
@@ -1998,7 +2014,7 @@ Initial parameters:
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
         if savefile is not None:
-            print ('plot_autocorr: saving figure as {}'.format(savefile))
+            logger.info ('plot_autocorr: saving figure as {}'.format(savefile))
             plt.savefig(savefile)
         plt.show()
 
@@ -2021,15 +2037,15 @@ Initial parameters:
         """
 
         if not self.HAS_CONCORD:
-            print ('** ERROR ** alpha calculation requires concord')
+            logger.error ('alpha calculation requires concord')
             return None
 
         if not hasattr(self, 'model_pred'):
-            print ('** ERROR ** no model predictions available, run the comparison first')
+            logger.error ('no model predictions available, run the comparison first')
             return None
 
         if (key is None) & (len(self.model_pred['time_stats'].keys()) > 1):
-            print ('** ERROR ** multiple solutions are available, please specify one with the key keyword')
+            logger.error ('multiple solutions are available, please specify one with the key keyword')
             print (self.model_pred['time_stats'].keys())
             return None
 
@@ -2154,7 +2170,7 @@ Initial parameters:
         """
 
         if not hasattr(self, 'reader'):
-            print ('** ERROR ** no samples available, run do_analysis first')
+            logger.error ('no samples available, run do_analysis first')
             return
 
         file = f'{self.run_id}_parameterconstraints_pred.txt'
@@ -2166,7 +2182,7 @@ Initial parameters:
             "km", "$10^{14}\\ {\\rm cm\\,s^{-2}}$", ""]
 
         if (clobber is False) and (os.path.exists(file)):
-            print ('\n** ERROR ** will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
+            logger.error ('will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
             return
 
         # constants:
@@ -2345,7 +2361,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
         for option in options:
             if option not in analyses.keys():
-                print ('** ERROR ** {} is not an available analysis option; choose from'.format(option))
+                logger.error ('{} is not an available analysis option; choose from'.format(option))
                 for key in analyses.keys():
                     print ('  {}: {}'.format(key, analyses[key]))
                 return
@@ -2353,18 +2369,18 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         # blobs are not yet implemented for samplers other than emcee
 
         if ('comparison' in options) & (self.sampler != 'emcee'):
-            print ('** ERROR ** blobs are not yet available for bilby runs')
+            logger.error ('blobs are not yet available for bilby runs')
             return
 
         # chains are not availabel for dynesty
 
         if ('chain' in options) & (self.sampler == 'dynesty'):
-            print ('** ERROR ** chains are not available for dynesty runs')
+            logger.error ('chains are not available for dynesty runs')
             return
 
         if not hasattr(self, 'reader'):
 
-            print ("Reading in samples...")# to calculate autocorrelation time...")
+            logger.info ("Reading in samples...")# to calculate autocorrelation time...")
 
             # load in sampler:
             if self.sampler == 'emcee':
@@ -2379,7 +2395,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     self.result = None
                     self.samples = self.reader.posterior.iloc[:,:self.ndim].to_numpy()
                 else:
-                    print ('** ERROR ** sampler {} not yet implemented'.format(self.sampler))
+                    logger.error ('sampler {} not yet implemented'.format(self.sampler))
                     return
 
             # temporary for bilby output, might work
@@ -2391,10 +2407,10 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # Read in the full chain to get the number of steps completed
             if self.result is not None:
                 self.nsteps_completed = np.shape(self.result)[0]
-                print ("... done. Got {} steps completed".format(self.nsteps_completed))
+                logger.info ("... done. Got {} steps completed".format(self.nsteps_completed))
             else:
                 self.nsteps_completed = 0
-                print ("... done.")
+                logger.info ("... done.")
 
             self.samples_burnin = None
             self.models_burnin = None
@@ -2402,7 +2418,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         # convert -ve burnin here
         if burnin < 0:
             if -burnin > self.nsteps_completed:
-                print ('\n** WARNING ** steps to retain {} is > total ({}), ignoring'.format(-burnin, self.nsteps_completed))
+                logger.warning ('steps to retain {} is > total ({}), ignoring'.format(-burnin, self.nsteps_completed))
             burnin = max([0, self.nsteps_completed+burnin])
 
         # want to make sure we're using at least about 1000 samples for
@@ -2411,7 +2427,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         # if burnin >= self.nsteps_completed*0.9:
         if (self.sampler == 'emcee') & ((self.nwalkers * (self.nsteps_completed - burnin) < 1000) | \
             (self.nsteps_completed <= burnin)):
-            print('\n** WARNING ** discarding burnin {} will leave too few steps ({} total), ignoring'.format(
+            logger.warning('discarding burnin {} will leave too few steps ({} total), ignoring'.format(
                 burnin, self.nsteps_completed))
             burnin = 0
 
@@ -2542,8 +2558,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 self.plot_autocorr(reader=self.reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
             else:
                 self.plot_autocorr(reader=self.reader, savefile=None)
-                print ('Skipping autocorrelation plot save')
-            print ("... done")
+                logger.info ('skipping autocorrelation plot save')
+            logger.info ("... done")
 
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
 
@@ -2552,7 +2568,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # plot the chains:
 
-            print ("Plotting the chains...")
+            logger.info ("plotting the chains...")
             labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_E$", "$f_a$"]
             # plt.clf()
             fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
@@ -2568,13 +2584,13 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             axes[self.ndim-1].set_xlabel("step number")
             plt.tight_layout(h_pad=0.0)
             if savefig:
-                print ('Saving chain plot to {}_chain-plot.pdf'.format(self.run_id))
+                logger.info ('saving chain plot to {}_chain-plot.pdf'.format(self.run_id))
                 plt.savefig(self.run_id+'_chain-plot.pdf')
             else:
-                print ('Skipping chain plot save')
+                logger.info ('skipping chain plot save')
 
             plt.show()
-            print ("... done")
+            logger.info ("... done")
 
         # ---------------------------------------------------------------------#
         if 'posteriors' in options:
@@ -2593,11 +2609,11 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
                     figsize="page", truth=truths)
                 fig.show()
-            print ("... done")
+            logger.info ("... done")
 
         # ---------------------------------------------------------------------#
         if ('mrcorner' in options) & (self.ndim < 8):
-            print ('** ERROR ** can''t show M-R posteriors as one or both of M & R are fixed')
+            logger.error ('can''t show M-R posteriors as one or both of M & R are fixed')
         elif 'mrcorner' in options:
 
             # mrgr = np.column_stack((mass, radius, gravity, redshift))
@@ -2665,7 +2681,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # and finally read in the model realisations
             # This loop can take a LOOOOOONG time for long runs
 
-            print ("Reading in and processing blobs, ignoring first {}...".format(burnin))
+            logger.info ("reading in and processing blobs, ignoring first {}...".format(burnin))
             blobs = self.reader.get_blobs(flat=True)
 
             # Get predictions for each model run from the blobs structure:
@@ -2679,7 +2695,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 alpha.append(_model['alpha'])
                 mdot.append(_model['mdot'])
                 # X.append(_model['x_0'][0])
-            print ("... done")
+            logger.info ("... done")
 
             # here we split up the solutions based on the number of bursts
             # in the model train, and populate the model_pred attribute,
@@ -2751,8 +2767,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                             parameters=list(self.cc_parameters.values()))
                         self.cc_nchain += 1
                     else:
-                      print ('Skipping walkers for n={}, too few samples ({})'.format(_n, _check))
-                print ('Updated chain object with {} model classes'.format(self.cc_nchain))
+                      logger.info ('skipping walkers for n={}, too few samples ({})'.format(_n, _check))
+                logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
         if 'fig8' in options:
@@ -2800,8 +2816,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         ls=he16_models[model][1], label=he16_models[model][0])
 
             else:
-                print ('''
-** WARNING ** install concord if you want to overplot model curves
+                logger.warning ('''install concord if you want to overplot model curves
               See https://github.com/outs1der/concord''')
 
             plt.xlabel(r'$\xi_{\mathrm{p}}$',fontsize='xx-large')
@@ -2902,7 +2917,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         yerr=[np.array(timepred_errlow)[imatch]*24.,
                         np.array(timepred_errup)[imatch]*24.],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i))
-                    print ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
+                    logger.info ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
                         numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
                         np.sqrt(np.mean(resid**2))))
 
@@ -2937,10 +2952,10 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 plt.legend(loc=2)
 
             if savefig:
-                print ('Saving burst comparison plot to {}_predictedburstscomparison.pdf'.format(self.run_id))
+                logger.info ('saving burst comparison plot to {}_predictedburstscomparison.pdf'.format(self.run_id))
                 fig.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
             else:
-                print ('Skipping burst comparison plot save')
+                logger.info ('skipping burst comparison plot save')
             fig.show()
 
 
@@ -2977,7 +2992,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # just use whatever is in the other bean
 
             if not hasattr(alt, 'samples'):
-                print ('** ERROR ** comparison object has no samples, run do_analysis first')
+                logger.error ('comparison object has no samples, run do_analysis first')
                 return
 
             self.cc.add_chain(alt.samples,
@@ -2992,7 +3007,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 # see https://data.mendeley.com/datasets/nmb24z6jrp/2
                 f = gzip.GzipFile(alt, 'r')
                 chain = np.load(f)
-                print ('Read in array with {} walkers, {} steps and {} parameters from\n  {}'.format(*np.shape(chain), alt))
+                logger.info ('read in array with {} walkers, {} steps and {} parameters from\n  {}'.format(*np.shape(chain), alt))
                 # shape is (nwalkers, nsteps, ndim)
                 assert np.shape(chain)[2] == 12 # won't work for the other files
                 if burnin is not None:
