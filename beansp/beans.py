@@ -89,6 +89,8 @@ def create_logger():
         formatter = logging.Formatter('%(levelname)s: %(name)s: %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
+        logger.propagate = False # prevent duplicate messages
+
     return logger
 
 
@@ -2950,6 +2952,11 @@ in options):
                         np.sqrt(np.mean(resid**2))))
 
                 ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
+
+                if title is not False:
+                    ax1.set_title('beansp v{} run {} last {}/{}'.format(
+                        self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed) if title is None else title,loc='right')
+
                 axs['resid'].axhline(0.0, color=obs_colour, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
                 axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
