@@ -681,6 +681,7 @@ class Beans:
         # apply the keyword values or defaults
 
         self.run_id = run_id
+        self.version = __version__
         self.obsname = obsname
         self.burstname = burstname
         self.gtiname = gtiname
@@ -743,6 +744,14 @@ class Beans:
                 if hasattr(self, 'fluen'):
                     self.cmpr_fluen = self.fluen
                     fluen = self.fluen
+
+                # for some older runs we need to add parameters here, that
+                # are not listed in the .ini file
+
+                if (self.sampler == 'emcee') & (not hasattr(self, 'stretch_a')):
+                    logger.warning('stretch_a not listed in .ini file, assuming default')
+                    self.stretch_a = 2.0
+
             else:
                 logger.error('config file not found, applying keywords')
                 config_file_exists = False
@@ -1884,7 +1893,7 @@ Initial parameters:
 
 # -------------------------------------------------------------------------#
 
-    def plot_autocorr(self, samples=None, reader=None, savefile=None, figsize=(8,5) ):
+    def plot_autocorr(self, samples=None, reader=None, title=None, savefile=None, figsize=(8,5) ):
         """
         This method shows the estimated autocorrelation time for the run
         Extracted from do_analysis, and originally based on the analysis
@@ -1896,6 +1905,7 @@ Initial parameters:
         :param reader: object to get the chains from (if not supplied via
 	  the samples parameter), via the get_chain method. TODO just pass
           the samples to make this more general
+        :param title: title for the figure; set to None for some generic info, or False to skip
         :param savefile: name of file to save as (skip if None)
         :param figsize: size for the figure, (tuple, in inches)
 
@@ -2007,7 +2017,9 @@ Initial parameters:
         plt.xlabel("Number of samples, $N$", fontsize='xx-large')
         plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
 
-
+        if title is not False:
+            plt.title('beansp v{} run {}'.format(
+                self.version, self.run_id) if title is None else title,loc='right')
 
         plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
@@ -2296,7 +2308,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=None, burnin=2000,
-                          savefig=False):
+                          title=None, savefig=False):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -2333,6 +2345,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
           incompatible number of parameters)
         :param burnin: number of steps to discard when plotting the
           posteriors. If -ve, discard all but that number
+        :param title: set to a string to add a title to the plot, or False to omit; if set to None will print some generic information
         :param savefig: set to True to save figures to .pdf files, False to skip
 
         :return: none
@@ -2500,7 +2513,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             self.cc = ChainConsumer()
             # self.cc.add_chain(_samples, parameters=_labels)
             self.cc.add_chain(_samples, parameters=list(_plot_labels.values()),
-                name=self.run_id)
+                name='beansp v{} run {} last {}/{}'.format(
+                self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed))
             # configure params below copied from Adelle's jupyter notebook
             # we apply them here for consistency across all the posterior
             # plots
@@ -2554,12 +2568,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # plot autocorrelation times
 
-            if savefig:
-                self.plot_autocorr(reader=self.reader, savefile='{}_autocorrelationtimes.pdf'.format(self.run_id))
-            else:
-                self.plot_autocorr(reader=self.reader, savefile=None)
-                logger.info ('skipping autocorrelation plot save')
-            logger.info ("... done")
+            self.plot_autocorr(reader=self.reader, title=title, 
+                savefile='{}_autocorrelationtimes.pdf'.format(self.run_id)
+                if savefig else None)
 
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
 
@@ -2582,7 +2593,11 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 axes[i].set_ylabel(labels[i])
 
             axes[self.ndim-1].set_xlabel("step number")
+            if title is not False:
+                axes[0].set_title('beansp v{} run {}'.format(
+                    self.version, self.run_id) if title is None else title,loc='right')
             plt.tight_layout(h_pad=0.0)
+
             if savefig:
                 logger.info ('saving chain plot to {}_chain-plot.pdf'.format(self.run_id))
                 plt.savefig(self.run_id+'_chain-plot.pdf')
@@ -2593,23 +2608,36 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             logger.info ("... done")
 
         # ---------------------------------------------------------------------#
+        if ('posteriors' in options) | ('mrcorner' in options) | ('fig6'
+in options):
+
+            # common truths/title settings for all corner plots
+
+            if truths is None:
+                truths = list(self.theta)
+            elif truths is False:
+                truths = None
+
+            if title is not None:
+                if type(title) == str:
+                    logger.warning("can't override title for posterior plots, sorry")
+                    title=True
+            else:
+                title=True
+
         if 'posteriors' in options:
 
             # make plot of posterior distributions of your parameters:
             # (using the already-created ChainConsumer object)
 
-            if truths is None:
-                truths = list(self.theta)
+            fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
+                figsize="page", truth=truths, legend=title, display=False)
+
+            fig.show()
 
             if savefig:
-                self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
-                    filename=self.run_id+"_posteriors.pdf",
-                    figsize="page", truth=truths)
-            else:
-                fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
-                    figsize="page", truth=truths)
-                fig.show()
-            logger.info ("... done")
+                # save the figure
+                plt.savefig(self.run_id+"_posteriors.pdf")
 
         # ---------------------------------------------------------------------#
         if ('mrcorner' in options) & (self.ndim < 8):
@@ -2621,14 +2649,15 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # plot with chainconsumer:
             # cc = ChainConsumer()
             # cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
+
+            fig = self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
+                truth=truths, figsize="page", legend=title, display=False)
+
+            fig.show()
+
             if savefig:
-                self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
-                    filename=self.run_id+"_massradius.pdf",
-                    truth=truths, figsize="page")
-            else:
-                fig = self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
-                    figsize="page", truth=truths)
-                fig.show()
+                # save the figure
+                plt.savefig(self.run_id+"_massradius.pdf")
 
         # ---------------------------------------------------------------------#
         if 'fig6' in options:
@@ -2642,16 +2671,15 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
             #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
+            fig = self.cc.plotter.plot(
+                parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
+                truth=truths, figsize="page", legend=title, display=False)
+
+            fig.show()
+
             if savefig:
-                self.cc.plotter.plot(
-                    parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
-                    filename=self.run_id+"_fig6.pdf",
-                    truth=truths, figsize="page")
-            else:
-                fig = self.cc.plotter.plot(
-                    parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
-                    truth=truths, figsize="page")
-                fig.show()
+                # save the figure
+                plt.savefig(self.run_id+"_fig6.pdf")
 
         # ---------------------------------------------------------------------#
         if ('converge' in options):

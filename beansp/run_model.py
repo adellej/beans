@@ -54,6 +54,12 @@ def burst_time_match(iref1, time1, iref2, time2):
 
         return ix
 
+    # This check will mainly trap analysis for older runs (prior to
+    # v2.11.0) where the definition of tref was changed (see get_obs), but
+    # also that beforehand the value was not stored in the .ini file. You
+    # should be able to fix this by defining (a non-integer) tref
+    # appropriately in the .ini file
+
     assert np.isclose(time1[iref1],time2[iref2],rtol=1e-4)
 
     # special here for IGR J17511-3057, forcing the match solution
