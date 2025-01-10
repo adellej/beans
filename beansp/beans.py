@@ -13,7 +13,6 @@ from matplotlib.colors import LogNorm
 import numpy as np
 import pandas as pd
 import emcee
-import bilby
 import astropy.units as u
 import astropy.constants as const
 from astropy.table import Table, MaskedColumn
@@ -62,7 +61,6 @@ from .run_model import runmodel, burst_time_match
 from .get_data import get_obs
 from .mrprior import mr_prior
 from .run_emcee import runemcee
-from .run_bilby import runbilby
 from .analyse import get_param_uncert_part, get_param_uncert
 
 # multiepoch_mcmc is required to use the grid_interp model
@@ -546,6 +544,15 @@ class Beans:
     except:
         pass
 
+    HAS_BILBY = False
+    try:
+        # required for using dynesty sampler
+        import bilby
+        from .run_bilby import runbilby
+        HAS_BILBY = True
+    except:
+        pass
+
     def __init__(self, prior=prior_func, corr=None, config_file=None,
                  run_id="test", obsname=None, burstname=None, gtiname=None,
                  continuous=True, maxgap=2,
@@ -759,6 +766,10 @@ class Beans:
                 config_file_exists = False
 
         # Some checks here
+
+        if (sampler != 'emcee') & (not self.HAS_BILBY):
+            logger.error('using samplers other than emcee requires bilby')
+            return
 
         if alpha and (not fluen):
             logger.error('need to include fluences as well as alphas')
