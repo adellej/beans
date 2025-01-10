@@ -969,10 +969,10 @@ Initial parameters:
         :return: accretion rate in g/cm^2/s
         """
 
-        # temp here for the grid interpolation
-        # return (1.75e-8*1.7/(1+X)*5.01837638e24)/(radius*1e5)**2 * u.g/u.cm**2/u.s
+        return (1.75e-8*1.7/(1+X)*5.01837638e24)/(radius*1e5)**2 * u.g/u.cm**2/u.s
+        # alternative value here for the grid interpolation
         # Johnston et al. 2020: The Eddington-limited accretion rate,
-        return 8.775E4*u.g/u.cm**2/u.s
+        # return 8.775E4*u.g/u.cm**2/u.s
 
 
     def save_config(self, file=None, clobber=True):
@@ -1161,7 +1161,7 @@ Initial parameters:
         # for use with the grid_interp model
 
         _mdot_Edd = 8.775E4*u.g/u.cm**2/u.s
-        if self.model == 'settle':
+        if self.model_name == 'settle':
             # different prescription for settle, via the mdot_Edd function
             _mdot_Edd = self.mdot_Edd(X, radius)
 

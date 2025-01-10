@@ -59,8 +59,9 @@ def test_run_model():
     # and updates to pySettle 1.3.0, removing the 0.65 factor
     # and updates to the way the time offset is calculated, 2.11.x and later
     # and the fix to the mdot_Edd function, v2.21.1
+    # added the reference burst time for v.2.32.0
 
-    exp = [  0.3371498 ,  3.84590496,  6.76410934,    # burst times (d)
+    exp = [  0.3371498 ,  2.30514, 3.84590496,  6.76410934,    # burst times (d)
            17.94856258, 17.35869927, 20.12729269, 27.51898359,  # fluences
            60.40744506, 66.85451224, 74.21961878] # alphas
 
