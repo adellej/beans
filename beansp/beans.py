@@ -2303,8 +2303,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     sel = np.array(self.model_pred['partition']) == parts[i+1]
                     header = ''
 
-            breakpoint()
-            print ('\\hline\n\\begin{tabular}{c'+'c' * len(parts)+'l}\n\\hline')
+            # output as LaTeX as well, to paste into a paper (for example)
+
+            print ('\\begin{tabular}{c'+'c' * len(parts)+'l}\n\\hline')
             print (latex_header+' & Units \\\\\n\\hline')
             for i, row in enumerate(latex_rows):
                 print (row+' & '+latex_unit[i]+' \\\\')
