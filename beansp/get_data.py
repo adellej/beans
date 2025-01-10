@@ -14,21 +14,29 @@ def get_obs(bean, alpha=True, fluen=True):
 
     The following data is required, in tab-separated ascii format, with
     columns in the given order: burst observations:
-        time (MJD), fluence (in 1e-9 erg/cm^2/s) fluence error, alpha, alpha error
+
+    | time (MJD)
+    | fluence (in 1e-9 erg/cm^2/s), fluence error
+    | alpha, alpha error
+
     and optionally for ensemble mode,
-        persistent flux (in 1e-9 erg/cm^2/s) and error, and recurrence time (hr) and error
+
+    | persistent flux (in 1e-9 erg/cm^2/s) and error
+    | recurrence time (hr) and error
 
     observations:
-        start time (MJD), stop time (MJD) persistent flux measurements (in 3-25keV 1e-9 erg/cm^2/s), pflux error
+
+    | start time (MJD)
+    |  stop time (MJD)
+    | persistent flux measurements (in 3-25keV 1e-9 erg/cm^2/s), pflux error
 
     satellite gti observing data:
-        start time of obs, stop time of obs (both in MJD)
+
+    | start time of obs
+    | stop time of obs (both in MJD)
 
     bc is the bolometric correction to convert the persistent fluxes (e.g.
     from the 3-25keV range used for MINBAR) into bolometric estimates.
-
-    Example screenshots of how to generate this ascii format using the
-    MINBAR web interface for SAX J1808.4-3658 is included in this directory.
 
     In the earlier version of this routine we passed the parameters
     ref_ind, bc, obsname, burstname, gtiname, and returned x, y, yerr,
@@ -46,7 +54,7 @@ def get_obs(bean, alpha=True, fluen=True):
     :return: nothing (everything comes back via the Beanobject)
     """
 
-    print("Reading input data files ...")
+    print("\nReading input data files ...")
 
     # Read in the burst and observation data that contains the measurements to match
 
@@ -151,11 +159,20 @@ def get_obs(bean, alpha=True, fluen=True):
                 bean.y = np.concatenate((bean.y, bean.alpha[1:][bean.ifluen[1:]-1]), axis=0)
                 bean.yerr = np.concatenate((bean.yerr, bean.alphae[1:][bean.ifluen[1:]-1]), axis=0)
 
-            bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
-            bean.yerr = np.delete(bean.yerr, bean.ref_ind)
+            # originally we deleted the reference time, but because it will not contribute to the likelihood
+            # (it's copied to the model array) we can leave it in
+            # bean.y = np.delete(bean.y, bean.ref_ind)  # delete the time of the reference burst because we do not model for this
+            # bean.yerr = np.delete(bean.yerr, bean.ref_ind)
 
             bean.ly = len(bean.y)
             assert bean.ly == len(bean.yerr)
+
+            print("""
+Burst data read from {}:
+  {} bursts ({} fluences & {} alphas) between
+  MJD {}-{}""".format(bean.burstname,
+len(bean.bstart), sum(bean.fluen > 0.), sum(bean.alpha > 0),
+min(bean.bstart)+bean.tref, max(bean.bstart)+bean.tref))
 
         else:
             # if there's no burst data, define the tref in a different way
@@ -166,6 +183,12 @@ def get_obs(bean, alpha=True, fluen=True):
 
             bean.bstart, bean.fluen, bean.y, bean.yerr = None, None, None, None
             # bstart0 = min(tobs)
+
+        print("""
+Observation data read from {}:
+  {} persistent flux measurements covering 
+  MJD {}-{}, {:.2f}% duty cycle""".format(bean.obsname, len(tobs),
+           min(ta_1), max(ta_2), np.sum((ta_2-ta_1))/(max(ta_2)-min(ta_1))*100))
 
     else:
         # If there's no observation data that indicates an "ensemble" mode run
@@ -199,12 +222,6 @@ def get_obs(bean, alpha=True, fluen=True):
 
     # -------------------------------------------------------------------------#
 
-    print ('...done')
-
-    # pre-calculate the sigmas
-
-    bean.inv_sigma2 = 1./bean.yerr**2
-
     # Shift the observations and gtis so that they start at bstart0:
 
     # tobs = tobs - bstart0
@@ -225,40 +242,13 @@ def get_obs(bean, alpha=True, fluen=True):
         # st = st-bstart0
         # et = et-bstart0
 
-        if bean.burstname is None:
-            print(f"""
-Observations found:
-  persistent fluxes = {bean.pflux}
-  gti data file = {bean.gtiname}
-GTI checking will be performed""")
-        else:
-            print(f"""
-Observations found:
-  burst times = {bean.bstart}
-  fluences = {bean.fluen}
-  alphas = {bean.alpha}
-  persistent fluxes = {bean.pflux}
-  gti data file = {bean.gtiname}
-GTI checking will be performed""")
-
-        # not sure if you need to return st, et if they're also global variables (defined at start)
-        return # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs, st, et
+        print ("\nGTI checking will be performed")
 
     else:
-        if bean.burstname is None:
-            print(f"""
-Observations found:
-  persistent fluxes = {bean.pflux}
-You have not supplied a GTI file, so no GTI checking will be performed.""")
-        else:
-            print(f"""
-Observations found:
-  burst times = {bean.bstart}
-  fluences = {bean.fluen}
-  alphas = {bean.alpha}
-  persistent fluxes = {bean.pflux}
-You have not supplied a GTI file, so no GTI checking will be performed.""")
+        print ("\nYou have not supplied a GTI file, so no GTI checking will be performed.")
 
         bean.st, bean.et = None, None
+
+    print ("\n... done.")
 
     return # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs

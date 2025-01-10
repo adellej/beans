@@ -32,8 +32,8 @@ def burst_time_match(iref1, time1, iref2, time2):
             elif ix[0] <= 0:
                 break
             else:
-                ix.insert(0, np.argmin(np.abs(time1[_i]-time2[:ix[0]])))   
-    
+                ix.insert(0, np.argmin(np.abs(time1[_i]-time2[:ix[0]])))
+
         return ix
 
     def match_right(ix, iref, time1, time2, first=None):
@@ -42,7 +42,7 @@ def burst_time_match(iref1, time1, iref2, time2):
 	ix[-1]'th to last elements of array time1, with the first guess
         optionally given
         """
-    
+
         for _i in np.arange(iref,len(time1)-1)+1:
             # print (_i, time1[_i], time2[ix[-1]+1:], ix[-1]+1, len(time2))#np.argmin(np.abs(time1[_i]-time2[ix[-1]+1:])))
             if (_i == iref+1) & (first is not None):
@@ -53,6 +53,12 @@ def burst_time_match(iref1, time1, iref2, time2):
                 ix.append( np.argmin(np.abs(time1[_i]-time2[ix[-1]+1:]))+ix[-1]+1 )
 
         return ix
+
+    # This check will mainly trap analysis for older runs (prior to
+    # v2.11.0) where the definition of tref was changed (see get_obs), but
+    # also that beforehand the value was not stored in the .ini file. You
+    # should be able to fix this by defining (a non-integer) tref
+    # appropriately in the .ini file
 
     assert np.isclose(time1[iref1],time2[iref2],rtol=1e-4)
 
@@ -119,9 +125,9 @@ def burst_time_match(iref1, time1, iref2, time2):
 
 def runmodel(theta_in, bean, match=True, debug=False):
     """
-    This routine calls one of two functions that generate the burst model
-    predictions, either generate_burst_train or burstensemble, depending on
-    which mode the analysis is in
+    This routine calls one of three functions that generate the burst model
+    predictions, either generate_burst_train or punkt_train (for burst trains),
+    or burstensemble, depending on which mode the analysis is in.
     It then assembles the predictions from the model into a form that can
     be compared to the observations (with appropriate scaling)
 
@@ -129,9 +135,13 @@ def runmodel(theta_in, bean, match=True, debug=False):
       *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
     :param bean: Beans object, from which the required parameters are drawn:
       y, tref, bstart, pflux, pfluxe, tobs, numburstssim, numburstsobs,
-      ref_ind, gti_checking,train, gti_start=None, gti_end=None,
-    :param match: set to False to skip the burst matching stage, which is useful for exploratory/diagnostic purposes
-    :param debug: set to True to display more diagnostic information, passed also to generate_burst_train
+      ref_ind, gti_checking,train, gti_start=None, gti_end=None, as well as
+      the train_model, for burst trains
+    :param match: set to False to skip the burst matching stage, which is
+      useful for exploratory/diagnostic purposes; ignored for non-continuous
+      trains (i.e. using punkt_train)
+    :param debug: set to True to display more diagnostic information,
+      passed also to generate_burst_train/punkt_train
 
     :return: model array with predicted burst parameters, Boolean giving
       the validity of the solution (i.e. consistent with the GTI information),
@@ -158,13 +168,21 @@ def runmodel(theta_in, bean, match=True, debug=False):
         # predicted values.
         # We now pass on the debug flag to help with exploratory work
 
-        result = generate_burst_train( bean,  Q_b, X, Z, dist, xi_p, mass, radius, debug=debug)
+        result = bean.train_model( bean,  Q_b, X, Z, dist, xi_p, mass, radius, debug=debug)
 
         # we need to reject unsuitable models here. The simplest (although
         # insufficiently strict) criterion is to at least simulate as many
         # bursts as are observed.
 
-        tpred = result["time"]
+        if 'imatch' in result.keys():
+            # for punkt_train we need to make sure the bursts match up
+            tpred = np.array(result['time'])[result['imatch']]
+            if np.all(result['gap']):
+                if debug:
+                    print ('runmodel: all gaps')
+                return None, False, result
+        else:
+            tpred = result["time"]
         npred = len(tpred)
         if (npred < bean.numburstsobs) & (bean.numburstsobs > 0):
             if debug:
@@ -179,7 +197,10 @@ def runmodel(theta_in, bean, match=True, debug=False):
 
         result = burstensemble( bean, Q_b, X, Z, dist, xi_p, mass, radius)
 
-    valid = valid | (len(result['time']) > 1)
+    if result is None:
+        return None, False, result
+
+    valid = (valid | (len(result['time']) > 1))
 
     # Here we convert the model-predicted values to observational
     # quantities, for comparison with the observations. Previously
@@ -200,9 +221,10 @@ def runmodel(theta_in, bean, match=True, debug=False):
         model = np.concatenate((result['time'], result['fluen'],
             result['alpha_obs']))
 
-    elif match & (bean.y is not None) & (npred > 0):
+    elif match & bean.continuous & (bean.y is not None) & (npred > 0):
 
-        # Assemble the array for comparison with the data
+        # Assemble the array for comparison with the data, for output from
+        # generate_burst_train
         # First need to match the burst times; this is surprisingly
         # difficult to do robustly.
 
@@ -227,7 +249,8 @@ def runmodel(theta_in, bean, match=True, debug=False):
             # We only compare the times of the bursts for the events excluding
             # the reference burst, from which the train is calculated
             itime = imatch.copy()
-            itime.pop(bean.ref_ind)
+            # originally we omitted the ref_ind value
+            # itime.pop(bean.ref_ind)
 
             # We compare the fluences for all the bursts
             # We subtract 1 here, and also to the expression for ialpha, because the indexing is different for
@@ -245,6 +268,15 @@ def runmodel(theta_in, bean, match=True, debug=False):
             model =  np.concatenate((result['time'][itime],
                 result['fluen'][ie_b][bean.ifluen],
                 result['alpha_obs'][ialpha][bean.ifluen[1:]-1]))
+
+    elif (not bean.continuous):
+        # if we already have an imatch element, i.e. from punkt_train, we
+        # have a simpler process to assemble the model
+
+        imatch = result['imatch']
+        model = np.concatenate((result['time'][imatch],
+            result['fluen'][imatch][bean.ifluen],
+            result['alpha_obs'][imatch][bean.ifluen[1:] - 1]))
 
     # Check here if the model instance is valid, i.e. the bursts that are NOT
     # matched with the observed ones must fall in gaps

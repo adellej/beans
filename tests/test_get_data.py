@@ -25,9 +25,13 @@ def test_get_obs():
 
     bstart_err = B.bstart_err
 
-    obsexp = [0.41362, 3.18427, 4.42677, 2.6196, 2.6486, 2.9904, 3.4599, 107.0, 105.7, 121.1] 
-    # obserrexp = [0.0069, 0.0069, 0.0069, 0.0207, 0.0178, 0.0173, 0.0221, 2.0, 1.9, 2.3]
-    obserrexp = [bstart_err, bstart_err, bstart_err, 0.0207, 0.0178, 0.0173, 0.0221, 2.0, 1.9, 2.3]
+    # modified these arrays from v2.32.0 onwards, now includes the
+    # reference burst time
+    # obsexp = [0.41362, 3.18427, 4.42677, 2.6196, 2.6486, 2.9904, 3.4599, 107.0, 105.7, 121.1] 
+    ## obserrexp = [0.0069, 0.0069, 0.0069, 0.0207, 0.0178, 0.0173, 0.0221, 2.0, 1.9, 2.3]
+    # obserrexp = [bstart_err, bstart_err, bstart_err, 0.0207, 0.0178, 0.0173, 0.0221, 2.0, 1.9, 2.3]
+    obsexp = [0.41362, 2.30514, 3.18427, 4.42677, 2.6196, 2.6486, 2.9904, 3.4599, 107.0, 105.7, 121.1] 
+    obserrexp = [bstart_err, bstart_err, bstart_err, bstart_err, 0.0207, 0.0178, 0.0173, 0.0221, 2.0, 1.9, 2.3]
 
     result = np.allclose(obsexp, B.y)
     assert result

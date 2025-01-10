@@ -59,8 +59,9 @@ def test_run_model():
     # and updates to pySettle 1.3.0, removing the 0.65 factor
     # and updates to the way the time offset is calculated, 2.11.x and later
     # and the fix to the mdot_Edd function, v2.21.1
+    # added the reference burst time for v.2.32.0
 
-    exp = [  0.3371498 ,  3.84590496,  6.76410934,    # burst times (d)
+    exp = [  0.3371498 ,  2.30514, 3.84590496,  6.76410934,    # burst times (d)
            17.94856258, 17.35869927, 20.12729269, 27.51898359,  # fluences
            60.40744506, 66.85451224, 74.21961878] # alphas
 
@@ -86,7 +87,7 @@ def test_run_model():
 
     # with the canonical mass and radius there are slight differences
 
-    exp_nomr = [ 0.55146657,  3.64700296,  5.89032248,
+    exp_nomr = [ 0.55146657,  2.30514, 3.64700296,  5.89032248,
                  14.92333594, 14.96612381, 17.06069978, 21.61310762,
                  62.70263335, 69.5733182 , 76.85360513 ]
     result = np.allclose(test, exp_nomr, rtol=1e-3)
@@ -99,7 +100,7 @@ def test_run_model():
 
     # which gives slight differences again in the predictions
 
-    exp_spline = [ 0.37045536,  3.85703407,  6.82600001, 
+    exp_spline = [ 0.37045536,  2.30514, 3.85703407,  6.82600001, 
                    16.91872503, 17.25034895, 20.18742875, 27.78212457,
                    60.04565281, 66.9551983 , 74.37555756 ]
     result = np.allclose(test, exp_spline, rtol=1e-3)
@@ -112,7 +113,7 @@ def test_run_model():
 
     # which gives not-so-slight differences in the predictions
 
-    exp_corr = [ 0.41762404,  3.19702031,  4.48089481,
+    exp_corr = [ 0.41762404,  2.30514, 3.19702031,  4.48089481,
                  10.99004728, 11.32612194, 12.51036817, 14.61326653,
                  60.62210726, 65.20925343, 70.08695522 ]
     result = np.allclose(test, exp_corr, rtol=1e-3)
