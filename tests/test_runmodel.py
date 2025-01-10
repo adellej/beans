@@ -87,7 +87,7 @@ def test_run_model():
 
     # with the canonical mass and radius there are slight differences
 
-    exp_nomr = [ 0.55146657,  3.64700296,  5.89032248,
+    exp_nomr = [ 0.55146657,  2.30514, 3.64700296,  5.89032248,
                  14.92333594, 14.96612381, 17.06069978, 21.61310762,
                  62.70263335, 69.5733182 , 76.85360513 ]
     result = np.allclose(test, exp_nomr, rtol=1e-3)
@@ -100,7 +100,7 @@ def test_run_model():
 
     # which gives slight differences again in the predictions
 
-    exp_spline = [ 0.37045536,  3.85703407,  6.82600001, 
+    exp_spline = [ 0.37045536,  2.30514, 3.85703407,  6.82600001, 
                    16.91872503, 17.25034895, 20.18742875, 27.78212457,
                    60.04565281, 66.9551983 , 74.37555756 ]
     result = np.allclose(test, exp_spline, rtol=1e-3)
@@ -113,7 +113,7 @@ def test_run_model():
 
     # which gives not-so-slight differences in the predictions
 
-    exp_corr = [ 0.41762404,  3.19702031,  4.48089481,
+    exp_corr = [ 0.41762404,  2.30514, 3.19702031,  4.48089481,
                  10.99004728, 11.32612194, 12.51036817, 14.61326653,
                  60.62210726, 65.20925343, 70.08695522 ]
     result = np.allclose(test, exp_corr, rtol=1e-3)
