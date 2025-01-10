@@ -2028,8 +2028,11 @@ Initial parameters:
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
         if savefile is not None:
-            logger.info ('plot_autocorr: saving figure as {}'.format(savefile))
+            logger.info ('saving autocorrelation plot to {}'.format(savefile))
             plt.savefig(savefile)
+        else:
+            logger.info ('skipping autocorrelation plot save')
+
         plt.show()
 
 
@@ -2387,13 +2390,15 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             logger.error ('blobs are not yet available for bilby runs')
             return
 
-        # chains are not availabel for dynesty
+        # chains are not available for dynesty
 
         if ('chain' in options) & (self.sampler == 'dynesty'):
             logger.error ('chains are not available for dynesty runs')
             return
 
         if not hasattr(self, 'reader'):
+
+            # if you haven't already done so, read in the walker data
 
             logger.info ("Reading in samples...")# to calculate autocorrelation time...")
 
@@ -2431,6 +2436,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             self.models_burnin = None
 
         # convert -ve burnin here
+
         if burnin < 0:
             if -burnin > self.nsteps_completed:
                 logger.warning ('steps to retain {} is > total ({}), ignoring'.format(-burnin, self.nsteps_completed))
@@ -2601,8 +2607,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             plt.tight_layout(h_pad=0.0)
 
             if savefig:
-                logger.info ('saving chain plot to {}_chain-plot.pdf'.format(self.run_id))
-                plt.savefig(self.run_id+'_chain-plot.pdf')
+                savefile = '{}_chain-plot.pdf'.format(self.run_id)
+                logger.info ('saving chain plot to {}'.format(savefile))
+                plt.savefig(savefile)
             else:
                 logger.info ('skipping chain plot save')
 
@@ -2639,7 +2646,11 @@ in options):
 
             if savefig:
                 # save the figure
-                plt.savefig(self.run_id+"_posteriors.pdf")
+                savefile = '{}_posteriors.pdf'.format(self.run_id)
+                logger.info ('saving posteriors plot to {}'.format(savefile))
+                plt.savefig(savefile)
+            else:
+                logger.info ('skipping posteriors plot save')
 
         # ---------------------------------------------------------------------#
         if ('mrcorner' in options) & (self.ndim < 8):
@@ -2659,7 +2670,11 @@ in options):
 
             if savefig:
                 # save the figure
-                plt.savefig(self.run_id+"_massradius.pdf")
+                savefile = '{}_massradius.pdf'.format(self.run_id)
+                logger.info ('saving mass-radius posteriors plot to {}'.format(savefile))
+                plt.savefig(savefile)
+            else:
+                logger.info ('skipping mass-radius posteriors plot save')
 
         # ---------------------------------------------------------------------#
         if 'fig6' in options:
@@ -2681,7 +2696,11 @@ in options):
 
             if savefig:
                 # save the figure
-                plt.savefig(self.run_id+"_fig6.pdf")
+                savefile = '{}_fig6.pdf'.format(self.run_id)
+                logger.info ('saving restricted posteriors plot to {}'.format(savefile))
+                plt.savefig(savefile)
+            else:
+                logger.info ('skipping restricted posteriors plot save')
 
         # ---------------------------------------------------------------------#
         if ('converge' in options):
@@ -2698,12 +2717,17 @@ in options):
                 parameters=list(self.cc_parameters.keys())[:self.ndim],
                 name='{}-{}'.format(self.samples_burnin+int(_n/self.nwalkers),
                 self.nsteps_completed))
+
+            fig.show()
+
             if savefig:
+                savefile = '{}_converge.pdf'.format(self.run_id)
+                logger.info ('saving convergence check plot to {}'.format(savefile))
                 _cc.plotter.plot_summary(
-                    filename=self.run_id+"_converge.pdf")#,figsize="page")
+                    filename=savefile)#,figsize="page")
             else:
                 fig = _cc.plotter.plot_summary()#figsize="page")
-                fig.show()
+                logger.info ('skipping convergence check plot save')
 
         # ---------------------------------------------------------------------#
         if ('comparison' in options) & ((self.models_burnin != burnin) | (part is not None)):
@@ -2859,10 +2883,14 @@ in options):
             plt.xticks(fontsize=14)
             plt.yticks(fontsize=14)
 
+            plt.show()
+
             if savefig:
-                plt.savefig('{}_xipvsxib_models_contourlines.pdf'.format(self.run_id))
+                savefile = '{}_xipvsxib_models_contourlines.pdf'.format(self.run_id)
+                logger.info ('saving xi_p vs xi_b plot to {}'.format(savefile))
+                plt.savefig(savefile)
             else:
-                plt.show()
+                logger.info ('skipping xi_p vs xi_b plot save')
 
         # ---------------------------------------------------------------------#
         if 'comparison' in options:
@@ -2986,12 +3014,14 @@ in options):
                 plt.ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
                 plt.legend(loc=2)
 
+            fig.show()
+
             if savefig:
-                logger.info ('saving burst comparison plot to {}_predictedburstscomparison.pdf'.format(self.run_id))
-                fig.savefig(f'{self.run_id}_predictedburstscomparison.pdf')
+                savefile = '{}_predictedburstscomparison.pdf'.format(self.run_id)
+                logger.info ('saving burst comparison plot to {}'.format(savefile))
+                fig.savefig(savefile)
             else:
                 logger.info ('skipping burst comparison plot save')
-            fig.show()
 
 
     def compare(self, alt, burnin=None, parameters=None, label='result 2'):
