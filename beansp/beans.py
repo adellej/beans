@@ -2282,9 +2282,9 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
                     radiuspred = get_param_uncert(self.samples[sel,7])
                     redshiftpred = get_param_uncert(redshift[sel])
                     gravitypred = get_param_uncert(gravity[sel])
-                    latex_rows[7] += ' & {}'.format(strmeas(radiusppred[0], radiusppred[2], radiusppred[1]))
-                    latex_rows[8] += ' & {}'.format(strmeas(redshiftppred[0], redshiftppred[2], redshiftppred[1]))
-                    latex_rows[9] += ' & {}'.format(strmeas(gravityppred[0], gravityppred[2], gravityppred[1]))
+                    latex_rows[7] += ' & {}'.format(strmeas(radiuspred[0], radiuspred[2], radiuspred[1]))
+                    latex_rows[8] += ' & {}'.format(strmeas(redshiftpred[0], redshiftpred[2], redshiftpred[1]))
+                    latex_rows[9] += ' & {}'.format(strmeas(gravitypred[0], gravitypred[2], gravitypred[1]))
 
                 if len(parts) > 1:
                     header += '''
