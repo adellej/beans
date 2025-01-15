@@ -2560,6 +2560,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # contributions. It does include as the 4th element the prior
             # and model realisations (blobs) though
 
+            logger.info('calculating probabilities for last walker step...')
+
             probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'],
                 index = np.arange(self.nwalkers) )
             p_fluen, p_alpha = 0.0, 0.0
@@ -2579,6 +2581,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 probs.loc[_i] = [ptot, pprior, p_time, p_fluen, p_alpha]
 
             self.probs = probs
+            logger.info('... done. Likelihoods and breakdown stored in probs attribute')
 
         # ---------------------------------------------------------------------#
         # PLOTS
