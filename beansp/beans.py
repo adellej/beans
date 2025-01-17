@@ -2941,7 +2941,10 @@ in options):
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
                         ax1.axvline(self.bstart[i], color=obs_colour, ls='--')
-                ax1.axvline(self.bstart[self.ref_ind], c='k', ls='--')
+
+                if self.continuous:
+                    # only show reference burst for continuous runs
+                    ax1.axvline(self.bstart[self.ref_ind], c='k', ls='--')
 
                 if self.gti_checking:
                     #plot satellite gtis
