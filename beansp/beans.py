@@ -1359,19 +1359,24 @@ Initial parameters:
                 debug=False)
 
             show_model = valid
-            if (imatch is None) & ('imatch' not in model) & (valid & self.train & (self.numburstsobs > 0)):
-                # ... but it's useful to know if it's possible
-                # (not relevant for punkt_train, or ensemble mode)
 
-                imatch = burst_time_match(self.ref_ind, self.bstart,
-                    model['iref'], np.array(model['time']))
+        elif model is not None:
+            # assume a passed model is valid
+            valid = show_model
 
-                if imatch is None:
-                    logger.warning ("can't match predicted bursts to observations")
+        if (imatch is None) & ('imatch' not in model) & (valid & self.train & (self.numburstsobs > 0)):
+            # ... but it's useful to know if it's possible
+            # (not relevant for punkt_train, or ensemble mode)
 
-            elif 'imatch' in model:
-                imatch = model['imatch']
-                itoff = 0
+            imatch = burst_time_match(self.ref_ind, self.bstart,
+                model['iref'], np.array(model['time']))
+
+            if imatch is None:
+                logger.warning ("can't match predicted bursts to observations")
+
+        elif 'imatch' in model:
+            imatch = model['imatch']
+            itoff = 0
 
         full_model = False  # Flag to remember whether we're plotting the
                             # full model output of generate burst train or
