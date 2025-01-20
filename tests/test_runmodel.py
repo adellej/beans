@@ -33,18 +33,34 @@ def test_run_model():
         )
 
     # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs, st, et = get_obs(ref_ind=1, bc=2.21, obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts, gtiname=path_to_data_file_gti)
+
+    # linear interpolation, no correction
+
     B = Beans(corr=None, config_file=None, interp='linear', 
         fluen=True, alpha=True, numburstssim=3, ref_ind=1, bc=2.21,
         obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts,# gtiname=path_to_data_file_gti)
         test_model=False)
+
+    # spline interpolation, no correction
 
     Bs = Beans(corr=None, config_file=None, interp='spline', 
         fluen=True, alpha=True, numburstssim=3, ref_ind=1, bc=2.21,
         obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts,# gtiname=path_to_data_file_gti)
         test_model=False)
 
+    # spline interpolation, with corr_goodwin19 correction
+
     Bc = Beans(corr=beans.corr_goodwin19, config_file=None, interp='spline', 
         fluen=True, alpha=True, numburstssim=3, ref_ind=1, bc=2.21,
+        obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts,# gtiname=path_to_data_file_gti)
+        test_model=False)
+
+    # punkt_train, spline interpolation, with corr_goodwin19 correction
+    # cannot currently run this without error, as the first (backwards)
+    # simulation step cannot be performed
+
+    Bp = Beans(corr=beans.corr_goodwin19, config_file=None, interp='spline', 
+        fluen=True, alpha=True, bc=2.21, continuous=False, maxgap=2, 
         obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts,# gtiname=path_to_data_file_gti)
         test_model=False)
 
