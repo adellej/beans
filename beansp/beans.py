@@ -220,13 +220,13 @@ def prior_func(theta_in):
     for all the parameters
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
 
     :return: prior probability
     """
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -234,7 +234,7 @@ def prior_func(theta_in):
     if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1 <= f_t < 100) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
     else:
@@ -248,13 +248,13 @@ def prior_kepler(theta_in):
     ranges X in (0.2,0.8), Z in (0.005,0.1)
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
 
     :return: prior probability
     """
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -262,7 +262,7 @@ def prior_kepler(theta_in):
     if (0.2 < X < 0.8) and (0.005 < Z < 0.1) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1 <= f_t < 100) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
     else:
@@ -280,13 +280,13 @@ def prior_1808(theta_in):
     should only be used with extreme caution in other cases!
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+      *xi_p*, *mass*, *radius*, and (optionally) *f_t*
 
     :return: prior probability
     """
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -294,7 +294,7 @@ def prior_1808(theta_in):
     if (0.00001 < X < 0.76) and (Z > 0.000010000001) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100):
+        (1 <= f_t < 100):
 
         return 0.0 + lnZprior(Z) + mr_prior(mass, radius)
     else:
@@ -307,7 +307,7 @@ def prior_grid(theta_in):
     box prior for all the parameters, respecting the grid range
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
 
     :return: prior probability
     """
@@ -316,7 +316,7 @@ def prior_grid(theta_in):
     G = const.G.to('cm3 g-1 s-2')
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     R = radius*1e5*u.cm #cgs
     M = mass*const.M_sun.to('g') #cgs
@@ -328,7 +328,7 @@ def prior_grid(theta_in):
     if (0.64 <= X <= 0.76) and (0.0025 <= Z <= 0.03) and \
         (0.0 <= Q_b <= 0.6) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1 <= f_t < 100) and \
         (1.86 < gravity < 3.45):
         return 0.0
     else:
@@ -589,7 +589,7 @@ class Beans:
         :param model: burst model to use, one of settle or grid_interp
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, and (optionally) *mass*,
-          *radius*, *f_E* & *f_a*
+          *radius*, & *f_t*
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
         :param alpha: set to True (default) to include the alphas in the
@@ -706,6 +706,7 @@ class Beans:
             self.maxgap = maxgap
 
         self.theta = theta
+
         self.numburstssim = numburstssim
         self.lnprior = prior
         self.corr = corr
@@ -793,8 +794,8 @@ class Beans:
         # here; previously this was via the (boolean) has_systematic
 
         self.ndim = len(self.theta)
-        if (self.ndim < 6) | (self.ndim > 10):
-            logger.error('number of dimensions of input parameter vector should be 6-10')
+        if (self.ndim < 6) | (self.ndim > 9):
+            logger.error('number of dimensions of input parameter vector should be 6-9')
             return
         self.num_systematic = self.ndim-8
         if self.num_systematic > 0:
@@ -852,6 +853,14 @@ class Beans:
             self.tck_s = splrep(self.tobs, self.pflux, s=self.smooth)
             self.mean_flux = mean_flux_spline
 
+        # some final checks for default sampler
+
+        if (self.sampler == 'emcee'):
+            if not hasattr(self, 'nwalkers'):
+                self.nwalkers=100
+            if not hasattr(self, 'nsteps'):
+                self.nsteps=100
+
         print("# ---------------------------------------------------------------------------#")
 
         # # -------------------------------------------------------------------------#
@@ -908,7 +917,7 @@ Initial parameters:
             # sampler-specific part
             self.sampler, (' with {} walkers, {} steps{}, a={}'.format(
                 self.nwalkers, self.nsteps, ', resuming' if self.restart else '', self.stretch_a)
-                if (self.sampler=='emcee') | (self.sampler=='bilby') else 
+                if (self.sampler=='emcee') | (self.sampler=='bilby') else
                 ' with nlive={}, dlogz={}'.format(self.nlive, self.dlogz)),
             self.threads, cpu_count(),
         self.theta_table(self.theta, indent=2) )
@@ -921,12 +930,12 @@ Initial parameters:
         results
 
         :param theta: the model parameter tuple, with *X*, *Z*, *Q_b*, *d*,
-          *xi_b*, *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+          *xi_b*, *xi_p*, *mass*, *radius*, and (optionally) *f_t*
         :param indent: number of characters to indent the string from the left
         """
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         result = """#X = {:.3f} \\ hydrogen mass fraction
 #Z = {:.5f} \\ CNO mass fraction
@@ -943,12 +952,8 @@ Initial parameters:
             result += ' (fixed)'
         if self.num_systematic == 1:
             return (result+"""
-#f_E = {:.3f} \\ systematic error term for fluence""".format(
-    f_E)).replace('#',' '*indent)
-        elif self.num_systematic == 2:
-            return (result+"""
-#f_E, f_a = {:.3f}, {:.3f} \\ systematic error terms for fluence, alpha""".format(
-    f_E, f_a)).replace('#',' '*indent)
+#f_t = {:.3f} \\ systematic error term for burst times""".format(
+    f_t)).replace('#',' '*indent)
 
         return result.replace('#', ' '*indent)
 
@@ -1223,12 +1228,12 @@ Initial parameters:
 
     def lnlike_sys(self, theta_in, x, y, yerr, components=False):
         """
-        As for lnlike, but this version also allows the "systematic" error
-        factors for the fluence and the alphas. If you want to run with those
-        you need to swap this function out for lnlike
+        As for :meth:`Beans.lnlike`, but this version also allows the "systematic" error
+        factor for the burst times. If you want to run with that
+        you need to swap this function out for :meth:`Beans.lnlike` in :meth:`Beans.lnprob`
 
         :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-          *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+          *xi_p*, and (optionally) *mass*, *radius* & *f_t*
         :param x: the "independent" variable, passed to lnlike
         :param y: the "dependent" variable (i.e. measurements), passed to lnlike
         :param yerr: erorr estimates on y
@@ -1239,7 +1244,7 @@ Initial parameters:
         # define theta_in = model parameters, which we define priors for
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-        mass, radius, f_E, f_a = extra + [self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra + [self.M_NS, self.R_NS, 1.0][len(extra):]
 
         # call model (function runmodel, in run_model.py) to generate the burst
         # train, or the set of bursts (for "ensemble" mode. In earlier versions
@@ -1257,8 +1262,8 @@ Initial parameters:
         # parameters.
 
         ato = int(self.train) # array "train" offset
-        err_fac = np.concatenate(( np.full(self.numburstsobs-ato,1.),
-            np.full(self.numburstsobs,f_E), np.full(self.numburstsobs-ato,f_a)))
+        err_fac = np.concatenate(( np.full(self.numburstsobs-ato, f_t),
+            np.full(self.numburstsobs, 1.0), np.full(self.numburstsobs-ato, 1.0)))
         inv_sigma2 = self.inv_sigma2[:self.ly]/(err_fac[:self.ly])**2
 
         # Final likelihood expression
@@ -1291,7 +1296,7 @@ Initial parameters:
         the sampler (in the :meth:`Beans.do_run` method).
 
         :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-          *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+          *xi_p*, *mass*, *radius*, and (optionally) *f_t*
         :param x: the "independent" variable, passed to :meth:`Beans.lnlike`
         :param y: the "dependent" variable (i.e. measurements), passed to
           :meth:`Beans.lnlike`
@@ -1308,7 +1313,7 @@ Initial parameters:
 
         # Now also returns the model, to accumulate along with the likelihoods
 
-        like, model = self.lnlike(theta_in, x, y, yerr)
+        like, model = self.lnlike_sys(theta_in, x, y, yerr)
 
         if (not np.isfinite(like)):
             return -np.inf, -np.inf, model
@@ -1349,7 +1354,7 @@ Initial parameters:
             ls = ''
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         itoff = 1 # time offset for models produced with generate_burst_train
         if (model is None) & show_model:
@@ -1567,7 +1572,7 @@ Initial parameters:
             _comm = '# '
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
         print ('{}corresponding to source at\n{}  d={:.2f} kpc, xi_b={:.4f}, xi_p={:.4f}, X={:.2f}, Z={:.3f}, M_NS={:.2f}, R_NS={:.2f}, 1+z={:.3f}, Q_b={:.2f}'.format(
@@ -1642,7 +1647,7 @@ Initial parameters:
         assert len(distrange) == 2
 
         X_0, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         # Loop over the distance values
 
@@ -1824,7 +1829,7 @@ Initial parameters:
         print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         logger.info("testing the prior and likelihood functions..")
-        print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
+        print("lnlike_sys:", self.lnlike_sys(self.theta, None, self.y, self.yerr))
         if self.sampler == 'emcee':
             print("lnprior:", self.lnprior(self.theta))
             print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
@@ -2520,9 +2525,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 # gravitypred = get_param_uncert(gravity)
 
             if self.ndim >= 9:
-                labels["fE"] = "$f_E$"
-            if self.ndim == 10:
-                labels["fa"] = "$f_a$"
+                labels["ft"] = "$f_t$"
 
             # now create the chainconsumer object
 
@@ -2571,7 +2574,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 index = np.arange(self.nwalkers) )
             p_fluen, p_alpha = 0.0, 0.0
             for _i in np.arange(np.shape(self.last)[0]):
-                ptot, model = self.lnlike(self.last[_i,:], None, self.y, self.yerr, components=True)
+                ptot, model = self.lnlike_sys(self.last[_i,:], None, self.y, self.yerr, components=True)
                 ato = int(self.train)
                 if model is None:
                     # The model will not always be valid
@@ -2596,7 +2599,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # plot autocorrelation times
 
-            self.plot_autocorr(reader=self.reader, title=title, 
+            self.plot_autocorr(reader=self.reader, title=title,
                 savefile='{}_autocorrelationtimes.pdf'.format(self.run_id)
                 if savefig else None)
 
@@ -2608,7 +2611,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # plot the chains:
 
             logger.info ("plotting the chains...")
-            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_E$", "$f_a$"]
+            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_t$"]
             # plt.clf()
             fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
 
