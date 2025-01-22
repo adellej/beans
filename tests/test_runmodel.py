@@ -147,8 +147,8 @@ def test_run_model():
     exp_alpha = [249.107, 243.861, 242.141, 241.961, 241.969, 242.192, 242.519, 242.806, 242.977, 243.732, 245.103, 246.568, 248.645, 253.028, 259.692, 264.639, 265.82, 267.986, 284.209, 298.512, 315.251]
 
     result1 = np.allclose(exp_times, full_model['time'],rtol=1e-4)
-    result2 = np.allclose(fpred, model['fluen'],rtol=1e-4)
-    result3 = np.allclose(exp_alpha, model['alpha'],rtol=1e-4)
+    result2 = np.allclose(fpred, full_model['fluen'],rtol=1e-4)
+    result3 = np.allclose(exp_alpha, full_model['alpha'],rtol=1e-4)
 
     assert result1 & result2 & result3
 
