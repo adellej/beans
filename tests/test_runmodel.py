@@ -119,4 +119,37 @@ def test_run_model():
     result = np.allclose(test, exp_corr, rtol=1e-3)
     assert result
 
+    # additional tests of data for IGR 17498-2921
+
+    path_to_data_file_obs = (
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "17498_obs_falanga12.txt")
+
+    path_to_data_file_bursts = (
+            pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "17498_bursts_8.txt")
+
+    B17498 = Beans(config_file=None, corr=beans.corr_goodwin19, 
+        interp='spline', smooth=0.1, 
+        fluen=True, alpha=False, numburstssim=11, ref_ind=4, bc=1.0,
+        obsname=path_to_data_file_obs, burstname=path_to_data_file_bursts,# gtiname=path_to_data_file_gti)
+        test_model=False)
+
+    theta_17498_ex = (1.77403857e-01, 1.67999877e-03, 2.03328677,
+       6.38098467, 1.18448559, 1.21979245, 2.38079878, 1.19305420e+01)
+    test, valid, full_model = runmodel(theta_17498_ex, B17498)
+    print ('\nRunning for IGR J17498-2921 with theta={}\n  result={}'.format(
+        theta_17498_ex,test))
+
+    # These values copied from the last sample of the base22p run
+
+    exp_times = [1.3539, 2.1199, 2.7784, 3.4019, 4.0217, 4.6417, 5.2664, 5.8978, 6.5352, 7.1762, 7.8321, 8.5168, 9.2304, 9.9863, 10.8276, 11.7921, 12.8447, 13.9178, 15.0281, 16.4121, 18.1007, 20.3002]
+    exp_e_b = [2.8379, 2.7342, 2.6919, 2.6874, 2.6876, 2.6931, 2.7013, 2.7086, 2.7129, 2.7312, 2.7605, 2.7925, 2.8314, 2.9044, 2.9946, 3.0455, 3.0562, 3.0746, 3.2326, 3.4798, 3.8977]
+    fpred = np.array(exp_e_b)*B17498.fluen_fac/theta_17498_ex[4]/theta_17498_ex[3]**2
+    exp_alpha = [249.107, 243.861, 242.141, 241.961, 241.969, 242.192, 242.519, 242.806, 242.977, 243.732, 245.103, 246.568, 248.645, 253.028, 259.692, 264.639, 265.82, 267.986, 284.209, 298.512, 315.251]
+
+    result1 = np.allclose(exp_times, full_model['time'],rtol=1e-4)
+    result2 = np.allclose(fpred, model['fluen'],rtol=1e-4)
+    result3 = np.allclose(exp_alpha, model['alpha'],rtol=1e-4)
+
+    assert result1 & result2 & result3
+
     return
