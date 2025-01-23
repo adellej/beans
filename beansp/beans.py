@@ -53,6 +53,10 @@ FLUEN_U = 1e-6*u.erg/u.cm**2
 
 BILBY_OUTPUT = 'bilby_out'
 
+# switch to remember what I'm using in lnprob
+
+LNPROB_USES_LNLIKE_SYS = True
+
 # -------------------------------------------------------------------------#
 ## load local  modules
 from .settle import settle
@@ -798,7 +802,7 @@ class Beans:
             logger.error('number of dimensions of input parameter vector should be 6-9')
             return
         self.num_systematic = self.ndim-8
-        if self.num_systematic > 0:
+        if (self.num_systematic > 0) & (not LNPROB_USES_LNLIKE_SYS):
             logger.warning('''likelihood calculation does not currently support systematic errors;
                 you need to swap out the lnlike method for lnlike_sys''')
         if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
@@ -1257,14 +1261,15 @@ Initial parameters:
             return -np.inf, model
 
         # To simplify final likelihood expression we define inv_sigma2 for each
-        # data parameter that describe the error.  The variance (eg sEb0) is
-        # underestimated by some fractional amount, f, for each set of
-        # parameters.
+	# data parameter that describe the error.  The variance for the
+	# burst times is (we hypothesize) underestimated by some
+	# fractional amount, f_t; in early versions we also had systematic
+	# contributions to fluence and alpha, but these are no longer used
 
         ato = int(self.train) # array "train" offset
-        err_fac = np.concatenate(( np.full(self.numburstsobs-ato, f_t),
+        err_fac = np.concatenate(( np.full(self.numburstsobs-ato, 1./f_t**2),
             np.full(self.numburstsobs, 1.0), np.full(self.numburstsobs-ato, 1.0)))
-        inv_sigma2 = self.inv_sigma2[:self.ly]/(err_fac[:self.ly])**2
+        inv_sigma2 = self.inv_sigma2[:self.ly] * err_fac[:self.ly]
 
         # Final likelihood expression
         # Because the y (observed value) vector may or may not include the
@@ -1312,6 +1317,8 @@ Initial parameters:
             return -np.inf, -np.inf, None
 
         # Now also returns the model, to accumulate along with the likelihoods
+        # if you swap lnlike for lnlike_sys below (or vice versa) make
+        # sure you update LNPROB_USES_LNLIKE_SYS at the start of this file
 
         like, model = self.lnlike_sys(theta_in, x, y, yerr)
 
@@ -1829,7 +1836,10 @@ Initial parameters:
         print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         logger.info("testing the prior and likelihood functions..")
-        print("lnlike_sys:", self.lnlike_sys(self.theta, None, self.y, self.yerr))
+        if LNPROB_USES_LNLIKE_SYS:
+            print("lnlike_sys:", self.lnlike_sys(self.theta, None, self.y, self.yerr))
+        else:
+            print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
         if self.sampler == 'emcee':
             print("lnprior:", self.lnprior(self.theta))
             print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
