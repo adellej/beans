@@ -2345,7 +2345,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=None, burnin=2000,
-                          title=None, savefig=False):
+                          ilab=None, title=None, savefig=False):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -2383,6 +2383,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         :param burnin: number of steps to discard when plotting the
           posteriors. If -ve, discard all but that number
         :param title: set to a string to add a title to the plot, or False to omit; if set to None will print some generic information
+        :param ilab: set to a list of (integer) inclination values to label in the anisotropy model plot ('fig8')
         :param savefig: set to True to save figures to .pdf files, False to skip
 
         :return: none
@@ -2855,6 +2856,15 @@ in options):
                         self.cc_nchain += 1
                     else:
                       logger.info ('skipping walkers for n={}, too few samples ({})'.format(_n, _check))
+                # make sure we ad the same configuration as for the single
+                # chain object
+                self.cc.configure(usetex=True, serif=True,
+                    flip=False, summary=False,
+                    bins=0.7, # has the effect of light smoothing of the histograms
+                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                    label_font_size='xx-large',smooth=True, \
+                    sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
                 logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
@@ -2865,7 +2875,7 @@ in options):
             # available)
 
             counts, ybins, xbins, image = plt.hist2d(self.samples[:,5],
-                self.samples[:,4], bins=500, norm=LogNorm(), cmap='OrRd')
+                self.samples[:,4], bins=50, norm=LogNorm(), cmap='OrRd')
 
             xi_p_model2 = np.arange(0, 2.5, 0.01)
             xi_b_model2 = np.empty(len(xi_p_model2))
@@ -2901,6 +2911,11 @@ in options):
                     #modela:
                     plt.plot(model_xip, model_xib, color='darkblue',
                         ls=he16_models[model][1], label=he16_models[model][0])
+
+                    if ilab is not None:
+                        for _inc in ilab:
+                            _i = np.argmin(abs(model_theta-_inc))
+                            plt.annotate('{}'.format(_inc), (model_xip[_i], model_xib[_i]))
 
             else:
                 logger.warning ('''install concord if you want to overplot model curves
