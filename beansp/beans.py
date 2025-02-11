@@ -2225,9 +2225,9 @@ Initial parameters:
 
         latex_header = "Parameter"
         latex_rows = ["$X$", "$Z$", "$Q_{\\rm b}$", "$d$", "$\\xi_b$",
-            "$\\xi_p$", "$M_{\\rm NS}$", "$R_{\\rm NS}$", "$g$", "$1+z$"]
+            "$\\xi_p$", "$M_{\\rm NS}$", "$R_{\\rm NS}$", "$g$", "$1+z$", "$f_t$"]
         latex_unit = ["", "", "MeV/nucleon", "kpc", "", "", "$M_\\odot$",
-            "km", "$10^{14}\\ {\\rm cm\\,s^{-2}}$", ""]
+            "km", "$10^{14}\\ {\\rm cm\\,s^{-2}}$", "", ""]
 
         if (clobber is False) and (os.path.exists(file)):
             logger.error ('will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
@@ -2306,6 +2306,10 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
                     latex_rows[8] += ' & {}'.format(strmeas(gravitypred[0], gravitypred[2], gravitypred[1]))
                     latex_rows[9] += ' & {}'.format(strmeas(redshiftpred[0], redshiftpred[2], redshiftpred[1]))
 
+                if self.ndim >=9:
+                    ftpred = get_param_uncert(self.samples[sel,8])
+                    latex_rows[10] += ' & {}'.format(strmeas(ftpred[0], ftpred[2], ftpred[1]))
+
                 if len(parts) > 1:
                     header += '''
 Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
@@ -2324,10 +2328,15 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     header = header+',\nNS mass (M_sun)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
                         masspred), fmt='%9.6f', header=header)
-                else:
+                elif self.ndim == 8:
                     header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
-                        masspred, radiuspred, gravitypred/1e14, redshiftpred),
+                        masspred, radiuspred, gravitypred, redshiftpred),
+                        fmt='%9.6f', header=header)
+                else:
+                    header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z), f_t'
+                    np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
+                        masspred, radiuspred, gravitypred, redshiftpred, ftpred),
                         fmt='%9.6f', header=header)
 
                 if i < len(parts)-1:
