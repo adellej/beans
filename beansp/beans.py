@@ -2102,7 +2102,14 @@ Initial parameters:
 
         timepred = [x[0] for x in self.model_pred['time_stats'][key]]
         ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
-        imatch = burst_time_match(self.ref_ind, self.bstart, ref_tpred, np.array(timepred))
+
+        # have to do different matching procedures if not continuous
+        # cf. with the comparison option of do_analysis
+
+        if self.continuous:
+            imatch = burst_time_match(self.ref_ind, self.bstart, ref_tpred, np.array(timepred))
+        else:
+            imatch = burst_time_match(0, self.bstart, 0, np.array(timepred))
 
         bursts = Table()
         bursts['num'] = np.arange(self.numburstsobs)+1
