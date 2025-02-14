@@ -2135,6 +2135,15 @@ Initial parameters:
             mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
             description='Error on alpha-value')
 
+        if show:
+            # show the headers for the LaTeX table
+            print ('''
+\\begin{tabular}{ccccccc} 
+  \hline
+        & MINBAR & Start  & $\Delta t$ & Fluence & \multicolumn{2}{c}{$\\alpha$-value} \\\\
+  Burst & ID     & (MJD)  & (hr)       & $10^{-6}\\ {\\rm erg\,cm^{-2}}$ & Measured & Inferred \\\\
+  \hline ''')
+
         # Now loop over the bursts and calculate the derived quantities
         dt, e_dt, alpha, e_alpha, E_alpha = [], [], [], [], []
         _sel = np.where(np.array(self.model_pred['partition']) == key)[0]
@@ -2184,15 +2193,20 @@ Initial parameters:
                 E_alpha.append(_alpha[2])
             else:
                 # not sure what this case is for (excluded bursts?)
+                # I think first observed burst, where we have no prior event
                 dt.append(0.)
                 e_dt.append(0.)
                 alpha.append(0.)
                 e_alpha.append(0.)
                 E_alpha.append(0.)
                 if show:
-                    print ("{} & & {} & \\nodata & {} & \\nodata & \\nodata \\\\".format(
+                    print ("{} & [minbar ID] & {} & \\nodata & {} & \\nodata & \\nodata \\\\".format(
                         bursts['num'][i], bursts['time'][i],
                         strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i])))
+
+        if show:
+            # print the end of the LaTeX table
+            print ('  \hline\n\end{tabular}')
 
         bursts['trec'] = MaskedColumn(dt, mask=np.array(dt) <=0., unit=u.hr,
             description='Burst recurrence time')
