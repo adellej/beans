@@ -177,7 +177,7 @@ def next_burst( bean, base, x_0, z, t1, dist, xi_p, cfac, mass, radius,
 # -------------------------------------------------------------------------#
 
 def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
-                full_model=False, debug=False):
+                indep=True, full_model=False, debug=False):
     """
     Replacement for generate_burst_train. This version will connect burst
     sequences only out to a maximum gap of maxgap bursts. If there are more
@@ -196,6 +196,7 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
     :param xi_p: anisotropy of persistent emission
     :param mass: NS mass (M_sun)
     :param radius: NS radius (km)
+    :param indep: if set to True, all forward simulations go from the observed bursts, not from the last simulated burst in a train
     :param full_model: if set to True, include all the parameters in the
       dict that is returned
     :param debug: set to True to show additional debugging information
@@ -218,7 +219,8 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
 
         # search phase 1; at the start of a new sub-train
 
-        result_b = next_burst(bean, base, x_0, z, stime[-1],
+        _last = stime[-1] if not indep else bean.bstart[iburst]
+        result_b = next_burst(bean, base, x_0, z, _last,
                               dist, xi_p, cfac, mass, radius, direction=-1, debug=debug)
         # returns a rec_array with elements t2, e_b, alpha, mdot
 
@@ -238,13 +240,19 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
         buffer = []
         while (gap == False) & (iburst < bean.numburstsobs):
 
+            # this is the loop to find the next burst in a contiguous segment
             if debug:
                 print('\n---> matching burst #{}'.format(iburst + 1))
-            # this is the loop to find the next burst in a contiguous segment
+
+            _last = stime[-1]
+            if indep:
+                # restart the train here from the current burst; also wipe the buffer
+                _last = bean.bstart[iburst]
+                buffer = []
 
             if len(buffer) == 0:
                 # only run this step if we're left with an empty buffer after the previous
-                result_f = next_burst(bean, base, x_0, z, stime[-1],
+                result_f = next_burst(bean, base, x_0, z, _last,
                                       dist, xi_p, cfac, mass, radius, direction=1, debug=debug)
                 if result_f is None:
                     # this can happen if we've gone out beyond the end of
@@ -262,6 +270,7 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
 
             if debug:
                 print(result_f, result_f.t2, type(buffer), type(result_f.t2))
+
             while ((result_f.t2[0] < bean.bstart[min([iburst + 1, bean.numburstsobs - 1])])
                    & (len(buffer) <= bean.maxgap)):
                 # loop until the current simulated burst time is later than the next observed time

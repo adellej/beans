@@ -8,7 +8,7 @@ import h5py
 
 def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
     '''
-    Distribute the initial positions for the walkers around the supplied theta value, 
+    Distribute the initial positions for the walkers around the supplied theta value,
     making sure they're consistent with the prior
 
     :param theta: desired centroid for walker parameters
@@ -18,19 +18,19 @@ def set_initial_positions(theta, nwalkers, prior, scale=1e-4):
 
     :return: list of nwalkers positions
     '''
-    
+
     ndim = len(theta)
     pos = np.array([theta + scale*np.random.randn(ndim) for i in range(nwalkers)])
-    
+
     valid = np.array([prior(pos[i]) != -np.inf for i in range(nwalkers)])
-    
+
     print ('Initial walker positions within {} of supplied parameter vector, checking for consistency with prior...'.format(scale))
 
     # print (len(np.where(~valid)[0]))
     while (len(np.where(~valid)[0])) > 0:
         pos[~valid] = [theta + scale*np.random.randn(ndim) for i in range(len(np.where(~valid)[0]))]
         valid = np.array([prior(pos[i]) != -np.inf for i in range(nwalkers)])
-        # print (len(np.where(~valid)[0]))                                                                     
+        # print (len(np.where(~valid)[0]))
 
     return list(pos)
 
@@ -44,8 +44,8 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
     :param nwalkers: number of walkers for the emcee run
     :param nsteps: number of MCMC steps to run
-    :param theta_in: parameter tuple, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+    :param theta: parameter tuple, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
     :param lnprob: log-probability function to use with emcee
     :param prior: prior function to use with emcee, used to check the initial walker positions
     :param x: the "independent" variable, passed to lnlike
@@ -104,7 +104,7 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
             args=(x, y, yerr), backend=reader, blobs_dtype=dtype, pool=pool,
             moves=emcee.moves.StretchMove(a=stretch_a), **kwargs)
-    
+
         # We'll track how the average autocorrelation time estimate changes
         index = 0
         autocorr = np.empty(nsteps)
@@ -128,20 +128,20 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
             pos = set_initial_positions(theta,  nwalkers, prior)
 
         print("# ---------------------------------------------------------------------------#")
-            
+
         for sample in sampler.sample(pos, iterations=nsteps, progress=True):
 
             # Only check convergence every few steps
             if sampler.iteration % conv_check_interval:
                 # skip the remaining part of this loop
                 continue
-    
+
             # calculate the acceptance fraction and accumulate in the file
             # the mean below is over the walkers (not sure if it is the
             # average over the whole run, or instantaneous)
             accept_frac = np.mean(sampler.acceptance_fraction)
             # print (np.shape(sampler.acceptance_fraction))
-            if ((accept_frac < accept_frac_range[0]) | 
+            if ((accept_frac < accept_frac_range[0]) |
                 (accept_frac > accept_frac_range[1])) & (not accept_frac_warn):
                 print ('** WARNING ** acceptance fraction {:.3f} outside desired range {}-{}'.format(accept_frac, *accept_frac_range))
                 accept_frac_warn = True
@@ -149,14 +149,14 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
             with open(f'{run_id}_acceptancefraction.txt', 'a') as f:
                 np.savetxt(f, np.c_[float(sampler.iteration), stretch_a, accept_frac],
                     fmt='%1.4e, %1.4f, %1.4f')
-    
+
             # Compute the autocorrelation time so far
             # Using tol=0 means that we'll always get an estimate even
             # if it isn't trustworthy
             tau = sampler.get_autocorr_time(tol=0)
             autocorr[index] = np.mean(tau)
             index += 1
-    
+
             # Check convergence
             converged = np.all(tau * 100 < sampler.iteration)
             converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)

@@ -53,6 +53,10 @@ FLUEN_U = 1e-6*u.erg/u.cm**2
 
 BILBY_OUTPUT = 'bilby_out'
 
+# switch to remember what I'm using in lnprob
+
+LNPROB_USES_LNLIKE_SYS = True
+
 # -------------------------------------------------------------------------#
 ## load local  modules
 from .settle import settle
@@ -220,13 +224,13 @@ def prior_func(theta_in):
     for all the parameters
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
 
     :return: prior probability
     """
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -234,7 +238,7 @@ def prior_func(theta_in):
     if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1 <= f_t < 100) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
     else:
@@ -248,13 +252,13 @@ def prior_kepler(theta_in):
     ranges X in (0.2,0.8), Z in (0.005,0.1)
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
 
     :return: prior probability
     """
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -262,7 +266,7 @@ def prior_kepler(theta_in):
     if (0.2 < X < 0.8) and (0.005 < Z < 0.1) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1 <= f_t < 100) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
     else:
@@ -280,13 +284,13 @@ def prior_1808(theta_in):
     should only be used with extreme caution in other cases!
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+      *xi_p*, *mass*, *radius*, and (optionally) *f_t*
 
     :return: prior probability
     """
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     # upper bound and lower bounds of each parameter defined here. Bounds were
     # found by considering an estimated value for each parameter then giving
@@ -294,7 +298,7 @@ def prior_1808(theta_in):
     if (0.00001 < X < 0.76) and (Z > 0.000010000001) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100):
+        (1 <= f_t < 100):
 
         return 0.0 + lnZprior(Z) + mr_prior(mass, radius)
     else:
@@ -307,7 +311,7 @@ def prior_grid(theta_in):
     box prior for all the parameters, respecting the grid range
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-      *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
 
     :return: prior probability
     """
@@ -316,7 +320,7 @@ def prior_grid(theta_in):
     G = const.G.to('cm3 g-1 s-2')
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_E, f_a = extra+[M_NS, R_NS, 1.0, 1.0][len(extra):]
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
 
     R = radius*1e5*u.cm #cgs
     M = mass*const.M_sun.to('g') #cgs
@@ -328,7 +332,7 @@ def prior_grid(theta_in):
     if (0.64 <= X <= 0.76) and (0.0025 <= Z <= 0.03) and \
         (0.0 <= Q_b <= 0.6) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_a < 100) and (1 <= f_E < 100) and \
+        (1 <= f_t < 100) and \
         (1.86 < gravity < 3.45):
         return 0.0
     else:
@@ -589,7 +593,7 @@ class Beans:
         :param model: burst model to use, one of settle or grid_interp
         :param theta: initial centroid values for walker model parameters, with
           *X*, *Z*, *Q_b*, *d*, *xi_b*, *xi_p*, and (optionally) *mass*,
-          *radius*, *f_E* & *f_a*
+          *radius*, & *f_t*
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
         :param alpha: set to True (default) to include the alphas in the
@@ -706,6 +710,7 @@ class Beans:
             self.maxgap = maxgap
 
         self.theta = theta
+
         self.numburstssim = numburstssim
         self.lnprior = prior
         self.corr = corr
@@ -793,11 +798,11 @@ class Beans:
         # here; previously this was via the (boolean) has_systematic
 
         self.ndim = len(self.theta)
-        if (self.ndim < 6) | (self.ndim > 10):
-            logger.error('number of dimensions of input parameter vector should be 6-10')
+        if (self.ndim < 6) | (self.ndim > 9):
+            logger.error('number of dimensions of input parameter vector should be 6-9')
             return
         self.num_systematic = self.ndim-8
-        if self.num_systematic > 0:
+        if (self.num_systematic > 0) & (not LNPROB_USES_LNLIKE_SYS):
             logger.warning('''likelihood calculation does not currently support systematic errors;
                 you need to swap out the lnlike method for lnlike_sys''')
         if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
@@ -851,6 +856,14 @@ class Beans:
                 self.smooth = smooth
             self.tck_s = splrep(self.tobs, self.pflux, s=self.smooth)
             self.mean_flux = mean_flux_spline
+
+        # some final checks for default sampler
+
+        if (self.sampler == 'emcee'):
+            if not hasattr(self, 'nwalkers'):
+                self.nwalkers=100
+            if not hasattr(self, 'nsteps'):
+                self.nsteps=100
 
         print("# ---------------------------------------------------------------------------#")
 
@@ -908,7 +921,7 @@ Initial parameters:
             # sampler-specific part
             self.sampler, (' with {} walkers, {} steps{}, a={}'.format(
                 self.nwalkers, self.nsteps, ', resuming' if self.restart else '', self.stretch_a)
-                if (self.sampler=='emcee') | (self.sampler=='bilby') else 
+                if (self.sampler=='emcee') | (self.sampler=='bilby') else
                 ' with nlive={}, dlogz={}'.format(self.nlive, self.dlogz)),
             self.threads, cpu_count(),
         self.theta_table(self.theta, indent=2) )
@@ -921,12 +934,12 @@ Initial parameters:
         results
 
         :param theta: the model parameter tuple, with *X*, *Z*, *Q_b*, *d*,
-          *xi_b*, *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+          *xi_b*, *xi_p*, *mass*, *radius*, and (optionally) *f_t*
         :param indent: number of characters to indent the string from the left
         """
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         result = """#X = {:.3f} \\ hydrogen mass fraction
 #Z = {:.5f} \\ CNO mass fraction
@@ -943,12 +956,8 @@ Initial parameters:
             result += ' (fixed)'
         if self.num_systematic == 1:
             return (result+"""
-#f_E = {:.3f} \\ systematic error term for fluence""".format(
-    f_E)).replace('#',' '*indent)
-        elif self.num_systematic == 2:
-            return (result+"""
-#f_E, f_a = {:.3f}, {:.3f} \\ systematic error terms for fluence, alpha""".format(
-    f_E, f_a)).replace('#',' '*indent)
+#f_t = {:.3f} \\ systematic error term for burst times""".format(
+    f_t)).replace('#',' '*indent)
 
         return result.replace('#', ' '*indent)
 
@@ -1223,12 +1232,12 @@ Initial parameters:
 
     def lnlike_sys(self, theta_in, x, y, yerr, components=False):
         """
-        As for lnlike, but this version also allows the "systematic" error
-        factors for the fluence and the alphas. If you want to run with those
-        you need to swap this function out for lnlike
+        As for :meth:`Beans.lnlike`, but this version also allows the "systematic" error
+        factor for the burst times. If you want to run with that
+        you need to swap this function out for :meth:`Beans.lnlike` in :meth:`Beans.lnprob`
 
         :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-          *xi_p*, and (optionally) *mass*, *radius*, *f_E* & *f_a*
+          *xi_p*, and (optionally) *mass*, *radius* & *f_t*
         :param x: the "independent" variable, passed to lnlike
         :param y: the "dependent" variable (i.e. measurements), passed to lnlike
         :param yerr: erorr estimates on y
@@ -1239,7 +1248,7 @@ Initial parameters:
         # define theta_in = model parameters, which we define priors for
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-        mass, radius, f_E, f_a = extra + [self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra + [self.M_NS, self.R_NS, 1.0][len(extra):]
 
         # call model (function runmodel, in run_model.py) to generate the burst
         # train, or the set of bursts (for "ensemble" mode. In earlier versions
@@ -1252,14 +1261,15 @@ Initial parameters:
             return -np.inf, model
 
         # To simplify final likelihood expression we define inv_sigma2 for each
-        # data parameter that describe the error.  The variance (eg sEb0) is
-        # underestimated by some fractional amount, f, for each set of
-        # parameters.
+	# data parameter that describe the error.  The variance for the
+	# burst times is (we hypothesize) underestimated by some
+	# fractional amount, f_t; in early versions we also had systematic
+	# contributions to fluence and alpha, but these are no longer used
 
         ato = int(self.train) # array "train" offset
-        err_fac = np.concatenate(( np.full(self.numburstsobs-ato,1.),
-            np.full(self.numburstsobs,f_E), np.full(self.numburstsobs-ato,f_a)))
-        inv_sigma2 = self.inv_sigma2[:self.ly]/(err_fac[:self.ly])**2
+        err_fac = np.concatenate(( np.full(self.numburstsobs-ato, 1./f_t**2),
+            np.full(self.numburstsobs, 1.0), np.full(self.numburstsobs-ato, 1.0)))
+        inv_sigma2 = self.inv_sigma2[:self.ly] * err_fac[:self.ly]
 
         # Final likelihood expression
         # Because the y (observed value) vector may or may not include the
@@ -1291,7 +1301,7 @@ Initial parameters:
         the sampler (in the :meth:`Beans.do_run` method).
 
         :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-          *xi_p*, *mass*, *radius*, and (optionally) *f_E* & *f_a*
+          *xi_p*, *mass*, *radius*, and (optionally) *f_t*
         :param x: the "independent" variable, passed to :meth:`Beans.lnlike`
         :param y: the "dependent" variable (i.e. measurements), passed to
           :meth:`Beans.lnlike`
@@ -1307,8 +1317,10 @@ Initial parameters:
             return -np.inf, -np.inf, None
 
         # Now also returns the model, to accumulate along with the likelihoods
+        # if you swap lnlike for lnlike_sys below (or vice versa) make
+        # sure you update LNPROB_USES_LNLIKE_SYS at the start of this file
 
-        like, model = self.lnlike(theta_in, x, y, yerr)
+        like, model = self.lnlike_sys(theta_in, x, y, yerr)
 
         if (not np.isfinite(like)):
             return -np.inf, -np.inf, model
@@ -1349,7 +1361,7 @@ Initial parameters:
             ls = ''
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         itoff = 1 # time offset for models produced with generate_burst_train
         if (model is None) & show_model:
@@ -1359,19 +1371,24 @@ Initial parameters:
                 debug=False)
 
             show_model = valid
-            if (imatch is None) & ('imatch' not in model) & (valid & self.train & (self.numburstsobs > 0)):
-                # ... but it's useful to know if it's possible
-                # (not relevant for punkt_train, or ensemble mode)
 
-                imatch = burst_time_match(self.ref_ind, self.bstart,
-                    model['iref'], np.array(model['time']))
+        elif model is not None:
+            # assume a passed model is valid
+            valid = show_model
 
-                if imatch is None:
-                    logger.warning ("can't match predicted bursts to observations")
+        if (imatch is None) & ('imatch' not in model) & (valid & self.train & (self.numburstsobs > 0)):
+            # ... but it's useful to know if it's possible
+            # (not relevant for punkt_train, or ensemble mode)
 
-            elif 'imatch' in model:
-                imatch = model['imatch']
-                itoff = 0
+            imatch = burst_time_match(self.ref_ind, self.bstart,
+                model['iref'], np.array(model['time']))
+
+            if imatch is None:
+                logger.warning ("can't match predicted bursts to observations")
+
+        elif 'imatch' in model:
+            imatch = model['imatch']
+            itoff = 0
 
         full_model = False  # Flag to remember whether we're plotting the
                             # full model output of generate burst train or
@@ -1562,7 +1579,7 @@ Initial parameters:
             _comm = '# '
 
         X, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
         print ('{}corresponding to source at\n{}  d={:.2f} kpc, xi_b={:.4f}, xi_p={:.4f}, X={:.2f}, Z={:.3f}, M_NS={:.2f}, R_NS={:.2f}, 1+z={:.3f}, Q_b={:.2f}'.format(
@@ -1637,7 +1654,7 @@ Initial parameters:
         assert len(distrange) == 2
 
         X_0, Z, Q_b, dist, xi_b, xi_p, *extra = self.theta
-        mass, radius, f_E, f_a = extra+[self.M_NS, self.R_NS, 1.0, 1.0][len(extra):]
+        mass, radius, f_t = extra+[self.M_NS, self.R_NS, 1.0][len(extra):]
 
         # Loop over the distance values
 
@@ -1819,7 +1836,10 @@ Initial parameters:
         print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         logger.info("testing the prior and likelihood functions..")
-        print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
+        if LNPROB_USES_LNLIKE_SYS:
+            print("lnlike_sys:", self.lnlike_sys(self.theta, None, self.y, self.yerr))
+        else:
+            print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
         if self.sampler == 'emcee':
             print("lnprior:", self.lnprior(self.theta))
             print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
@@ -2082,7 +2102,14 @@ Initial parameters:
 
         timepred = [x[0] for x in self.model_pred['time_stats'][key]]
         ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
-        imatch = burst_time_match(self.ref_ind, self.bstart, ref_tpred, np.array(timepred))
+
+        # have to do different matching procedures if not continuous
+        # cf. with the comparison option of do_analysis
+
+        if self.continuous:
+            imatch = burst_time_match(self.ref_ind, self.bstart, ref_tpred, np.array(timepred))
+        else:
+            imatch = burst_time_match(0, self.bstart, 0, np.array(timepred))
 
         bursts = Table()
         bursts['num'] = np.arange(self.numburstsobs)+1
@@ -2107,6 +2134,15 @@ Initial parameters:
         bursts['e_alpha_obs'] = MaskedColumn(self.alphae,
             mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
             description='Error on alpha-value')
+
+        if show:
+            # show the headers for the LaTeX table
+            print ('''
+\\begin{tabular}{ccccccc} 
+  \hline
+        & MINBAR & Start  & $\Delta t$ & Fluence & \multicolumn{2}{c}{$\\alpha$-value} \\\\
+  Burst & ID     & (MJD)  & (hr)       & $10^{-6}\\ {\\rm erg\,cm^{-2}}$ & Measured & Inferred \\\\
+  \hline ''')
 
         # Now loop over the bursts and calculate the derived quantities
         dt, e_dt, alpha, e_alpha, E_alpha = [], [], [], [], []
@@ -2157,15 +2193,20 @@ Initial parameters:
                 E_alpha.append(_alpha[2])
             else:
                 # not sure what this case is for (excluded bursts?)
+                # I think first observed burst, where we have no prior event
                 dt.append(0.)
                 e_dt.append(0.)
                 alpha.append(0.)
                 e_alpha.append(0.)
                 E_alpha.append(0.)
                 if show:
-                    print ("{} & & {} & \\nodata & {} & \\nodata & \\nodata \\\\".format(
+                    print ("{} & [minbar ID] & {} & \\nodata & {} & \\nodata & \\nodata \\\\".format(
                         bursts['num'][i], bursts['time'][i],
                         strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i])))
+
+        if show:
+            # print the end of the LaTeX table
+            print ('  \hline\n\end{tabular}')
 
         bursts['trec'] = MaskedColumn(dt, mask=np.array(dt) <=0., unit=u.hr,
             description='Burst recurrence time')
@@ -2205,9 +2246,9 @@ Initial parameters:
 
         latex_header = "Parameter"
         latex_rows = ["$X$", "$Z$", "$Q_{\\rm b}$", "$d$", "$\\xi_b$",
-            "$\\xi_p$", "$M_{\\rm NS}$", "$R_{\\rm NS}$", "$g$", "$1+z$"]
+            "$\\xi_p$", "$M_{\\rm NS}$", "$R_{\\rm NS}$", "$g$", "$1+z$", "$f_t$"]
         latex_unit = ["", "", "MeV/nucleon", "kpc", "", "", "$M_\\odot$",
-            "km", "$10^{14}\\ {\\rm cm\\,s^{-2}}$", ""]
+            "km", "$10^{14}\\ {\\rm cm\\,s^{-2}}$", "", ""]
 
         if (clobber is False) and (os.path.exists(file)):
             logger.error ('will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
@@ -2286,6 +2327,10 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
                     latex_rows[8] += ' & {}'.format(strmeas(gravitypred[0], gravitypred[2], gravitypred[1]))
                     latex_rows[9] += ' & {}'.format(strmeas(redshiftpred[0], redshiftpred[2], redshiftpred[1]))
 
+                if self.ndim >=9:
+                    ftpred = get_param_uncert(self.samples[sel,8])
+                    latex_rows[10] += ' & {}'.format(strmeas(ftpred[0], ftpred[2], ftpred[1]))
+
                 if len(parts) > 1:
                     header += '''
 Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
@@ -2304,10 +2349,15 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     header = header+',\nNS mass (M_sun)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
                         masspred), fmt='%9.6f', header=header)
-                else:
+                elif self.ndim == 8:
                     header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
-                        masspred, radiuspred, gravitypred/1e14, redshiftpred),
+                        masspred, radiuspred, gravitypred, redshiftpred),
+                        fmt='%9.6f', header=header)
+                else:
+                    header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z), f_t'
+                    np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
+                        masspred, radiuspred, gravitypred, redshiftpred, ftpred),
                         fmt='%9.6f', header=header)
 
                 if i < len(parts)-1:
@@ -2325,7 +2375,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=None, burnin=2000,
-                          title=None, savefig=False):
+                          ilab=None, title=None, savefig=False):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -2363,6 +2413,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         :param burnin: number of steps to discard when plotting the
           posteriors. If -ve, discard all but that number
         :param title: set to a string to add a title to the plot, or False to omit; if set to None will print some generic information
+        :param ilab: set to a list of (integer) inclination values to label in the anisotropy model plot ('fig8')
         :param savefig: set to True to save figures to .pdf files, False to skip
 
         :return: none
@@ -2515,9 +2566,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 # gravitypred = get_param_uncert(gravity)
 
             if self.ndim >= 9:
-                labels["fE"] = "$f_E$"
-            if self.ndim == 10:
-                labels["fa"] = "$f_a$"
+                labels["ft"] = "$f_t$"
 
             # now create the chainconsumer object
 
@@ -2566,7 +2615,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 index = np.arange(self.nwalkers) )
             p_fluen, p_alpha = 0.0, 0.0
             for _i in np.arange(np.shape(self.last)[0]):
-                ptot, model = self.lnlike(self.last[_i,:], None, self.y, self.yerr, components=True)
+                ptot, model = self.lnlike_sys(self.last[_i,:], None, self.y, self.yerr, components=True)
                 ato = int(self.train)
                 if model is None:
                     # The model will not always be valid
@@ -2591,7 +2640,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # plot autocorrelation times
 
-            self.plot_autocorr(reader=self.reader, title=title, 
+            self.plot_autocorr(reader=self.reader, title=title,
                 savefile='{}_autocorrelationtimes.pdf'.format(self.run_id)
                 if savefig else None)
 
@@ -2603,7 +2652,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # plot the chains:
 
             logger.info ("plotting the chains...")
-            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_E$", "$f_a$"]
+            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_t$"]
             # plt.clf()
             fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
 
@@ -2837,6 +2886,15 @@ in options):
                         self.cc_nchain += 1
                     else:
                       logger.info ('skipping walkers for n={}, too few samples ({})'.format(_n, _check))
+                # make sure we ad the same configuration as for the single
+                # chain object
+                self.cc.configure(usetex=True, serif=True,
+                    flip=False, summary=False,
+                    bins=0.7, # has the effect of light smoothing of the histograms
+                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
+                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
+                    label_font_size='xx-large',smooth=True, \
+                    sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
                 logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
@@ -2847,7 +2905,7 @@ in options):
             # available)
 
             counts, ybins, xbins, image = plt.hist2d(self.samples[:,5],
-                self.samples[:,4], bins=500, norm=LogNorm(), cmap='OrRd')
+                self.samples[:,4], bins=50, norm=LogNorm(), cmap='OrRd')
 
             xi_p_model2 = np.arange(0, 2.5, 0.01)
             xi_b_model2 = np.empty(len(xi_p_model2))
@@ -2883,6 +2941,11 @@ in options):
                     #modela:
                     plt.plot(model_xip, model_xib, color='darkblue',
                         ls=he16_models[model][1], label=he16_models[model][0])
+
+                    if ilab is not None:
+                        for _inc in ilab:
+                            _i = np.argmin(abs(model_theta-_inc))
+                            plt.annotate('{}'.format(_inc), (model_xip[_i], model_xib[_i]))
 
             else:
                 logger.warning ('''install concord if you want to overplot model curves
