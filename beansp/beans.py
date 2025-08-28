@@ -1266,8 +1266,13 @@ Initial parameters:
 	# fractional amount, f_t; in early versions we also had systematic
 	# contributions to fluence and alpha, but these are no longer used
 
+        # Forgot to include an extra err_fac for the extra time, now that
+        # we keep the reference burst time in the data array (now fixed)
+        # so the length of the err_fac times cpt is self.numburstsobs, not
+        # self.numburstsobs-ato
+
         ato = int(self.train) # array "train" offset
-        err_fac = np.concatenate(( np.full(self.numburstsobs-ato, 1./f_t**2),
+        err_fac = np.concatenate(( np.full(self.numburstsobs, 1./f_t**2),
             np.full(self.numburstsobs, 1.0), np.full(self.numburstsobs-ato, 1.0)))
         inv_sigma2 = self.inv_sigma2[:self.ly] * err_fac[:self.ly]
 
