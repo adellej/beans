@@ -208,10 +208,14 @@ def runmodel(theta_in, bean, match=True, debug=False):
     # fluence and alphas
     # The times are already relative to the reference bursts, so
     # nothing needs to be done to those
+    # Added in the Eddington flux (and error) so we can do the upper
+    # limits on distance from the burst peak fluxes
 
     result['fluen'] = result['e_b'] * (bean.fluen_fac/xi_b/dist**2).value
 
     result['alpha_obs'] = result['alpha'] * xi_b/xi_p
+
+    result['F_Edd'] = bean.L_Edd/dist**2, bean.L_Edd_err/dist**2
 
     # And finally form the model array for comparison with the data
 

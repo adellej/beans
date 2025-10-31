@@ -66,9 +66,10 @@ def get_obs(bean, alpha=True, fluen=True):
         # The "ensemble" mode tables, with additional columns, seem to require these additional
         # parameters to guarantee they are read in correctly
         burstdata = ascii.read(bean.burstname, format='tab', header_start=None, data_start=0)
-        assert (len(burstdata.columns) >=5) or ((bean.obsname is None) & (len(burstdata.columns) >=9))
+        _n_cols = len(burstdata.columns)
+        assert (_n_cols >=5) or ((bean.obsname is None) & (_n_cols >=9))
 
-        # Get the burst time, fluence and alpha arrays:
+        # Get the burst time, fluence, peak flux and alpha arrays:
 
         bean.bstart = np.array(burstdata['col1'])
         bean.tdel = (bean.bstart[1:]-bean.bstart[:-1])*24.
@@ -78,8 +79,23 @@ def get_obs(bean, alpha=True, fluen=True):
         bean.fluene = np.array(burstdata['col3'])
         bean.ifluen = bean.fluen > 0.
         bean.cmpr_alpha = alpha
-        bean.alpha = np.array(burstdata['col4'])
-        bean.alphae = np.array(burstdata['col5'])
+        # new capability with optional peak fluxes
+        if (_n_cols >= 7) & (bean.obsname is not None):
+            bean.bpflux = np.array(burstdata['col4'])
+            bean.bpfluxe = np.array(burstdata['col5'])
+            bean.pre_flag = np.array(burstdata['col6'])
+            bean.non_pre = np.where((bean.pre_flag == 1) & (bean.bpflux > 0.0))[0]
+            bean.pre = np.where((bean.pre_flag == 2) & (bean.bpflux > 0.0))[0]
+            if len(bean.pre) > 0:
+                logger.error('peak flux constraints for PRE bursts not yet implemnted')
+                return None
+            bean.alpha = np.array(burstdata['col7'])
+            bean.alphae = np.array(burstdata['col8'])
+        else:
+            bean.bpflux, bean.bpfluxe = np.zeros(bean.numburstsobs), np.zeros(bean.numburstsobs)
+            bean.non_pre, bean.pre = [], []
+            bean.alpha = np.array(burstdata['col4'])
+            bean.alphae = np.array(burstdata['col5'])
         if np.any(~bean.ifluen):
             if np.any(bean.alpha[~bean.ifluen] > 0.):
                 print('** WARNING ** nonzero alphas despite missing fluences will be ignored in fit')
@@ -169,9 +185,9 @@ def get_obs(bean, alpha=True, fluen=True):
 
             print("""
 Burst data read from {}:
-  {} bursts ({} fluences & {} alphas) between
+  {} bursts ({} fluences, {} peak fluxes & {} alphas) between
   MJD {}-{}""".format(bean.burstname,
-len(bean.bstart), sum(bean.fluen > 0.), sum(bean.alpha > 0),
+len(bean.bstart), sum(bean.fluen > 0.), sum(bean.bpflux > 0), sum(bean.alpha > 0),
 min(bean.bstart)+bean.tref, max(bean.bstart)+bean.tref))
 
         else:

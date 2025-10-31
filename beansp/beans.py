@@ -21,6 +21,7 @@ from matplotlib.ticker import MaxNLocator
 from scipy.interpolate import splrep, BSpline, splint
 from chainconsumer import ChainConsumer
 from multiprocessing import cpu_count
+from math import erf
 import os, sys
 import logging
 import gzip
@@ -50,6 +51,12 @@ M_NS = 1.4 # canonical NS mass [M_sun]
 R_NS = 11.2 # canonical NS mass [km]
 FLUX_U = 1e-9*u.erg/u.cm**2/u.s
 FLUEN_U = 1e-6*u.erg/u.cm**2
+
+# Adopted value of the Eddington luminosity/peak luminosity of PRE bursts
+# (preliminary values from Galloway et al. 2026, in prep)
+
+L_EDD = 3.5e38*u.erg/u.s
+L_EDD_ERR = 1.6e38*u.erg/u.s
 
 BILBY_OUTPUT = 'bilby_out'
 
@@ -630,8 +637,16 @@ class Beans:
         # energy from settle (in 1e39, the observer frame) to fluence at 1
         # kpc in units of 1e-6 erg/cm^2
 
-        self.fluen_fac = ((1e39*u.erg/(4*np.pi*u.kpc**2))
+        self.dist_fac = (1./(4*np.pi*u.kpc**2)).decompose()
+        self.fluen_fac = ((1e39*u.erg * self.dist_fac)
             / (1e-6*u.erg/u.cm**2)).decompose()
+
+        # Eddington luminosity and error, already multiplied by the
+	# distance factor & divided by flux units (i.e. units of 1e-9
+	# erg/cm^2/s kpc^2); for use comparing the peak fluxes in runmodel
+
+        self.L_Edd = (L_EDD*self.dist_fac/FLUX_U).decompose().value
+        self.L_Edd_err = (L_EDD_ERR*self.dist_fac/FLUX_U).decompose().value
 
         # Conversion factor between persistent flux (in units of 1e-9
         # erg/cm^2/s) and the accretion rate
@@ -838,9 +853,12 @@ class Beans:
         # pre-calculate the sigmas and other parameters, for use in lnlike
 
         self.inv_sigma2 = 1. / self.yerr[:self.ly] ** 2
-        self.log_inv_sigma2 = np.log(self.inv_sigma2)
+        # In versons 2.56.1 and earlier, there was a missing factor of
+        # 2\pi in this expression!
+        self.log_2pi_sigma2 = np.log(2.*np.pi/self.inv_sigma2)
         if self.train:
-            self.log_inv_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
+            # self.log_inv_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
+            self.log_2pi_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
 
         # Set interpolation mode, and define averaging function
 
@@ -1216,7 +1234,15 @@ Initial parameters:
         # alpha values, we need to truncate the other vectors here
 
         # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
-        cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 - self.log_inv_sigma2
+        # cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 - self.log_inv_sigma2
+        cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 + self.log_2pi_sigma2
+
+        # if the peak fluxes are defined, add the components for the
+        # likelihood here
+
+        for _i in self.non_pre:
+            cpts = np.append(cpts,
+  np.log(.5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])) )
 
         # if the components flag is set, also add those to the model dict
 
@@ -1279,9 +1305,19 @@ Initial parameters:
         # Final likelihood expression
         # Because the y (observed value) vector may or may not include the
         # alpha values, we need to truncate the other vectors here
+        # In versons 2.56.1 and earlier, there was a missing factor of
+        # 2\pi in this expression!
 
         # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
-        cpts = (self.y - model[:self.ly]) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
+        cpts = (self.y - model[:self.ly]) ** 2 * inv_sigma2 \
+            + np.log(2.*np.pi/inv_sigma2)
+
+        # if the peak fluxes are defined, add the components for the
+        # likelihood here
+
+        for _i in self.non_pre:
+            cpts = np.append(cpts,
+  np.log(.5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])) )
 
         # if the components flag is set, also add those to the model dict
 
