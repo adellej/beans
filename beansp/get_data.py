@@ -84,11 +84,9 @@ def get_obs(bean, alpha=True, fluen=True):
             bean.bpflux = np.array(burstdata['col4'])
             bean.bpfluxe = np.array(burstdata['col5'])
             bean.pre_flag = np.array(burstdata['col6'])
+            # could implement the MINBAR definitions for the PRE flag here
             bean.non_pre = np.where((bean.pre_flag == 1) & (bean.bpflux > 0.0))[0]
             bean.pre = np.where((bean.pre_flag == 2) & (bean.bpflux > 0.0))[0]
-            if len(bean.pre) > 0:
-                logger.error('peak flux constraints for PRE bursts not yet implemnted')
-                return None
             bean.alpha = np.array(burstdata['col7'])
             bean.alphae = np.array(burstdata['col8'])
         else:

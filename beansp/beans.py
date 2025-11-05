@@ -1235,14 +1235,23 @@ Initial parameters:
 
         # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
         # cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 - self.log_inv_sigma2
-        cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 + self.log_2pi_sigma2
+        cpts = -0.5 * (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 + self.log_2pi_sigma2
 
         # if the peak fluxes are defined, add the components for the
-        # likelihood here
+        # likelihood here. First the lower limits for the non-PRE bursts:
 
         for _i in self.non_pre:
-            cpts = np.append(cpts,
-  np.log(.5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])) )
+            _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
+            if _log_arg == 0.0:
+                return -np.inf, model
+            cpts = np.append(cpts, np.log(_log_arg) )
+
+        # and then for the PRE bursts
+
+        for _i in self.pre:
+            cpts = np.append(cpts, 
+          -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
+          + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
 
         # if the components flag is set, also add those to the model dict
 
@@ -1253,7 +1262,7 @@ Initial parameters:
         # instead of the downselection in model
 
         # Now also return the model
-        return -0.5 * np.sum(cpts), model2
+        return np.sum(cpts), model2
 
 
     def lnlike_sys(self, theta_in, x, y, yerr, components=False):
@@ -1309,15 +1318,26 @@ Initial parameters:
         # 2\pi in this expression!
 
         # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
-        cpts = (self.y - model[:self.ly]) ** 2 * inv_sigma2 \
+        cpts = -0.5 * (self.y - model[:self.ly]) ** 2 * inv_sigma2 \
             + np.log(2.*np.pi/inv_sigma2)
 
         # if the peak fluxes are defined, add the components for the
-        # likelihood here
+        # likelihood here; also want to trap underflows
+        # First the lower limits for the non-PRE bursts:
 
         for _i in self.non_pre:
-            cpts = np.append(cpts,
-  np.log(.5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])) )
+            _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
+            if _log_arg == 0.0:
+                return -np.inf, model
+
+            cpts = np.append(cpts, np.log(_log_arg) )
+
+        # and then for the PRE bursts
+
+        for _i in self.pre:
+            cpts = np.append(cpts, 
+          -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
+          + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
 
         # if the components flag is set, also add those to the model dict
 
@@ -1328,7 +1348,7 @@ Initial parameters:
         # instead of the downselection in model
 
         # Now also return the model
-        return -0.5 * np.sum(cpts), model2
+        return np.sum(cpts), model2
 
     # -------------------------------------------------------------------------#
     # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
@@ -1347,6 +1367,7 @@ Initial parameters:
         :param y: the "dependent" variable (i.e. measurements), passed to
           :meth:`Beans.lnlike`
         :param yerr: erorr estimates on y
+
         :return: total (prior+model) likelihood, prior likelihood, model array
           (from :meth:`Beans.lnlike`)
         """
@@ -1908,20 +1929,29 @@ Initial parameters:
 
             logger.warning('walkers will start at provided position vector.\n              checking supplied positions...')
             # assert len(kwargs['pos']) == self.nwalkers
+            # we need to make sure the supplied positions will give a
+            # valid model BUT also that the likelihoods will not all be
+            # -inf
             bad = np.full(len(new_pos), False)
             for i, pos in enumerate(new_pos):
-                _test, _valid, _model = runmodel(pos, self)
-                bad[i] = _test is None
+                # _test, _valid, _model = runmodel(pos, self)
+                # print (pos, _test, _valid, _model)
+                _test, _prior, _model = self.lnprob(pos, None, self.y, self.yerr )
+                # print (pos, _test, _prior, _model)
+                bad[i] = not np.isfinite(_test)
             nbad = len(np.where(bad)[0])
 
             if nbad == 0:
                 logger.info ('... done. all OK, continuing')
+            # elif nbad == self.nwalkers:
+            elif nbad > self.nwalkers*2./3.:
+                # if you have too many bad positions, you'll get an error
+                # running with too many duplicates; this is a rule of
+                # thumb which probably needs testing
+                logger.error ('... done. Too many (>2/3) of the supplied positions are invalid (lnprob = -np.inf), run will likely fail')
+                return
             else:
                 logger.info ('... done. {}/{} positions invalid; redistributing...'.format(nbad, self.nwalkers))
-                # if you have too many bad positions, you'll get an error
-                # running with too many duplicates; need to possibly trap that
-                # here
-                breakpoint()
                 for i in (np.where(bad)[0]):
                     new_pos[i] = new_pos[np.random.choice(np.where(~bad)[0])] #+ scale*np.random.randn(ndim)
                 logger.info ('... done')
@@ -3247,6 +3277,7 @@ in options):
             print ('** ERROR ** no model predictions available, run the comparison first')
             return None
 
+        # TODO: if no key is supplied, could just save all the positions
         if key is None:
             print ("** ERROR ** no key supplied, don't know which set to keep")
             return None
