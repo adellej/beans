@@ -305,7 +305,7 @@ def prior_1808(theta_in):
     if (0.00001 < X < 0.76) and (Z > 0.000010000001) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_t < 100):
+        (1 <= f_t < 10):
 
         return 0.0 + lnZprior(Z) + mr_prior(mass, radius)
     else:

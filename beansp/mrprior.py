@@ -21,8 +21,10 @@ Marray = np.linspace(0.2, 3.0, 97)
 # required arrays: mu, sissgma and Marray
 def mr_prior(M, R):
     # hard mass limits: M = 0.2-2.5, R = 9.5-16
-    # exclude values outside of domain of interpolation:
-    if M > 2.5 or M < 0.2:
+    # (exclude values outside of domain of interpolation)
+    # Goodwin et al. (2019) claims narrower prior ranges on the mass,
+    # implemented below:
+    if M > 2.5 or M < 1.15:
         return -np.inf
     if R > 16 or R < 9.5:
         return -np.inf
