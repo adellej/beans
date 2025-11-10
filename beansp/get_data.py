@@ -5,10 +5,10 @@ import numpy as np
 from os.path import exists
 import sys
 
-def get_obs(bean, alpha=True, fluen=True):
+def get_obs(bean, logger, alpha, fluen, pflux):
     """
     Reads data in from ascii files and returns the data structures
-    required for emcee Requires persistent burst observations and,
+    required for emcee. Requires persistent burst observations and,
     optionally, flux observations & satellite telescope GTIs; or just
     persistent flux measurements and GTIs.
 
@@ -16,19 +16,20 @@ def get_obs(bean, alpha=True, fluen=True):
     columns in the given order: burst observations:
 
     | time (MJD)
-    | fluence (in 1e-9 erg/cm^2/s), fluence error
+    | bolometric burst fluence & error (in 1e-6 erg/cm^2)
+    | [ peak burst bolometric flux & error (in 1e-9 erg/cm^2/s) and PRE flag, optional ]
     | alpha, alpha error
 
     and optionally for ensemble mode,
 
-    | persistent flux (in 1e-9 erg/cm^2/s) and error
-    | recurrence time (hr) and error
+    | persistent flux & error (in 1e-9 erg/cm^2/s)
+    | recurrence time & error (hr)
 
-    observations:
+    observations (for train mode):
 
     | start time (MJD)
     |  stop time (MJD)
-    | persistent flux measurements (in 3-25keV 1e-9 erg/cm^2/s), pflux error
+    | persistent flux measurements & error (in 3-25keV 1e-9 erg/cm^2/s)
 
     satellite gti observing data:
 
@@ -46,23 +47,24 @@ def get_obs(bean, alpha=True, fluen=True):
 
     :param bean: Beans object from which ref_ind, bc, obsname,
       burstname & gtiname will be used to find the input data
-    :param alpha: set to True (default) to include the alphas in the
+    :param logger: logger object to display information, errors etc.
+    :param alpha: set to True to include the alphas in the
       data for comparison, or False to omit
-    :param fluen: set to True (default) to include the fluences in the
+    :param fluen: set to True to include the fluences in the
       data for comparison, or False to omit
+    :param pflux: set to True to include the peak burst fluxes
+      (if supplied) in the data for comparison, or False to omit
 
     :return: nothing (everything comes back via the Beanobject)
     """
 
-    print("\nReading input data files ...")
+    logger.info("reading input data files ...")
 
     # Read in the burst and observation data that contains the measurements to match
 
     if bean.burstname is not None:
-        # if not exists(burstname):
-        #     print("** ERROR ** burst data file {} not found".format(burstname))
-        #     sys.exit()
-
+        # Here we read in EITHER the individual or ensemble burst data,
+        # should be OK
         # The "ensemble" mode tables, with additional columns, seem to require these additional
         # parameters to guarantee they are read in correctly
         burstdata = ascii.read(bean.burstname, format='tab', header_start=None, data_start=0)
@@ -79,28 +81,32 @@ def get_obs(bean, alpha=True, fluen=True):
         bean.fluene = np.array(burstdata['col3'])
         bean.ifluen = bean.fluen > 0.
         bean.cmpr_alpha = alpha
+        bean.cmpr_pflux = pflux
         # new capability with optional peak fluxes
+        bean.non_pre, bean.pre = [], []
         if (_n_cols >= 7) & (bean.obsname is not None):
             bean.bpflux = np.array(burstdata['col4'])
             bean.bpfluxe = np.array(burstdata['col5'])
             bean.pre_flag = np.array(burstdata['col6'])
-            # could implement the MINBAR definitions for the PRE flag here
-            bean.non_pre = np.where((bean.pre_flag == 1) & (bean.bpflux > 0.0))[0]
-            bean.pre = np.where((bean.pre_flag == 2) & (bean.bpflux > 0.0))[0]
+            if bean.cmpr_pflux:
+                # only set these arrays if we're doing the peak flux
+                # comparison; otherwise leave them empty
+                # could implement the MINBAR definitions for the PRE flag here
+                bean.non_pre = np.where((bean.pre_flag == 1) & (bean.bpflux > 0.0))[0]
+                bean.pre = np.where((bean.pre_flag == 2) & (bean.bpflux > 0.0))[0]
             bean.alpha = np.array(burstdata['col7'])
             bean.alphae = np.array(burstdata['col8'])
         else:
             bean.bpflux, bean.bpfluxe = np.zeros(bean.numburstsobs), np.zeros(bean.numburstsobs)
-            bean.non_pre, bean.pre = [], []
             bean.alpha = np.array(burstdata['col4'])
             bean.alphae = np.array(burstdata['col5'])
         if np.any(~bean.ifluen):
             if np.any(bean.alpha[~bean.ifluen] > 0.):
-                print('** WARNING ** nonzero alphas despite missing fluences will be ignored in fit')
+                logger.warning('nonzero alphas despite missing fluences will be ignored in fit')
         bean.ifluen = np.where(bean.ifluen)[0]
 
     else:
-        print ('** WARNING ** skipping read of burst data, assuming no bursts observed')
+        logger.warning('skipping read of burst data, assuming no bursts observed')
         bean.numburstsobs = 0
         # if there's no burst data, define the start time as the first observation instead
 
@@ -127,7 +133,7 @@ def get_obs(bean, alpha=True, fluen=True):
         # Check the arrays are sorted here
         _i = np.argsort(tobs)
         if not np.all(_i == np.arange(len(tobs))):
-            print('** WARNING ** input observation data is not sorted, fixing')
+            logger.warning('input observation data is not sorted, fixing')
             tobs = tobs[_i]
             pflux = pflux[_i]
             pfluxe = pfluxe[_i]
@@ -201,7 +207,7 @@ min(bean.bstart)+bean.tref, max(bean.bstart)+bean.tref))
         print("""
 Observation data read from {}:
   {} persistent flux measurements covering 
-  MJD {}-{}, {:.2f}% duty cycle""".format(bean.obsname, len(tobs),
+  MJD {}-{}, {:.2f}% duty cycle\n""".format(bean.obsname, len(tobs),
            min(ta_1), max(ta_2), np.sum((ta_2-ta_1))/(max(ta_2)-min(ta_1))*100))
 
     else:
@@ -209,7 +215,7 @@ Observation data read from {}:
 	# Here we define some additional/alternate parameters for the
 	# "ensemble" mode run
         # Note that no bolometric correction is applied to the persistent
-        # fluxes
+        # fluxes, they're assumed bolometric
 
         tobs = burstdata['col1']
         tobs_err = np.ones(len(tobs)) * 0.5
@@ -217,6 +223,17 @@ Observation data read from {}:
         bean.pfluxe = np.array(burstdata['col7'])
         bean.tdel = np.array(burstdata['col8'])
         bean.tdele = np.array(burstdata['col9'])
+
+        # don't read or use peak fluxes for ensemble mode (but we could?)
+
+        bean.cmpr_pflux = False
+
+        print ("""
+Burst ensemble data read from {}:
+  {} burst recurrence times ({} fluences & {} alphas) between
+  MJD {}-{}\n""".format(bean.burstname,
+len(bean.tdel), sum(bean.fluen > 0.), sum(bean.alpha > 0),
+min(tobs), max(tobs)))
 
         if not hasattr(bean, 'tref'):
             bean.tref = 0.
@@ -256,13 +273,14 @@ Observation data read from {}:
         # st = st-bstart0
         # et = et-bstart0
 
-        print ("\nGTI checking will be performed")
+        logger.info("GTI checking will be performed")
 
-    else:
-        print ("\nYou have not supplied a GTI file, so no GTI checking will be performed.")
+    elif bean.train:
+        # only relevant to bursttrain mode
+        logger.info("you have not supplied a GTI file, so no GTI checking will be performed.")
 
         bean.st, bean.et = None, None
 
-    print ("\n... done.")
+    logger.info ("... done.")
 
     return # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs

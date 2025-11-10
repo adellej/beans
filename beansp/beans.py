@@ -228,7 +228,9 @@ def lnZprior(z):
 def prior_func(theta_in):
     """
     This function is the default prior and implements a simple box prior
-    for all the parameters
+    for all the parameters. Notably the systematic error on the burst
+    times is limited to 10, which gives a maximum absolute error on the
+    times of 10*BSTART_ERR = 100 min
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, and (optionally) *mass*, *radius* & *f_t*
@@ -245,7 +247,7 @@ def prior_func(theta_in):
     if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_t < 100) and \
+        (1 <= f_t < 10) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
     else:
@@ -257,6 +259,8 @@ def prior_kepler(theta_in):
     This function applies a more restrictive prior suitable for use with
     the corr_kepler correction function, which is only defined over the
     ranges X in (0.2,0.8), Z in (0.005,0.1)
+
+    Otherwise identical to :func:`beans.prior_func`;
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, and (optionally) *mass*, *radius* & *f_t*
@@ -273,7 +277,7 @@ def prior_kepler(theta_in):
     if (0.2 < X < 0.8) and (0.005 < Z < 0.1) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_t < 100) and \
+        (1 <= f_t < 10) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
     else:
@@ -317,6 +321,8 @@ def prior_grid(theta_in):
     This function is to accompany grid_interp and implements a simple
     box prior for all the parameters, respecting the grid range
 
+    Otherwise identical to :func:`beans.prior_func`;
+
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, and (optionally) *mass*, *radius* & *f_t*
 
@@ -339,7 +345,7 @@ def prior_grid(theta_in):
     if (0.64 <= X <= 0.76) and (0.0025 <= Z <= 0.03) and \
         (0.0 <= Q_b <= 0.6) and (1 < dist < 20) and \
         (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
-        (1 <= f_t < 100) and \
+        (1 <= f_t < 10) and \
         (1.86 < gravity < 3.45):
         return 0.0
     else:
@@ -569,7 +575,7 @@ class Beans:
                  continuous=True, maxgap=2,
                  interp='linear', smooth=0.02, model = settle,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
-                 sampler='emcee', fluen=True, alpha=True,
+                 sampler='emcee', fluen=True, alpha=False, pflux=True,
                  numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
         """
@@ -603,8 +609,10 @@ class Beans:
           *radius*, & *f_t*
         :param fluen: set to True (default) to include the fluences in the
           data for comparison, or False to omit
-        :param alpha: set to True (default) to include the alphas in the
-          data for comparison, or False to omit
+        :param alpha: set to True to include the alphas in the
+          data for comparison, or False (default) to omit
+        :param pflux: set to True (default) to include the peak fluxes in
+          the data for comparison, if they have been supplied
         :param numburstssim: number of bursts to simulate, for the "train" mode,
           both earlier and later than the reference burst; i.e. set to half
           the total number of bursts you want to simulate. Don't forget to
@@ -750,8 +758,12 @@ class Beans:
             else:
                 logger.warning('ignored init option {}={}'.format(key, kwargs[key]))
 
+        # following parameters control what goes into the likelihood
+        # calcualtion
+
         self.cmpr_fluen = fluen
         self.cmpr_alpha = alpha
+        self.cmpr_pflux = pflux
 
         # check for the config_file, and if detected read in (will
         # override the defaults above):
@@ -760,26 +772,25 @@ class Beans:
         if (config_file is not None):
             if (os.path.exists(config_file)):
                 config_file_exists = True
-                cmpr_alpha, cmpr_fluen = True, True
+                cmpr_alpha, cmpr_fluen, cmpr_pflux = False, True, True
                 logger.info('Reading run params from {} ...'.format(config_file))
                 self.read_config(config_file)
                 logger.info('... done')
                 # special here for the alpha and fluen parameters, which
 		# are replaced by the actual data values (if the option is
 		# True); (pre-v2.10 config files don't list alpha or fluen)
+                # pflux is even more confusing, because this is the name
+                # for the persistent fluxes (while the peak burst fluxes
+                # are bpflux)
                 if hasattr(self, 'alpha'):
                     self.cmpr_alpha = self.alpha
                     alpha = self.alpha
                 if hasattr(self, 'fluen'):
                     self.cmpr_fluen = self.fluen
                     fluen = self.fluen
-
-                # for some older runs we need to add parameters here, that
-                # are not listed in the .ini file
-
-                if (self.sampler == 'emcee') & (not hasattr(self, 'stretch_a')):
-                    logger.warning('stretch_a not listed in .ini file, assuming default')
-                    self.stretch_a = 2.0
+                if hasattr(self, 'pflux'):
+                    self.cmpr_pflux = self.pflux
+                    pflux = self.pflux
 
             else:
                 logger.error('config file not found, applying keywords')
@@ -802,6 +813,13 @@ class Beans:
         if self.lnprior(self.theta) == -np.inf:
             logger.error('supplied parameter vector is excluded by the prior')
             return
+
+        # for some older runs we need to add parameters here, that
+        # are not listed in the .ini file
+
+        if (self.sampler == 'emcee') & (not hasattr(self, 'stretch_a')):
+            logger.warning('stretch_a not set or provided by .ini file, assuming default')
+            self.stretch_a = 2.0
 
         # below set the parameters which are not part of the config
         # file
@@ -848,7 +866,7 @@ class Beans:
         # bypasses the earlier init function, and instead calls get_obs
         # directly
 
-        get_obs(self, alpha=alpha, fluen=fluen)
+        get_obs(self, logger, alpha, fluen, pflux)
 
         # pre-calculate the sigmas and other parameters, for use in lnlike
 
@@ -918,10 +936,11 @@ See https://beans-7.readthedocs.io
 
 Run ID: {}
 {}{}Burst data file: {}
-  comprising {} observed bursts, {}including alphas{}{}
+  comprising {} observed bursts{}
 No. of bursts to simulate: {} ({} mode{})
   model: {}
   sampler: {}{}
+  likelihood includes: {}times{}{}{}
   {}/{} threads
 Initial parameters:
 {}
@@ -929,8 +948,6 @@ Initial parameters:
             'Observation data file: {}\n  bolometric correction: {}\n'.format( self.obsname, self.bc) if self.train else '',
             '' if self.gtiname is None else 'GTI data file: {}\n'.format(self.gtiname),
             self.burstname, self.numburstsobs,
-            '' if self.cmpr_alpha else 'not ',
-            '' if self.cmpr_fluen else ' or fluences',
             '' if (self.obsname is None) | ~self.continuous else ', ref. to #{}'.format(self.ref_ind),
             self.train+self.numburstssim*(1+self.train) if self.continuous else self.numburstsobs,
             'train' if self.train else 'ensemble',
@@ -941,6 +958,10 @@ Initial parameters:
                 self.nwalkers, self.nsteps, ', resuming' if self.restart else '', self.stretch_a)
                 if (self.sampler=='emcee') | (self.sampler=='bilby') else
                 ' with nlive={}, dlogz={}'.format(self.nlive, self.dlogz)),
+            'recurrence ' if not self.train else '',
+            ', fluences' if self.cmpr_fluen else '',
+            ', alphas' if self.cmpr_alpha else '',
+            ', peak fluxes' if self.cmpr_pflux else '',
             self.threads, cpu_count(),
         self.theta_table(self.theta, indent=2) )
 
@@ -1038,6 +1059,7 @@ Initial parameters:
            Config.set("data", "gtiname", str(self.gtiname))
            Config.set("data", "alpha", str(self.cmpr_alpha))
            Config.set("data", "fluen", str(self.cmpr_fluen))
+           Config.set("data", "pflux", str(self.cmpr_pflux))
 
            if self.obsname is not None:
                # These parameters only used for "train" mode
