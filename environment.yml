@@ -1,0 +1,18 @@
+#-----------------------------------------
+# beans python environment requirements
+#
+# explicitly refers to https://github.com/adellej/beans/requirements.txt
+# intended for use with miniconda python 3.13+
+#
+# likely requires pip 21.2.1 or newer; see https://stackoverflow.com/a/68586065
+#
+# see also the list of dependencies in setup.py
+#-----------------------------------------
+name: beans
+dependencies:
+  - python>=3.13
+# h5py==v2.10.0 or above. 
+  - h5py>=2.10.0
+  - pip
+  - pip:
+    - -r requirements.txt

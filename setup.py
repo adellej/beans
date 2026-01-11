@@ -28,16 +28,18 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 # add all libraries
-requirements = ["numpy>=1.16",
+requirements = ["h5py",
+                "pySettle",
+                "emcee",
+                "tqdm",
                 "matplotlib",
-                "emcee>=3.0",
+                "numpy",
+                "pandas",
                 "corner",
                 "astropy",
                 "scipy",
-                "tables",
                 "chainconsumer",
-                "h5py>=2.10.0",
-                "pySettle"]
+]
 
 package_name = 'beansp'
 
@@ -52,11 +54,14 @@ setup(
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
+        # 'Programming Language :: Python :: 3.6',
+        # 'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
     ],
     description="Bayesian Estimation of Accreting Neutron Stars parameters",
     install_requires=requirements,

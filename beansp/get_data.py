@@ -98,6 +98,7 @@ def get_obs(bean, logger, alpha, fluen, pflux):
             bean.alphae = np.array(burstdata['col8'])
         else:
             bean.bpflux, bean.bpfluxe = np.zeros(bean.numburstsobs), np.zeros(bean.numburstsobs)
+            bean.cmpr_pflux = False
             bean.alpha = np.array(burstdata['col4'])
             bean.alphae = np.array(burstdata['col5'])
         if np.any(~bean.ifluen):
@@ -206,7 +207,7 @@ min(bean.bstart)+bean.tref, max(bean.bstart)+bean.tref))
 
         print("""
 Observation data read from {}:
-  {} persistent flux measurements covering 
+  {} persistent flux measurements covering
   MJD {}-{}, {:.2f}% duty cycle\n""".format(bean.obsname, len(tobs),
            min(ta_1), max(ta_2), np.sum((ta_2-ta_1))/(max(ta_2)-min(ta_1))*100))
 
@@ -223,6 +224,8 @@ Observation data read from {}:
         bean.pfluxe = np.array(burstdata['col7'])
         bean.tdel = np.array(burstdata['col8'])
         bean.tdele = np.array(burstdata['col9'])
+
+        bean.numburstssim = len(tobs)
 
         # don't read or use peak fluxes for ensemble mode (but we could?)
 

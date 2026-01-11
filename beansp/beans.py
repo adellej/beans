@@ -19,7 +19,7 @@ from astropy.table import Table, MaskedColumn
 from astropy.time import Time
 from matplotlib.ticker import MaxNLocator
 from scipy.interpolate import splrep, BSpline, splint
-from chainconsumer import ChainConsumer
+from chainconsumer import *
 from multiprocessing import cpu_count
 from math import erf
 import os, sys
@@ -29,20 +29,26 @@ import time
 from configparser import ConfigParser
 import pickle
 
-import pkg_resources  # part of setuptools
+# import pkg_resources  # part of setuptools
+from importlib.metadata import version
 try:
     # this will fail if the package is not pip-installed
-    __version__ = pkg_resources.require("beansp")[0].version
+    __version__ = version("beansp")
 except:
     # in which case just record the path
     __version__ = os.getcwd()
+
+# Default is to use TeX, but you might want to set this to False if you're
+# on a system where you can't install that package
+
+USETEX = True
 
 # Set the default font to Times; this doesn't seem to affect the
 # ChainConsumer plots
 
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = ['Times']
-plt.rcParams['text.usetex'] = True
+plt.rcParams['text.usetex'] = USETEX
 
 # Some constants & standard units
 
@@ -146,8 +152,8 @@ def strmeas(val, err, err_hi=None, mask_str='--'):
         return mask_str
 
     eta=1e-20     # Threshold for non-zero measurements
-    sym_templ = '${{{}}}\pm{{{}}}$'
-    asym_templ = '${{{}}}_{{{{{{{}}}}}}}^{{{{{{{}}}}}}}$'
+    sym_templ = r'${{{}}}\pm{{{}}}$'
+    asym_templ = r'${{{}}}_{{{{{{{}}}}}}}^{{{{{{{}}}}}}}$'
 
     # get the number of significant figures of each of the errors
     fudge=0.0222764
@@ -2118,8 +2124,8 @@ Initial parameters:
 
         f = plt.figure(figsize=figsize)
 
-        param = ["$X$", "$Z$", "$Q_{\mathrm{b}}$", "$d$", "$\\xi_b$",
-            "$\\xi_p$", "$M$", "$R$", "$f_{\mathrm{E}}$", "$f_{\mathrm{a}}$"]
+        param = [r"$X$", r"$Z$", r"$Q_{\mathrm{b}}$", r"$d$", r"$\\xi_b$",
+            r"$\\xi_p$", r"$M$", r"$R$", r"$f_{\mathrm{E}}$", r"$f_{\mathrm{a}}$"]
 
         for j in range(self.ndim):
             chain = samples[:, :, j].T
@@ -2230,7 +2236,7 @@ Initial parameters:
 
         if show:
             # show the headers for the LaTeX table
-            print ('''
+            print (r'''
 \\begin{tabular}{ccccccc} 
   \hline
         & MINBAR & Start  & $\Delta t$ & Fluence & \multicolumn{2}{c}{$\\alpha$-value} \\\\
@@ -2299,7 +2305,7 @@ Initial parameters:
 
         if show:
             # print the end of the LaTeX table
-            print ('  \hline\n\end{tabular}')
+            print (r'  \hline\n\end{tabular}')
 
         bursts['trec'] = MaskedColumn(dt, mask=np.array(dt) <=0., unit=u.hr,
             description='Burst recurrence time')
@@ -2630,15 +2636,22 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # here now create the overall chainconsumer object that will
             # enable the various posterior plots below
 
-            labels = {"X": "$X$", "Z": "$Z$", "Qb": "$Q_b$ (MeV)",
-                "d": "$d$ (kpc)", "xi_b": "$\\xi_b$", "xi_p": "$\\xi_p$"}
+            # the labels dict maps the "short" parameter names to the
+            # LaTeX labels for use with ChainConsumer, so the plots look
+            # nice
 
+            labels = {"X": r"\ensuremath{X}", "Z": r"\ensuremath{Z}",
+                "Qb": r"\ensuremath{Q_b\ ({\mathrm{MeV})}",
+                "d": r"\ensuremath{d\ (\mathrm{kpc})",
+                "xi_b": r"\ensuremath{\xi_b}", "xi_p": r"\ensuremath{\xi_p}"}
+
+            # we also need to add entries for any extra parameters
             if self.ndim >= 7:
-                labels["M"] = "$M$ ($M_\odot$)"
+                labels["M"] = r"\ensuremath{M\ (M_\odot)}"
                 mass = self.samples[:,6]
                 # masspred = get_param_uncert(mass)
             if self.ndim >= 8:
-                labels["R"] = "$R$ (km)"
+                labels["R"] = r"\ensuremath{R\ (\mathrm{km})}"
                 radius = self.samples[:,7]
                 # radiuspred = get_param_uncert(radius)
 
@@ -2659,36 +2672,49 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 # gravitypred = get_param_uncert(gravity)
 
             if self.ndim >= 9:
-                labels["ft"] = "$f_t$"
+                labels["ft"] = r"\ensuremath{f_t}"
 
-            # now create the chainconsumer object
+            # this dict also has the labels for the derived quantities,
+            # which will be added to the sample table below
 
             _plot_labels = labels
-            _plot_labels['cosi'] = '$\cos i$'
+            # _plot_labels['cosi'] = r'$\cos i$'
+            _plot_labels['cosi'] = r'\ensuremath{\cos i}'
             if self.ndim >= 8:
-                _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
-                _plot_labels['1+z'] = '$1+z$'
+                # _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
+                # _plot_labels['1+z'] = '$1+z$'
+                _plot_labels['g'] = r"\ensuremath{g\ (\mathrm{cm\,s}^{-2}})"
+                _plot_labels['1+z'] = r"\ensuremath{1+z}"
                 _samples =np.column_stack((self.samples, cosi, gravity, redshift))
             else:
                 _samples =np.column_stack((self.samples, cosi))
 
-            self.cc = ChainConsumer()
-            # self.cc.add_chain(_samples, parameters=_labels)
-            self.cc.add_chain(_samples, parameters=list(_plot_labels.values()),
+            # now create the chainconsumer object
+            # swap keys for values below to test out LaTeX approach
+
+            _df = pd.DataFrame(_samples, columns=_plot_labels.values())
+            _chain = Chain(samples=_df, 
                 name='beansp v{} run {} last {}/{}'.format(
                 self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed))
-            # configure params below copied from Adelle's jupyter notebook
+
+            self.cc = ChainConsumer().add_chain(_chain)
+
+            # configure params below copied initially from Adelle's
+            # jupyter notebook for use with v0.33
             # we apply them here for consistency across all the posterior
             # plots
-	    # despite the original sigmas setting, only 2 contours are
-	    # shown...? (the first two, 1 & 2 sigma)
-            self.cc.configure(usetex=True, serif=True,
-                flip=False, summary=False,
-                bins=0.7, # has the effect of light smoothing of the histograms
-                diagonal_tick_labels=False, max_ticks=3, shade=True, \
-                shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-                label_font_size='xx-large',smooth=True, \
-                sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
+            # updated config parameters for v1.25+ here 
+            #   https://samreay.github.io/ChainConsumer/api/chainconfig/
+            self.cc.set_override(ChainConfig(
+                # deprecated parameters from ChainConsumer 0.33
+                # some of  these now part of PlotConfig (see below)
+                # bins=0.7, # has the effect of light smoothing of the histograms
+                # tick_font_size='xx-large', diagonal_tick_labels=False, sigma2d=False,  summary=False, flip=False, label_font_size='xx-large', max_ticks=3, serif=True,
+                shade=True, shade_alpha=1.0 ,bar_shade=True, smooth=True, \
+                sigmas=[0,1,2])) #np.linspace(0, 3, 4))
+
+            self.cc.set_plot_config(PlotConfig(serif=True, usetex=USETEX))
+
             self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
@@ -2704,23 +2730,50 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             logger.info('calculating probabilities for last walker step...')
 
-            probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha'],
+            probs = pd.DataFrame(columns = ['p_tot','prior','p_time','p_fluen','p_alpha','p_pflux'],
                 index = np.arange(self.nwalkers) )
-            p_fluen, p_alpha = 0.0, 0.0
+            p_fluen, p_alpha, p_pflux =  0.0, 0.0, 0.0
+            _summed = False
+            ato = int(self.train) # array "train" offset
             for _i in np.arange(np.shape(self.last)[0]):
+
                 ptot, model = self.lnlike_sys(self.last[_i,:], None, self.y, self.yerr, components=True)
-                ato = int(self.train)
+
                 if model is None:
                     # The model will not always be valid
-                    p_time, p_fluen, p_alpha = 0., 0., 0.
+                    p_time, p_fluen, p_alpha, p_pflux = 0., 0., 0., 0.
                 else:
-                    p_time = -0.5*np.sum(model['cpts'][:self.numburstsobs-ato])
+                    # make sure we've summed everything; while we're
+                    # checking _summed is an array, but otherwise a boolean
+                    if not _summed:
+                        _summed = np.full(len(model['cpts']), False)
+                    # we already multiply by -0.5 in the likelihood
+                    # expression
+                    _icpts = self.numburstsobs
+                    p_time = np.sum(model['cpts'][:_icpts])
+                    if not np.all(_summed):
+                        _summed[:_icpts] = True
                     if self.cmpr_fluen:
-                        p_fluen = -0.5*np.sum(model['cpts'][self.numburstsobs-ato:2*self.numburstsobs-ato])
+                        p_fluen = np.sum(model['cpts'][_icpts:_icpts+self.numburstsobs])
+                        if not np.all(_summed):
+                            _summed[_icpts:_icpts+self.numburstsobs], _icpts = True, _icpts+self.numburstsobs
                     if self.cmpr_alpha:
-                        p_alpha = -0.5*np.sum(model['cpts'][2*self.numburstsobs-ato:])
+                        p_alpha = np.sum(model['cpts'][_icpts:_icpts+self.numburstsobs-ato])
+                        if not np.all(_summed):
+                            _summed[_icpts:_icpts+self.numburstsobs-ato], _icpts = True, _icpts+self.numburstsobs-ato
+                    if self.cmpr_pflux:
+                        p_pflux = np.sum(model['cpts'][_icpts:_icpts+self.numburstsobs])
+                        if not np.all(_summed):
+                            _summed[_icpts:_icpts+self.numburstsobs], _icpts = True, _icpts+self.numburstsobs
+
+                    # now set the check flag
+                    _summed = np.all(_summed)
+                    if not(_summed):
+                        logger.warning('missing likelihood compoonents in breakdown')
+                        return 
+
                 pprior = self.lnprior(self.last[_i,:])
-                probs.loc[_i] = [ptot, pprior, p_time, p_fluen, p_alpha]
+                probs.loc[_i] = [ptot, pprior, p_time, p_fluen, p_alpha, p_pflux]
 
             self.probs = probs
             logger.info('... done. Likelihoods and breakdown stored in probs attribute')
@@ -2796,8 +2849,11 @@ in options):
             # make plot of posterior distributions of your parameters:
             # (using the already-created ChainConsumer object)
 
-            fig = self.cc.plotter.plot(parameters=list(self.cc_parameters.values())[:self.ndim],
-                figsize="page", truth=truths, legend=title, display=False)
+            # figsize='page' seemingly does something weird
+            # swap keys for values below to test out LaTeX approach
+            fig = self.cc.plotter.plot(columns=list(self.cc_parameters.values())[:self.ndim], figsize=(8,8) )
+                # these params not available (here) with new ChainConsumer
+                # truth=truths, legend=title, display=False)
 
             fig.show()
 
@@ -2820,8 +2876,9 @@ in options):
             # cc = ChainConsumer()
             # cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
 
-            fig = self.cc.plotter.plot(parameters=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
-                truth=truths, figsize="page", legend=title, display=False)
+            fig = self.cc.plotter.plot(columns=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
+                figsize=(8,8) ) # figsize="page",
+                # truth=truths, legend=title, display=False)
 
             fig.show()
 
@@ -2846,8 +2903,9 @@ in options):
             # cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
             #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
             fig = self.cc.plotter.plot(
-                parameters=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
-                truth=truths, figsize="page", legend=title, display=False)
+                columns=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
+                figsize=(8,8) ) # figsize="page", 
+                # truth=truths, legend=title, display=False)
 
             fig.show()
 
@@ -2863,6 +2921,7 @@ in options):
         if ('converge' in options):
 
             # do the summary plot, comparing the two halves of the burnin
+            # TODO convert the statements below to the new syntax for ChainConsumer
 
             _cc = ChainConsumer()
             _n = int(np.shape(self.samples)[0]/2)
@@ -2963,6 +3022,7 @@ in options):
 
             # Here also we modify the ChainConsumer object if we have
             # multiple models
+            # Updated syntax for ChainConsumer >= 1.2.5
 
             if (len(times) != self.cc_nchain) & (part is not None):
                 self.cc = ChainConsumer()
@@ -2972,22 +3032,28 @@ in options):
                     _sel = np.array(part) == _n
                     _check = np.shape(self.samples[_sel])[0]
                     if _check > 1000:
-                        self.cc.add_chain(self.samples[_sel],
-                            # name='{} bursts'.format(_n),
-                            name = _n if type(_n) == str else str(_n),
-                            parameters=list(self.cc_parameters.values()))
+                        _df = pd.DataFrame(self.samples[_sel], 
+                            columns=list(self.cc_parameters.values()))
+                        _chain = Chain(samples=_df,
+                            name = _n if type(_n) == str else str(_n))
+                        self.cc.add_chain(_chain)
                         self.cc_nchain += 1
                     else:
                       logger.info ('skipping walkers for n={}, too few samples ({})'.format(_n, _check))
                 # make sure we ad the same configuration as for the single
                 # chain object
-                self.cc.configure(usetex=True, serif=True,
-                    flip=False, summary=False,
-                    bins=0.7, # has the effect of light smoothing of the histograms
-                    diagonal_tick_labels=False, max_ticks=3, shade=True, \
-                    shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-                    label_font_size='xx-large',smooth=True, \
-                    sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
+                # self.cc.configure(usetex=USETEX, serif=True,
+                self.cc.set_override(ChainConfig(
+                    # flip=False, summary=False,
+                    # bins=0.7, # has the effect of light smoothing of the histograms
+                    # diagonal_tick_labels=False, max_ticks=3, 
+                    shade=True, shade_alpha=1.0 ,bar_shade=True, 
+                    # tick_font_size='xx-large', label_font_size='xx-large',
+                    smooth=True, \
+                    # sigma2d=False, 
+                    sigmas=[0,1,2])) #np.linspace(0, 3, 4))
+                self.cc.set_plot_config(PlotConfig(serif=True, usetex=USETEX))
+
                 logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
@@ -3013,10 +3079,10 @@ in options):
 
             if Beans.HAS_CONCORD:
                 # setup dict with list of models, legend labels and linestyles
-                he16_models = {'he16_a': ('He \& Keek (2016) model A', '--'),
-                               'he16_b': ('model B', '-.'),
-                               'he16_c': ('model C', (0, (3, 5, 1, 5))),
-                               'he16_d': ('model D', (0, (1, 5))) }
+                he16_models = {'he16_a': (r'He \& Keek (2016) model A', '--'),
+                               'he16_b': (r'model B', '-.'),
+                               'he16_c': (r'model C', (0, (3, 5, 1, 5))),
+                               'he16_d': (r'model D', (0, (1, 5))) }
 
                 for model in he16_models.keys():
 
@@ -3254,10 +3320,11 @@ in options):
                 else:
                     chain_flat = chain[:, :, :].reshape((-1, 12))
                 self.cc.add_chain(chain_flat,
-                    parameters=['$\dot{m}_1','$\dot{m}_2','$\dot{m}_3',
-                        '$Q_{b,1}$ (MeV)', '$Q_{b,2}$ (MeV)', '$Q_{b,3}$ (MeV)',
-                        '$X$', '$Z$', '$g$ (cm s$^{-2}$)', '$M$ ($M_\odot$)',
-                        '$d\\xi_b$ (kpc)', '$\\xi_p/\\xi_b$'],
+                    parameters=[r'$\dot{m}_1',r'$\dot{m}_2',r'$\dot{m}_3',
+                        r'$Q_{b,1}$ (MeV)', r'$Q_{b,2}$ (MeV)', 
+                        r'$Q_{b,3}$ (MeV)', r'$X$', r'$Z$', 
+                        r'$g$ (cm s$^{-2}$)', r'$M$ ($M_\odot$)',
+                        r'$d\\xi_b$ (kpc)', r'$\\xi_p/\\xi_b$'],
                     name=label)
             else:
                 breakpoint()
@@ -3265,7 +3332,7 @@ in options):
             print ('** ERROR ** can only compare with another Beans object or chains read in from a file')
 
         # and finally set all the plot options (have to do this last)
-        self.cc.configure(usetex=True, serif=True,
+        self.cc.configure(usetex=USETEX, serif=True,
             flip=False, summary=False,
             bins=0.7, # has the effect of light smoothing of the histograms
             diagonal_tick_labels=False, max_ticks=3, shade=True, \

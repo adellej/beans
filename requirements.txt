@@ -3,21 +3,28 @@
 #
 # based on https://github.com/adellej/beans/blob/master/docs/installation.rst
 # works with miniconda python 3.8
+#
+# This file also used in the environment.yml for setting up conda
+# environments.
+#
+# Note also the list of dependencies in setup.py; we need both, as the
+# latter describes the (generic) dependencies, while requirements.txt
+# defines the (specific, where needed) package versions to fully replicate
+# environments
 #-----------------------------------------
-# emcee v3.0 or above
+# this is also listed separately in the environment.yml file, as sometimes
+# there are issues with installing via pip
+h5py>=2.10.0
+#
+pySettle>=1.3.0
 emcee>=3.0
 tqdm
-# h5py==v2.10.0 or above. To install h5py v2.10.0 on Ubuntu
-#   you will need to use pip wheels, e.g. $ pip install h5py==2.10.0
-h5py>=2.10.0
-pySettle>=1.3.0
 matplotlib
 numpy
 pandas
 corner
 astropy
 scipy
-chainconsumer<=0.34.0
+chainconsumer
 pytest
 sphinx_rtd_theme
-tables

@@ -12,7 +12,7 @@ import sys
 from scipy.stats import gaussian_kde
 import scipy.stats as stats
 import matplotlib.mlab as mlab
-import tables
+# import tables
 from scipy.interpolate import interp1d
 from chainconsumer import ChainConsumer
 from multiprocessing import Pool
