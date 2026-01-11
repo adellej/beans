@@ -15,15 +15,15 @@ Build and installation from this github repository
 
 #. Create and activate a clean conda environment
 
-   The example is for python 3.8, but should work for any version 3.6 to 3.11 as well.
+   The example is for python 3.9, but should work for any version 3.9 to 3.13 as well.
 
    .. code-block:: console
     
       # optional: remove existing environment if needed - to start from scratch
-      conda remove -n beans-3.8 --all
+      conda remove -n beans-3.9 --all
       # create blank conda environment
-      conda create --name beans-3.8 python==3.8.*
-      conda activate beans-3.8
+      conda create --name beans-3.9 python==3.9.*
+      conda activate beans-3.9
 
       
 #. Install/upgrade pip, build and local install
