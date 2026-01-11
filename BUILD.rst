@@ -20,10 +20,10 @@ Build and installation from this github repository
    .. code-block:: console
     
       # optional: remove existing environment if needed - to start from scratch
-      conda remove -n beans-3.9 --all
-      # create blank conda environment
-      conda create --name beans-3.9 python==3.9.*
-      conda activate beans-3.9
+      conda remove -n beans --all
+      # create named conda environment beans with all requirements
+      conda create -f environment.yml
+      conda activate beans
 
       
 #. Install/upgrade pip, build and local install
