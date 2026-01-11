@@ -38,8 +38,8 @@ except:
     # in which case just record the path
     __version__ = os.getcwd()
 
-# Default is to use TeX, but you might want to set this to False if you're
-# on a system where you can't install that package
+# Default is to use TeX for plot labels etc., but you might want to set
+# this to False if you're on a system where you can't install that package
 
 USETEX = True
 
@@ -49,6 +49,21 @@ USETEX = True
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = ['Times']
 plt.rcParams['text.usetex'] = USETEX
+
+# Keywords etc. for common appearance of ChainConsumer plots
+# configure params below copied initially from Adelle's jupyter notebook
+#
+# deprecated parameters from ChainConsumer 0.33; some of  these now part
+# of PlotConfig (see below)
+# bins=0.7, # has the effect of light smoothing of the histograms
+# tick_font_size='xx-large', diagonal_tick_labels=False, sigma2d=False,  summary=False, flip=False, label_font_size='xx-large', max_ticks=3, serif=True,
+#
+# updated config parameters for v1.25+ here 
+#   https://samreay.github.io/ChainConsumer/api/chainconfig/
+
+CC_CONFIG = { 'shade': True, 'shade_alpha': 1.0, 'bar_shade': True,
+              'smooth': True, 'sigmas': [0,1,2] }
+CC_PLOT_CONFIG = { 'serif': True, 'usetex': USETEX, 'show_legend': True }
 
 # Some constants & standard units
 
@@ -2698,22 +2713,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed))
 
             self.cc = ChainConsumer().add_chain(_chain)
-
-            # configure params below copied initially from Adelle's
-            # jupyter notebook for use with v0.33
-            # we apply them here for consistency across all the posterior
-            # plots
-            # updated config parameters for v1.25+ here 
-            #   https://samreay.github.io/ChainConsumer/api/chainconfig/
-            self.cc.set_override(ChainConfig(
-                # deprecated parameters from ChainConsumer 0.33
-                # some of  these now part of PlotConfig (see below)
-                # bins=0.7, # has the effect of light smoothing of the histograms
-                # tick_font_size='xx-large', diagonal_tick_labels=False, sigma2d=False,  summary=False, flip=False, label_font_size='xx-large', max_ticks=3, serif=True,
-                shade=True, shade_alpha=1.0 ,bar_shade=True, smooth=True, \
-                sigmas=[0,1,2])) #np.linspace(0, 3, 4))
-
-            self.cc.set_plot_config(PlotConfig(serif=True, usetex=USETEX))
+            self.cc.set_override(ChainConfig( **CC_CONFIG ))
+            self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
 
             self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
@@ -3042,17 +3043,9 @@ in options):
                       logger.info ('skipping walkers for n={}, too few samples ({})'.format(_n, _check))
                 # make sure we ad the same configuration as for the single
                 # chain object
-                # self.cc.configure(usetex=USETEX, serif=True,
-                self.cc.set_override(ChainConfig(
-                    # flip=False, summary=False,
-                    # bins=0.7, # has the effect of light smoothing of the histograms
-                    # diagonal_tick_labels=False, max_ticks=3, 
-                    shade=True, shade_alpha=1.0 ,bar_shade=True, 
-                    # tick_font_size='xx-large', label_font_size='xx-large',
-                    smooth=True, \
-                    # sigma2d=False, 
-                    sigmas=[0,1,2])) #np.linspace(0, 3, 4))
-                self.cc.set_plot_config(PlotConfig(serif=True, usetex=USETEX))
+
+                self.cc.set_override(ChainConfig( **CC_CONFIG ))
+                self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
 
                 logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
