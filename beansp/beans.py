@@ -3234,21 +3234,24 @@ in options):
                 # different style plot for the ensemble mode; the bstart
                 # still records the burst time (epoch) but now we prefer
                 # to plot vs. recurrence time
-                timepred = [x[0] for x in times[self.numburstssim]]
-                timepred_errup = [x[1] for x in times[self.numburstssim]]
-                timepred_errlow = [x[2] for x in times[self.numburstssim]]
-                ebpred = [x[0] for x in ebs[self.numburstssim]]
-                ebpred_errup = [x[1] for x in ebs[self.numburstssim]]
-                ebpred_errlow = [x[2] for x in ebs[self.numburstssim]]
-
                 fig = plt.figure()
                 plt.errorbar(self.tdel, self.fluen, xerr=self.tdele, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
-                plt.scatter(timepred, ebpred, marker='*', color=bursts_colour, s=100, label='Predicted')
-                plt.errorbar(timepred, ebpred,
-                    yerr=[ebpred_errlow, ebpred_errup],
-                    xerr=[timepred_errup, timepred_errlow], fmt='.',
-                    color=bursts_colour)
+                for i, tkey in enumerate(times.keys()):
+                    timepred = [x[0] for x in times[tkey]]
+                    timepred_errup = [x[1] for x in times[tkey]]
+                    timepred_errlow = [x[2] for x in times[tkey]]
+                    ebpred = [x[0] for x in ebs[tkey]]
+                    ebpred_errup = [x[1] for x in ebs[tkey]]
+                    ebpred_errlow = [x[2] for x in ebs[tkey]]
+
+                    plt.errorbar(timepred, ebpred,
+                        yerr=[ebpred_errlow, ebpred_errup],
+                        xerr=[timepred_errup, timepred_errlow], 
+                        # color=bursts_colour
+                        marker='*', ms=11, linestyle='', color='C{}'.format(i),
+                        label='predicted ({})'.format(tkey))
+
                 plt.xlabel("Recurrence time (hr)")
 
                 plt.ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
