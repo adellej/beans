@@ -15,14 +15,14 @@ Build and installation from this github repository
 
 #. Create and activate a clean conda environment
 
-   The example is for python 3.9, but should work for any version 3.9 to 3.13 as well.
+   The example below will create an environment with python 3.13 (or newer), but beans should work with python 3.9 onwards.
 
    .. code-block:: console
     
       # optional: remove existing environment if needed - to start from scratch
       conda remove -n beans --all
       # create named conda environment beans with all requirements
-      conda create -f environment.yml
+      conda env create -f environment.yml
       conda activate beans
 
       
