@@ -3277,15 +3277,17 @@ in options):
         # augment with some additional parameters, e.g. as used in the
         # 1826 work
         # TODO probably should check if these have already been added
-        self.cc_parameters['dxi_b'] = '$d\\xi_b$ (kpc)'
-        self.cc_parameters['xi_p/xi_b'] = '$\\xi_p/\\xi_b$'
+        self.cc_parameters['dxi_b'] = r'\ensuremath{d\xi_b} (kpc)'
+        self.cc_parameters['xi_p/xi_b'] = r'\ensuremath{\xi_p/\xi_b}'
         _samples = np.column_stack((self.samples,
             self.samples[:,3]*self.samples[:,4],
             self.samples[:,5]/self.samples[:,4]))
 
-        self.cc.add_chain(_samples,
-            parameters=list(self.cc_parameters.values()),
-            name=self.run_id)
+        _df = pd.DataFrame(_samples, columns=self.cc_parameters.values())
+        _chain = Chain(samples=_df, name=self.run_id)
+
+        self.cc = ChainConsumer().add_chain(_chain)
+
         self.samples = _samples
 
         if type(alt) == Beans:
@@ -3296,9 +3298,10 @@ in options):
                 logger.error ('comparison object has no samples, run do_analysis first')
                 return
 
-            self.cc.add_chain(alt.samples,
-                parameters=list(alt.cc_parameters.values()),
-                name=label)
+            _df = pd.DataFrame(alt.samples, columns=alt.cc_parameters.values())
+            _chain = Chain(samples=_df, name=label)
+
+            self.cc.add_chain(_chain)
 
         elif type(alt) == str:
             # read in the parameters from a file
@@ -3315,29 +3318,26 @@ in options):
                     chain_flat = chain[:, burnin:, :].reshape((-1, 12))
                 else:
                     chain_flat = chain[:, :, :].reshape((-1, 12))
-                self.cc.add_chain(chain_flat,
-                    parameters=[r'$\dot{m}_1',r'$\dot{m}_2',r'$\dot{m}_3',
+                _df = pd.DataFrame(chain_flat, 
+                    columns=[r'$\dot{m}_1',r'$\dot{m}_2',r'$\dot{m}_3',
                         r'$Q_{b,1}$ (MeV)', r'$Q_{b,2}$ (MeV)', 
                         r'$Q_{b,3}$ (MeV)', r'$X$', r'$Z$', 
                         r'$g$ (cm s$^{-2}$)', r'$M$ ($M_\odot$)',
-                        r'$d\\xi_b$ (kpc)', r'$\\xi_p/\\xi_b$'],
-                    name=label)
+                        r'$d\\xi_b$ (kpc)', r'$\\xi_p/\\xi_b$'])
+                _chain = Chain(samples=_df, name=label)
+                self.cc.add_chain(_chain)
             else:
                 breakpoint()
         else:
-            print ('** ERROR ** can only compare with another Beans object or chains read in from a file')
+            logger.error('can only compare with another Beans object or chains read in from a file')
 
         # and finally set all the plot options (have to do this last)
-        self.cc.configure(usetex=USETEX, serif=True,
-            flip=False, summary=False,
-            bins=0.7, # has the effect of light smoothing of the histograms
-            diagonal_tick_labels=False, max_ticks=3, shade=True, \
-            shade_alpha=1.0 ,bar_shade=True, tick_font_size='xx-large', \
-            label_font_size='xx-large',smooth=True, \
-            sigma2d=False, sigmas=[1,2]) #np.linspace(0, 3, 4))
+        self.cc.set_override(ChainConfig( **CC_CONFIG ))
+        self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
+
         self.cc_nchain = 2
 
-        print ('Added posteriors for run_id {} to the ChainConsumer object; re-run do_analysis\n  to show the posterior comparison'.format(alt.run_id))
+        logger.info('added posteriors for run_id {} to the ChainConsumer object; re-run do_analysis to show the posterior comparison'.format(alt.run_id))
 
 
     def prune(self, key=None, nwalkers=None, scale=0.0, savefile=None):
