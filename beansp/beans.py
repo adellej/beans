@@ -63,7 +63,7 @@ plt.rcParams['text.usetex'] = USETEX
 
 CC_CONFIG = { 'shade': True, 'shade_alpha': 1.0, 'bar_shade': True,
               'smooth': True, 'sigmas': [0,1,2] }
-CC_PLOT_CONFIG = { 'serif': True, 'usetex': USETEX, 'show_legend': True }
+CC_PLOT_CONFIG = { 'serif': True, 'usetex': USETEX}
 
 # Some constants & standard units
 
@@ -84,6 +84,12 @@ BILBY_OUTPUT = 'bilby_out'
 # switch to remember what I'm using in lnprob
 
 LNPROB_USES_LNLIKE_SYS = True
+
+# plot defaults
+
+FLUX_COLOUR = 'tab:red'
+BURSTS_COLOUR = 'tab:blue'
+OBS_COLOUR = 'tab:grey'
 
 # -------------------------------------------------------------------------#
 ## load local  modules
@@ -1454,10 +1460,6 @@ Initial parameters:
         :param savefig: set to True to save the figure to PDF
         """
 
-        flux_colour = 'tab:red'
-        bursts_colour = 'tab:blue'
-        obs_colour = 'tab:grey'
-
         # for the default linear interpolation connect the flux
         # measurements by lines
 
@@ -1535,16 +1537,16 @@ Initial parameters:
         if mdot and full_model:
             # this is the usual (only?) plot style, showing mdot vs. time,
             # along with the burst model and observation comparison
-            ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=flux_colour)
+            ax1.set_ylabel('Accretion rate (fraction of Eddington)', color=FLUX_COLOUR)
             _mdot, _mdot_err = self.flux_to_mdot(X, dist, xi_p, mass, radius)
             if self.train:
                 # show the mdot values
                 ax1.errorbar(self.tobs, _mdot, _mdot_err,
-                    marker='.', ls=ls, color=flux_colour, label='mdot')
+                    marker='.', ls=ls, color=FLUX_COLOUR, label='mdot')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
                     ax1.plot(t, self.flux_to_mdot(X, dist, xi_p, mass, radius,
-                        BSpline(*self.tck_s)(t)), color=flux_colour)
+                        BSpline(*self.tck_s)(t)), color=FLUX_COLOUR)
                 # show the time of the "reference" burst
                 # ax2.axvline(timepred[self.iref], c='k')
                 if self.numburstsobs > 0:
@@ -1553,64 +1555,64 @@ Initial parameters:
             else:
                 # show the ensemble comparison, which is much simpler
                 ax1.errorbar(self.bstart, _mdot, _mdot_err, fmt='.',
-                         color=flux_colour, label='mdot')
+                         color=FLUX_COLOUR, label='mdot')
                 ax1.set_xlabel("Epoch (MJD)")
         else:
             # showing here the persistent flux rather than mdot
-            ax1.set_ylabel('Persistent flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}\\,s^{-1}}$)', color=flux_colour)
+            ax1.set_ylabel('Persistent flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}\\,s^{-1}}$)', color=FLUX_COLOUR)
             if self.train:
                 ax1.errorbar(self.tobs, self.pflux, self.pfluxe,
-                    marker = '.', ls=ls, color=flux_colour, label = 'persistent flux')
+                    marker = '.', ls=ls, color=FLUX_COLOUR, label = 'persistent flux')
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
-                    ax1.plot(t, BSpline(*self.tck_s)(t), color=flux_colour)
+                    ax1.plot(t, BSpline(*self.tck_s)(t), color=FLUX_COLOUR)
                 if show_model:
-                    ax2.scatter(timepred[0], ebpred[0], marker = '*',color=bursts_colour,s = 100)
+                    ax2.scatter(timepred[0], ebpred[0], marker = '*',color=BURSTS_COLOUR,s = 100)
                 ax1.set_xlabel("Time (days after MJD {})".format(self.tref))
             else:
                 # "ensemble" mode plot vs. epoch, rather than observation time
-                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=flux_colour,
+                ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=FLUX_COLOUR,
                          label='persistent flux')
                 ax1.set_xlabel("Epoch (MJD)")
 
-        ax1.tick_params(axis='y', labelcolor=flux_colour)
+        ax1.tick_params(axis='y', labelcolor=FLUX_COLOUR)
 
         # Plot the bursts here
-        ax2.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)", color=obs_colour)
+        ax2.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)", color=OBS_COLOUR)
         if self.train:
             if self.bstart is not None:
                 # Plot the observed bursts, if available
                 # ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
                 ax2.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                     yerr=self.fluene[self.ifluen],
-                    color=obs_colour, linestyle='', marker='.', ms=13,
+                    color=OBS_COLOUR, linestyle='', marker='.', ms=13,
                     label='observed bursts')
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
-                        ax2.axvline(self.bstart[i], color=obs_colour, ls='--')
+                        ax2.axvline(self.bstart[i], color=OBS_COLOUR, ls='--')
 
             if show_model:
-                ax2.scatter(timepred[itoff:], ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted bursts')
+                ax2.scatter(timepred[itoff:], ebpred, marker = '*',color=BURSTS_COLOUR,s = 100, label = 'predicted bursts')
             # we have time but not fluence for the first burst
                 if itoff == 1:
-                    ax2.axvline(timepred[0], color=bursts_colour, ls='--')
+                    ax2.axvline(timepred[0], color=BURSTS_COLOUR, ls='--')
                 # and the averaged mdot over the burst interval (predicted)
                 av_mdot = []
                 for i in range(len(timepred)-1):
                     av_mdot.append(self.flux_to_mdot(X, dist, xi_p, mass, radius,
                         self.mean_flux(timepred[i], timepred[i+1], self)))
                 av_mdot.insert(0, av_mdot[0])
-                ax1.step(timepred, av_mdot, where='pre', color=flux_colour)
+                ax1.step(timepred, av_mdot, where='pre', color=FLUX_COLOUR)
 
                 if imatch is not None:
                     # show the burst time comparison
                     resid = -(self.bstart-np.array(timepred)[imatch])*24.
                     axs['resid'].plot(imatch, resid,
-                        linestyle='', marker='.', ms=13, color=obs_colour)
+                        linestyle='', marker='.', ms=13, color=OBS_COLOUR)
                     for i in range(self.numburstsobs):
                         axs['resid'].annotate(' {}'.format(i+1),
                             (imatch[i], resid[i]) )
-                    axs['resid'].axhline(0.0, color=obs_colour, ls='--')
+                    axs['resid'].axhline(0.0, color=OBS_COLOUR, ls='--')
                     axs['resid'].set_xlabel('Burst number (predicted)')
                     axs['resid'].set_ylabel('Time offset (hr)')
                     logger.info ('RMS obs-model offset = {:.4f} hr'.format(
@@ -1618,11 +1620,11 @@ Initial parameters:
 
         else:
             # ensemble mode plot here
-            ax2.scatter(self.bstart, self.fluen, color = 'darkgrey', marker = '.', label='observed', s =200)
+            ax2.scatter(self.bstart, self.fluen, color = OBS_COLOUR, marker = '.', label='observed', s =200)
             if show_model:
-                ax2.scatter(self.bstart, ebpred, marker = '*',color=bursts_colour,s = 100, label = 'predicted')
+                ax2.scatter(self.bstart, ebpred, marker = '*',color=BURSTS_COLOUR,s = 100, label = 'predicted')
 
-        ax2.tick_params(axis='y', labelcolor=obs_colour)
+        ax2.tick_params(axis='y', labelcolor=OBS_COLOUR)
 
         if title is not None:
             plt.title(title)
@@ -2165,8 +2167,7 @@ Initial parameters:
         plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
 
         if title is not False:
-            plt.title('beansp v{} run {}'.format(
-                self.version, self.run_id) if title is None else title,loc='right')
+            plt.title(title, loc='right')
 
         plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
         plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
@@ -2537,6 +2538,12 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         c = const.c.to('cm s-1')
         G = const.G.to('cm3 g-1 s-2')
 
+        # set the default title (copied from plot_autocor)
+
+        if title is not False:
+            title = 'beansp v{} run {}'.format(
+                self.version, self.run_id) if title is None else title
+
         # list of available analyses
 
         analyses = {'autocor': 'autocorrelation times as a function of timestep',
@@ -2813,8 +2820,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             axes[self.ndim-1].set_xlabel("step number")
             if title is not False:
-                axes[0].set_title('beansp v{} run {}'.format(
-                    self.version, self.run_id) if title is None else title,loc='right')
+                axes[0].set_title(title, loc='right')
             plt.tight_layout(h_pad=0.0)
 
             if savefig:
@@ -2827,6 +2833,14 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             plt.show()
             logger.info ("... done")
 
+        # for the remaining plots, we add the burnin omission information
+        # to the title
+
+        if title is not False:
+            title += ' last {}/{}'.format(
+                self.nsteps_completed-self.samples_burnin,
+                self.nsteps_completed)
+
         # ---------------------------------------------------------------------#
         if ('posteriors' in options) | ('mrcorner' in options) | ('fig6'
 in options):
@@ -2838,12 +2852,16 @@ in options):
             elif truths is False:
                 truths = None
 
-            if title is not None:
-                if type(title) == str:
-                    logger.warning("can't override title for posterior plots, sorry")
-                    title=True
-            else:
-                title=True
+            # don't have the option anymore of showing a title via
+            # ChainConsumer, but the information is included in the legend
+            # via the Chain name
+
+            # if title is not None:
+            #     if type(title) == str:
+            #         logger.warning("can't override title for posterior plots, sorry")
+            #         title=True
+            # else:
+            #     title=True
 
         if 'posteriors' in options:
 
@@ -2856,6 +2874,8 @@ in options):
                 # these params not available (here) with new ChainConsumer
                 # truth=truths, legend=title, display=False)
 
+            if (self.cc_nchain == 1) & (title is not False):
+                fig.suptitle(title, x=0.98, ha='right')
             fig.show()
 
             if savefig:
@@ -2881,6 +2901,8 @@ in options):
                 figsize=(8,8) ) # figsize="page",
                 # truth=truths, legend=title, display=False)
 
+            if (self.cc_nchain == 1) & (title is not False):
+                fig.suptitle(title, x=0.98, ha='right')
             fig.show()
 
             if savefig:
@@ -2908,6 +2930,8 @@ in options):
                 figsize=(8,8) ) # figsize="page", 
                 # truth=truths, legend=title, display=False)
 
+            if (self.cc_nchain == 1) & (title is not False):
+                fig.suptitle(title, x=0.98, ha='right')
             fig.show()
 
             if savefig:
@@ -3045,6 +3069,8 @@ in options):
                 # chain object
 
                 self.cc.set_override(ChainConfig( **CC_CONFIG ))
+                if self.cc_nchain > 1:
+                    CC_PLOT_CONFIG['show_legend'] = True
                 self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
 
                 logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
@@ -3113,6 +3139,8 @@ in options):
             plt.xticks(fontsize=14)
             plt.yticks(fontsize=14)
 
+            if (self.cc_nchain == 1) & (title is not False):
+                plt.suptitle(title, x=0.98, ha='right')
             plt.show()
 
             if savefig:
@@ -3129,14 +3157,11 @@ in options):
 
             plt.figure(figsize=(10,7))
 
-            # copy colors from plot method for consistency
-
-            bursts_colour = 'tab:blue'
-            obs_colour = 'tab:grey'
-
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             times = self.model_pred['time_stats']
             ebs = self.model_pred['e_b_stats']
+            alphas = self.model_pred['alpha_stats']
+
             if self.train:
                 # 2-panel plot like in plot
 
@@ -3150,12 +3175,12 @@ in options):
 
                 ax1.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                     yerr=self.fluene[self.ifluen],
-                    color=obs_colour, linestyle='', marker='.', ms=13,
+                    color=OBS_COLOUR, linestyle='', marker='.', ms=13,
                     label='observed')
                 # non-redundant option for missing fluence values
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
-                        ax1.axvline(self.bstart[i], color=obs_colour, ls='--')
+                        ax1.axvline(self.bstart[i], color=OBS_COLOUR, ls='--')
 
                 if self.continuous:
                     # only show reference burst for continuous runs
@@ -3214,11 +3239,7 @@ in options):
 
                 ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
 
-                if title is not False:
-                    ax1.set_title('beansp v{} run {} last {}/{}'.format(
-                        self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed) if title is None else title,loc='right')
-
-                axs['resid'].axhline(0.0, color=obs_colour, ls='--')
+                axs['resid'].axhline(0.0, color=OBS_COLOUR, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
                 axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
                 ax1.legend(loc=2)
@@ -3227,9 +3248,26 @@ in options):
                 # different style plot for the ensemble mode; the bstart
                 # still records the burst time (epoch) but now we prefer
                 # to plot vs. recurrence time
-                fig = plt.figure()
-                plt.errorbar(self.tdel, self.fluen, xerr=self.tdele, yerr=self.fluene,
+
+                # if self.cmpr_alpha:
+                if max(self.alpha) > 0.:
+                    # always show the alpha comparison, if we have some
+		    # measurements, even if we're not using it in the
+		    # likelihood
+                    fig, axs = plt.subplot_mosaic("""
+                                                  AA
+                                                  BC
+                                                  """)
+                    ax1 = axs['A']
+                else:
+                    fig, ax1 = plt.subplots()
+
+                # main fluence vs. time plot in the main panel
+                ax1.errorbar(self.tdel, self.fluen, xerr=self.tdele, yerr=self.fluene,
                     color='black', linestyle='', marker='.', ms=13, label='Observed')
+                if not self.cmpr_fluen:
+                    axs['B'].set_facecolor('lightgrey')
+
                 for i, tkey in enumerate(times.keys()):
                     timepred = [x[0] for x in times[tkey]]
                     timepred_errup = [x[1] for x in times[tkey]]
@@ -3238,17 +3276,50 @@ in options):
                     ebpred_errup = [x[1] for x in ebs[tkey]]
                     ebpred_errlow = [x[2] for x in ebs[tkey]]
 
-                    plt.errorbar(timepred, ebpred,
+                    ax1.errorbar(timepred, ebpred,
                         yerr=[ebpred_errlow, ebpred_errup],
                         xerr=[timepred_errup, timepred_errlow], 
                         # color=bursts_colour
                         marker='*', ms=11, linestyle='', color='C{}'.format(i),
                         label='predicted ({})'.format(tkey))
 
-                plt.xlabel("Recurrence time (hr)")
+                    if max(self.alpha) > 0.:
+                        # do the secondary plots, while we have the data
+                        if not self.cmpr_alpha:
+                            axs['C'].set_facecolor('lightgrey')
 
-                plt.ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
-                plt.legend(loc=2)
+                        axs['B'].errorbar(self.fluen, ebpred,
+                            xerr=self.fluene, yerr=[ebpred_errlow, ebpred_errup],
+                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
+
+                        alpred = [x[0] for x in alphas[tkey]]
+                        alpred_errup = [x[1] for x in alphas[tkey]]
+                        alpred_errlow = [x[2] for x in alphas[tkey]]
+                        axs['C'].errorbar(self.alpha, alpred,
+                            xerr=self.alphae, yerr=[alpred_errlow, alpred_errup],
+                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
+
+
+                ax1.set_xlabel("Recurrence time (hr)")
+
+                ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
+                ax1.legend(loc=2)
+
+                if max(self.alpha) > 0.:
+                    # finish off the extra panels if we're also plotting alpha
+                    axs['B'].set_xlabel('Observed fluence')
+                    axs['B'].set_ylabel('Predicted fluence')
+                    _ident = min(self.fluen-self.fluene), max(self.fluen+self.fluene)
+                    axs['B'].plot(_ident, _ident, 'k--')
+                    axs['C'].set_xlabel(r'Observed $\alpha$')
+                    axs['C'].set_ylabel(r'Predicted $\alpha$')
+                    _ident = min(self.alpha-self.alphae), max(self.alpha+self.alphae)
+                    axs['C'].plot(_ident, _ident, 'k--')
+
+
+            if title:
+                ax1.set_title(title, loc='right')
+                fig.tight_layout()  # otherwise the main panel x-label is clipped
 
             fig.show()
 
