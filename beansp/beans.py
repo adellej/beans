@@ -660,6 +660,7 @@ class Beans:
 
         # Some housekeeping
 
+        self.valid = False
         if 'ndim' in kwargs.keys():
             logger.warning('parameter ndim is redundant (ignored), setting from len of param array')
         if 'numburstsobs' in kwargs.keys():
@@ -704,28 +705,6 @@ class Beans:
 
         self.data_path = os.path.join(os.path.dirname(__file__), 'data')
         # print("data_path = " + data_path)
-
-        # here we want to parse the model function, which should have a
-        # string representation something like <function settle at 0x1599b68b0>
-        _tmp = str(model).split(' ')
-        model_type, self.model_name = _tmp[0], None
-        if len(_tmp) > 1:
-            self.model_name = _tmp[1]
-        if (model_type != '<function') | (self.model_name not in['settle','grid_interp']):
-            logger.error('model unknown or invalid, use one of settle or grid_interp')
-            return
-        elif self.model_name == 'grid_interp':
-            if not has_multiepoch_mcmc:
-                logger.error('can\'t find multiepoch_mcmc, cannot initialise GridInterpolator')
-                return
-            # initialise the GridInterpolator object
-            self.model_file = '/'.join((self.data_path, 'burst_model_grid.txt'))
-            self.gi = grid_interpolator.GridInterpolator(file=self.model_file,
-                reconstruct=True)
-            self.grid_mdot_min = min(self.gi.grid['mdot'])
-            self.grid_mdot_max = max(self.gi.grid['mdot'])
-        else:
-            self.model_file, self.gi = None, None
 
         # Only want to set the default values if both obsname and burstname
         # are not set (indicating a default run). This because setting
@@ -823,24 +802,6 @@ class Beans:
                 logger.error('config file not found, applying keywords')
                 config_file_exists = False
 
-        # Some checks here
-
-        if (sampler != 'emcee') & (not self.HAS_BILBY):
-            logger.error('using samplers other than emcee requires bilby')
-            return
-
-        if alpha and (not fluen):
-            logger.error('need to include fluences as well as alphas')
-            return
-
-        if alpha and (model == 'grid_interp'):
-            logger.error('grid_interp doesn\'t currently provide alphas, set alpha=False')
-            return
-
-        if self.lnprior(self.theta) == -np.inf:
-            logger.error('supplied parameter vector is excluded by the prior')
-            return
-
         # for some older runs we need to add parameters here, that
         # are not listed in the .ini file
 
@@ -928,6 +889,47 @@ class Beans:
             if not hasattr(self, 'nsteps'):
                 self.nsteps=100
 
+        # here we want to parse the model function, which should have a
+        # string representation something like <function settle at 0x1599b68b0>
+        _tmp = str(model).split(' ')
+        model_type, self.model_name = _tmp[0], None
+        if len(_tmp) > 1:
+            self.model_name = _tmp[1]
+        if (model_type != '<function') | (self.model_name not in['settle','grid_interp']):
+            logger.error('model unknown or invalid, use one of settle or grid_interp')
+            return
+        elif self.model_name == 'grid_interp':
+            if not has_multiepoch_mcmc:
+                logger.error('can\'t find multiepoch_mcmc, cannot initialise GridInterpolator')
+                return
+
+            if self.cmpr_alpha:
+                logger.error('grid_interp doesn\'t currently provide alphas, set alpha=False')
+                return
+
+            # initialise the GridInterpolator object
+            self.model_file = '/'.join((self.data_path, 'burst_model_grid.txt'))
+            self.gi = grid_interpolator.GridInterpolator(file=self.model_file,
+                reconstruct=True)
+            self.grid_mdot_min = min(self.gi.grid['mdot'])
+            self.grid_mdot_max = max(self.gi.grid['mdot'])
+        else:
+            self.model_file, self.gi = None, None
+
+        # Some checks here
+
+        if (self.sampler != 'emcee') & (not self.HAS_BILBY):
+            logger.error('using samplers other than emcee requires bilby')
+            return
+
+        if self.cmpr_alpha and (not self.cmpr_fluen):
+            logger.error('need to include fluences as well as alphas')
+            return
+
+        if self.lnprior(self.theta) == -np.inf:
+            logger.error('supplied parameter vector is excluded by the prior')
+            return
+
         print("# ---------------------------------------------------------------------------#")
 
         # # -------------------------------------------------------------------------#
@@ -950,6 +952,11 @@ class Beans:
 the model is not valid. You need to adjust the model
                 parameters to better suit the data.  ''')
 
+        # having completed the __init__ routine, we mark the object as
+        # "valid" and ready to run e.g. with do_run
+
+        self.valid = True
+
 
     def __str__(self):
         """
@@ -960,7 +967,7 @@ the model is not valid. You need to adjust the model
 
         return """== beans dataset =============================================================
 See https://beans-7.readthedocs.io
-
+{}
 Run ID: {}
 {}{}Burst data file: {}
   comprising {} observed bursts{}
@@ -971,7 +978,8 @@ No. of bursts to simulate: {} ({} mode{})
   {}/{} threads
 Initial parameters:
 {}
-==============================================================================""".format(self.run_id,
+==============================================================================""".format("" if self.valid else "\n** WARNING ** object is not valid, check params\n",
+         self.run_id,
             'Observation data file: {}\n  bolometric correction: {}\n'.format( self.obsname, self.bc) if self.train else '',
             '' if self.gtiname is None else 'GTI data file: {}\n'.format(self.gtiname),
             self.burstname, self.numburstsobs,
@@ -1864,6 +1872,10 @@ Initial parameters:
         :return:
         """
 
+        if not self.valid:
+            logger.error('beans object is not valid, check parameters')
+            return
+
         # sampler attribute passed to do_run overrides the existing value
         if hasattr(self, 'sampler'):
             if sampler is not None:
@@ -2533,6 +2545,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
         :return: none
         """
+
+        if not self.valid:
+            logger.warning('beans object is not valid, check parameters and interpret results with caution!')
 
         # constants:
         c = const.c.to('cm s-1')
