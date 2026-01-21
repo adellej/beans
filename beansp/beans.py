@@ -2040,7 +2040,8 @@ Initial parameters:
         elif sampler == 'dynesty':
             # bilby's implementation of dynesty, see
             #
-            result = runbilby(self, sampler=sampler, **kwargs)
+            breakpoint()
+            result = self.runbilby(self, sampler=sampler, **kwargs)
 
         _end = time.time()
         logger.info ("  run_id {} took {:.1f} seconds for {} steps".format(
@@ -3346,13 +3347,14 @@ in options):
                 logger.info ('skipping burst comparison plot save')
 
 
-    def compare(self, alt, burnin=None, parameters=None, label='result 2'):
+    def compare(self, alt, burnin=None, label='result 2'):
         '''
         This method will update the cc attribute to include data from a
         different Beans object, or a different set of analyses, to be able
         to plot both posteriors simultaneously
 
-        :param alt: object to compare with
+        :param alt: Beans object to compare with, or a file to read in the posteriors from
+        :param burnin: samples to omit from the posterior calculation, ONLY for the file option
         :param label: label to give the second set of results
 
         :returns: nothing, but updates the cc attribute
@@ -3405,11 +3407,16 @@ in options):
                 else:
                     chain_flat = chain[:, :, :].reshape((-1, 12))
                 _df = pd.DataFrame(chain_flat, 
-                    columns=[r'$\dot{m}_1',r'$\dot{m}_2',r'$\dot{m}_3',
+                    # have to make sure the names of common parameters
+                    # here match what's set in do_analysis
+                    columns=[r'$\dot{m}_1$',r'$\dot{m}_2$',r'$\dot{m}_3$',
                         r'$Q_{b,1}$ (MeV)', r'$Q_{b,2}$ (MeV)', 
-                        r'$Q_{b,3}$ (MeV)', r'$X$', r'$Z$', 
-                        r'$g$ (cm s$^{-2}$)', r'$M$ ($M_\odot$)',
-                        r'$d\\xi_b$ (kpc)', r'$\\xi_p/\\xi_b$'])
+                        r'$Q_{b,3}$ (MeV)',
+                        self.cc_parameters['X'], self.cc_parameters['Z'],
+                        r'\ensuremath{g\ (\mathrm{cm\,s}^{-2}})',
+                        r'\ensuremath{M\ (M_\odot)}',
+                        self.cc_parameters['dxi_b'],
+                        self.cc_parameters['xi_p/xi_b']])
                 _chain = Chain(samples=_df, name=label)
                 self.cc.add_chain(_chain)
             else:
@@ -3423,7 +3430,7 @@ in options):
 
         self.cc_nchain = 2
 
-        logger.info('added posteriors for run_id {} to the ChainConsumer object; re-run do_analysis to show the posterior comparison'.format(alt.run_id))
+        logger.info('added posteriors for run "{}" to the ChainConsumer object; re-run do_analysis to show the posterior comparison'.format(label))
 
 
     def prune(self, key=None, nwalkers=None, scale=0.0, savefile=None):
