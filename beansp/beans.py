@@ -379,6 +379,159 @@ def prior_grid(theta_in):
         return -np.inf
 
 
+def lnlike_nosys(self, theta_in, x, y, yerr, components=False):
+    """
+    Calculate the "model" likelihood for the current walker position
+    Calls runmodel which actually runs the model, either generating a
+    burst train, or a set of runs for "ensemble" mode. Then extracts the
+    relevant model outputs and calculates the likelihood.
+
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p* and (optionally) *mass* & *radius*,
+    :param x: the "independent" variable, passed to lnlike
+    :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+    :param yerr: erorr estimates on y
+
+    :return: likelihood, model result array
+    """
+
+    # define theta_in = model parameters, which we define priors for
+
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius = extra + [self.M_NS, self.R_NS][len(extra):]
+
+    # call model (function runmodel, in run_model.py) to generate the burst
+    # train, or the set of bursts (for "ensemble" mode. In earlier versions
+    # the corresponding IDL function was defined as
+    # modeldata(base, z, x, r1, r2 ,r3)
+
+    assert np.allclose(y, self.y)
+    model, valid, model2 = runmodel(theta_in, self, debug=False)
+    if not valid:
+        return -np.inf, model
+
+    # Final likelihood expression
+    # Because the y (observed value) vector may or may not include the
+    # alpha values, we need to truncate the other vectors here
+
+    # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
+    # cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 - self.log_inv_sigma2
+    cpts = -0.5 * (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 + self.log_2pi_sigma2
+
+    # if the peak fluxes are defined, add the components for the
+    # likelihood here. First the lower limits for the non-PRE bursts:
+
+    for _i in self.non_pre:
+        _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
+        if _log_arg == 0.0:
+            return -np.inf, model
+        cpts = np.append(cpts, np.log(_log_arg) )
+
+    # and then for the PRE bursts
+
+    for _i in self.pre:
+        cpts = np.append(cpts, 
+      -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
+      + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
+
+    # if the components flag is set, also add those to the model dict
+
+    if components:
+        model2['cpts'] = cpts
+
+    # Test if the result string is defined here. It is, so we return the selected elements of result
+    # instead of the downselection in model
+
+    # Now also return the model
+    return np.sum(cpts), model2
+
+
+def lnlike_sys(self, theta_in, x, y, yerr, components=False):
+    """
+    As for :meth:`Beans.lnlike`, but this version also allows the "systematic" error
+    factor for the burst times. If you want to run with that
+    you need to swap this function out for :meth:`Beans.lnlike` in :meth:`Beans.lnprob`
+
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, and (optionally) *mass*, *radius* & *f_t*
+    :param x: the "independent" variable, passed to lnlike
+    :param y: the "dependent" variable (i.e. measurements), passed to lnlike
+    :param yerr: erorr estimates on y
+
+    :return: likelihood, model result array
+    """
+
+    # define theta_in = model parameters, which we define priors for
+
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius, f_t = extra + [self.M_NS, self.R_NS, 1.0][len(extra):]
+
+    # call model (function runmodel, in run_model.py) to generate the burst
+    # train, or the set of bursts (for "ensemble" mode. In earlier versions
+    # the corresponding IDL function was defined as
+    # modeldata(base, z, x, r1, r2 ,r3)
+
+    assert np.allclose(y, self.y)
+    model, valid, model2 = runmodel(theta_in, self)
+    if not valid:
+        return -np.inf, model
+
+    # To simplify final likelihood expression we define inv_sigma2 for each
+	# data parameter that describe the error.  The variance for the
+	# burst times is (we hypothesize) underestimated by some
+	# fractional amount, f_t; in early versions we also had systematic
+	# contributions to fluence and alpha, but these are no longer used
+
+    # Forgot to include an extra err_fac for the extra time, now that
+    # we keep the reference burst time in the data array (now fixed)
+    # so the length of the err_fac times cpt is self.numburstsobs, not
+    # self.numburstsobs-ato
+
+    ato = int(self.train) # array "train" offset
+    err_fac = np.concatenate(( np.full(self.numburstsobs, 1./f_t**2),
+        np.full(self.numburstsobs, 1.0), np.full(self.numburstsobs-ato, 1.0)))
+    inv_sigma2 = self.inv_sigma2[:self.ly] * err_fac[:self.ly]
+
+    # Final likelihood expression
+    # Because the y (observed value) vector may or may not include the
+    # alpha values, we need to truncate the other vectors here
+    # In versons 2.56.1 and earlier, there was a missing factor of
+    # 2\pi in this expression!
+
+    # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
+    cpts = -0.5 * (self.y - model[:self.ly]) ** 2 * inv_sigma2 \
+        + np.log(2.*np.pi/inv_sigma2)
+
+    # if the peak fluxes are defined, add the components for the
+    # likelihood here; also want to trap underflows
+    # First the lower limits for the non-PRE bursts:
+
+    for _i in self.non_pre:
+        _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
+        if _log_arg == 0.0:
+            return -np.inf, model
+
+        cpts = np.append(cpts, np.log(_log_arg) )
+
+    # and then for the PRE bursts
+
+    for _i in self.pre:
+        cpts = np.append(cpts, 
+      -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
+      + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
+
+    # if the components flag is set, also add those to the model dict
+
+    if components:
+        model2['cpts'] = cpts
+
+    # Test if the result string is defined here. It is, so we return the selected elements of result
+    # instead of the downselection in model
+
+    # Now also return the model
+    return np.sum(cpts), model2
+
+
 def corr_goodwin19(burst, **kwargs):
     """
     This is an example Settle correction function that applies the correction
@@ -597,8 +750,9 @@ class Beans:
     except:
         pass
 
-    def __init__(self, prior=prior_func, corr=None, config_file=None,
-                 run_id="test", obsname=None, burstname=None, gtiname=None,
+    def __init__(self, prior=prior_func, lnlike=lnlike_sys, corr=None,
+		 config_file=None, run_id="test",
+                 obsname=None, burstname=None, gtiname=None,
                  continuous=True, maxgap=2,
                  interp='linear', smooth=0.02, model = settle,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
@@ -742,6 +896,7 @@ class Beans:
 
         self.numburstssim = numburstssim
         self.lnprior = prior
+        self.lnlike = lnlike
         self.corr = corr
         self.model = model
         self.threads = threads
@@ -1255,158 +1410,6 @@ Initial parameters:
             / (radius**2*(opz-1)) / _mdot_Edd ).decompose().value
 
 
-    def lnlike(self, theta_in, x, y, yerr, components=False):
-        """
-        Calculate the "model" likelihood for the current walker position
-        Calls runmodel which actually runs the model, either generating a
-        burst train, or a set of runs for "ensemble" mode. Then extracts the
-        relevant model outputs and calculates the likelihood.
-
-        :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-          *xi_p* and (optionally) *mass* & *radius*,
-        :param x: the "independent" variable, passed to lnlike
-        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
-        :param yerr: erorr estimates on y
-
-        :return: likelihood, model result array
-        """
-
-        # define theta_in = model parameters, which we define priors for
-
-        X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-        mass, radius = extra + [self.M_NS, self.R_NS][len(extra):]
-
-        # call model (function runmodel, in run_model.py) to generate the burst
-        # train, or the set of bursts (for "ensemble" mode. In earlier versions
-        # the corresponding IDL function was defined as
-        # modeldata(base, z, x, r1, r2 ,r3)
-
-        assert np.allclose(y, self.y)
-        model, valid, model2 = runmodel(theta_in, self, debug=False)
-        if not valid:
-            return -np.inf, model
-
-        # Final likelihood expression
-        # Because the y (observed value) vector may or may not include the
-        # alpha values, we need to truncate the other vectors here
-
-        # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
-        # cpts = (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 - self.log_inv_sigma2
-        cpts = -0.5 * (self.y - model[:self.ly]) ** 2 * self.inv_sigma2 + self.log_2pi_sigma2
-
-        # if the peak fluxes are defined, add the components for the
-        # likelihood here. First the lower limits for the non-PRE bursts:
-
-        for _i in self.non_pre:
-            _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
-            if _log_arg == 0.0:
-                return -np.inf, model
-            cpts = np.append(cpts, np.log(_log_arg) )
-
-        # and then for the PRE bursts
-
-        for _i in self.pre:
-            cpts = np.append(cpts, 
-          -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
-          + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
-
-        # if the components flag is set, also add those to the model dict
-
-        if components:
-            model2['cpts'] = cpts
-
-        # Test if the result string is defined here. It is, so we return the selected elements of result
-        # instead of the downselection in model
-
-        # Now also return the model
-        return np.sum(cpts), model2
-
-
-    def lnlike_sys(self, theta_in, x, y, yerr, components=False):
-        """
-        As for :meth:`Beans.lnlike`, but this version also allows the "systematic" error
-        factor for the burst times. If you want to run with that
-        you need to swap this function out for :meth:`Beans.lnlike` in :meth:`Beans.lnprob`
-
-        :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
-          *xi_p*, and (optionally) *mass*, *radius* & *f_t*
-        :param x: the "independent" variable, passed to lnlike
-        :param y: the "dependent" variable (i.e. measurements), passed to lnlike
-        :param yerr: erorr estimates on y
-
-        :return: likelihood, model result array
-        """
-
-        # define theta_in = model parameters, which we define priors for
-
-        X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-        mass, radius, f_t = extra + [self.M_NS, self.R_NS, 1.0][len(extra):]
-
-        # call model (function runmodel, in run_model.py) to generate the burst
-        # train, or the set of bursts (for "ensemble" mode. In earlier versions
-        # the corresponding IDL function was defined as
-        # modeldata(base, z, x, r1, r2 ,r3)
-
-        assert np.allclose(y, self.y)
-        model, valid, model2 = runmodel(theta_in, self)
-        if not valid:
-            return -np.inf, model
-
-        # To simplify final likelihood expression we define inv_sigma2 for each
-	# data parameter that describe the error.  The variance for the
-	# burst times is (we hypothesize) underestimated by some
-	# fractional amount, f_t; in early versions we also had systematic
-	# contributions to fluence and alpha, but these are no longer used
-
-        # Forgot to include an extra err_fac for the extra time, now that
-        # we keep the reference burst time in the data array (now fixed)
-        # so the length of the err_fac times cpt is self.numburstsobs, not
-        # self.numburstsobs-ato
-
-        ato = int(self.train) # array "train" offset
-        err_fac = np.concatenate(( np.full(self.numburstsobs, 1./f_t**2),
-            np.full(self.numburstsobs, 1.0), np.full(self.numburstsobs-ato, 1.0)))
-        inv_sigma2 = self.inv_sigma2[:self.ly] * err_fac[:self.ly]
-
-        # Final likelihood expression
-        # Because the y (observed value) vector may or may not include the
-        # alpha values, we need to truncate the other vectors here
-        # In versons 2.56.1 and earlier, there was a missing factor of
-        # 2\pi in this expression!
-
-        # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
-        cpts = -0.5 * (self.y - model[:self.ly]) ** 2 * inv_sigma2 \
-            + np.log(2.*np.pi/inv_sigma2)
-
-        # if the peak fluxes are defined, add the components for the
-        # likelihood here; also want to trap underflows
-        # First the lower limits for the non-PRE bursts:
-
-        for _i in self.non_pre:
-            _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
-            if _log_arg == 0.0:
-                return -np.inf, model
-
-            cpts = np.append(cpts, np.log(_log_arg) )
-
-        # and then for the PRE bursts
-
-        for _i in self.pre:
-            cpts = np.append(cpts, 
-          -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
-          + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
-
-        # if the components flag is set, also add those to the model dict
-
-        if components:
-            model2['cpts'] = cpts
-
-        # Test if the result string is defined here. It is, so we return the selected elements of result
-        # instead of the downselection in model
-
-        # Now also return the model
-        return np.sum(cpts), model2
-
     # -------------------------------------------------------------------------#
     # Finally we combine the likelihood and prior into the overall lnprob function, called by emcee
 
@@ -1417,6 +1420,10 @@ Initial parameters:
         the ``Beans.lnprior`` attribute), and model likelihood (via
         :meth:`Beans.lnlike`), that is passed to ``runemcee`` when creating
         the sampler (in the :meth:`Beans.do_run` method).
+
+        Calls self.lnprior and self.lnlike; these are pointers to
+	functions that can be modified, and the theta_in is not unpacked
+        here, so you can add your own combinations to customise the code
 
         :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
           *xi_p*, *mass*, *radius*, and (optionally) *f_t*
@@ -1439,7 +1446,7 @@ Initial parameters:
         # if you swap lnlike for lnlike_sys below (or vice versa) make
         # sure you update LNPROB_USES_LNLIKE_SYS at the start of this file
 
-        like, model = self.lnlike_sys(theta_in, x, y, yerr)
+        like, model = self.lnlike(theta_in, x, y, yerr)
 
         if (not np.isfinite(like)):
             return -np.inf, -np.inf, model
@@ -1955,10 +1962,7 @@ Initial parameters:
         print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         logger.info("testing the prior and likelihood functions..")
-        if LNPROB_USES_LNLIKE_SYS:
-            print("lnlike_sys:", self.lnlike_sys(self.theta, None, self.y, self.yerr))
-        else:
-            print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
+        print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
         if self.sampler == 'emcee':
             print("lnprior:", self.lnprior(self.theta))
             print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
@@ -2761,7 +2765,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             ato = int(self.train) # array "train" offset
             for _i in np.arange(np.shape(self.last)[0]):
 
-                ptot, model = self.lnlike_sys(self.last[_i,:], None, self.y, self.yerr, components=True)
+                ptot, model = self.lnlike(self.last[_i,:], None, self.y, self.yerr, components=True)
 
                 if model is None:
                     # The model will not always be valid
