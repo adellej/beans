@@ -58,7 +58,7 @@ plt.rcParams['text.usetex'] = USETEX
 # bins=0.7, # has the effect of light smoothing of the histograms
 # tick_font_size='xx-large', diagonal_tick_labels=False, sigma2d=False,  summary=False, flip=False, label_font_size='xx-large', max_ticks=3, serif=True,
 #
-# updated config parameters for v1.25+ here 
+# updated config parameters for v1.25+ here
 #   https://samreay.github.io/ChainConsumer/api/chainconfig/
 
 CC_CONFIG = { 'shade': True, 'shade_alpha': 1.0, 'bar_shade': True,
@@ -273,7 +273,7 @@ def prior_func(theta_in):
     # reasonable limits.
     if (0.00001 < X < 0.76) and (0.00001 < Z < 0.056) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
-        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 10) and \
         (1 <= f_t < 10) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
@@ -303,7 +303,7 @@ def prior_kepler(theta_in):
     # reasonable limits.
     if (0.2 < X < 0.8) and (0.005 < Z < 0.1) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
-        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 10) and \
         (1 <= f_t < 10) and \
         (1.15 < mass < 2.5) and (9 < radius < 17):
         return 0.0
@@ -335,7 +335,7 @@ def prior_1808(theta_in):
     # reasonable limits.
     if (0.00001 < X < 0.76) and (Z > 0.000010000001) and \
         (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
-        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 10) and \
         (1 <= f_t < 10):
 
         return 0.0 + lnZprior(Z) + mr_prior(mass, radius)
@@ -371,7 +371,7 @@ def prior_grid(theta_in):
     # determined by the limits of the grid
     if (0.64 <= X <= 0.76) and (0.0025 <= Z <= 0.03) and \
         (0.0 <= Q_b <= 0.6) and (1 < dist < 20) and \
-        (0.01 < xi_b < 2) and (0.01 < xi_p < 2) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 10) and \
         (1 <= f_t < 10) and \
         (1.86 < gravity < 3.45):
         return 0.0
@@ -390,7 +390,7 @@ def lnlike_nosys(self, theta_in, x, y, yerr, components=False):
       *xi_p* and (optionally) *mass* & *radius*,
     :param x: the "independent" variable, passed to lnlike
     :param y: the "dependent" variable (i.e. measurements), passed to lnlike
-    :param yerr: erorr estimates on y
+    :param yerr: error estimates on y
 
     :return: likelihood, model result array
     """
@@ -422,7 +422,7 @@ def lnlike_nosys(self, theta_in, x, y, yerr, components=False):
     # likelihood here. First the lower limits for the non-PRE bursts:
 
     for _i in self.non_pre:
-        _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
+        _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])
         if _log_arg == 0.0:
             return -np.inf, model
         cpts = np.append(cpts, np.log(_log_arg) )
@@ -430,7 +430,7 @@ def lnlike_nosys(self, theta_in, x, y, yerr, components=False):
     # and then for the PRE bursts
 
     for _i in self.pre:
-        cpts = np.append(cpts, 
+        cpts = np.append(cpts,
       -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
       + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
 
@@ -446,7 +446,7 @@ def lnlike_nosys(self, theta_in, x, y, yerr, components=False):
     return np.sum(cpts), model2
 
 
-def lnlike_sys(self, theta_in, x, y, yerr, components=False):
+def lnlike_sys(bean, theta_in, x, y, yerr, components=False):
     """
     As for :meth:`Beans.lnlike`, but this version also allows the "systematic" error
     factor for the burst times. If you want to run with that
@@ -464,15 +464,15 @@ def lnlike_sys(self, theta_in, x, y, yerr, components=False):
     # define theta_in = model parameters, which we define priors for
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
-    mass, radius, f_t = extra + [self.M_NS, self.R_NS, 1.0][len(extra):]
+    mass, radius, f_t = extra + [bean.M_NS, bean.R_NS, 1.0][len(extra):]
 
     # call model (function runmodel, in run_model.py) to generate the burst
     # train, or the set of bursts (for "ensemble" mode. In earlier versions
     # the corresponding IDL function was defined as
     # modeldata(base, z, x, r1, r2 ,r3)
 
-    assert np.allclose(y, self.y)
-    model, valid, model2 = runmodel(theta_in, self)
+    assert np.allclose(y, bean.y)
+    model, valid, model2 = runmodel(theta_in, bean)
     if not valid:
         return -np.inf, model
 
@@ -487,10 +487,10 @@ def lnlike_sys(self, theta_in, x, y, yerr, components=False):
     # so the length of the err_fac times cpt is self.numburstsobs, not
     # self.numburstsobs-ato
 
-    ato = int(self.train) # array "train" offset
-    err_fac = np.concatenate(( np.full(self.numburstsobs, 1./f_t**2),
-        np.full(self.numburstsobs, 1.0), np.full(self.numburstsobs-ato, 1.0)))
-    inv_sigma2 = self.inv_sigma2[:self.ly] * err_fac[:self.ly]
+    ato = int(bean.train) # array "train" offset
+    err_fac = np.concatenate(( np.full(bean.numburstsobs, 1./f_t**2),
+        np.full(bean.numburstsobs, 1.0), np.full(bean.numburstsobs-ato, 1.0)))
+    inv_sigma2 = bean.inv_sigma2[:bean.ly] * err_fac[:bean.ly]
 
     # Final likelihood expression
     # Because the y (observed value) vector may or may not include the
@@ -499,15 +499,15 @@ def lnlike_sys(self, theta_in, x, y, yerr, components=False):
     # 2\pi in this expression!
 
     # cpts = (self.y - (model)) ** 2 * inv_sigma2 - (np.log(inv_sigma2))
-    cpts = -0.5 * (self.y - model[:self.ly]) ** 2 * inv_sigma2 \
+    cpts = -0.5 * (bean.y - model[:bean.ly]) ** 2 * inv_sigma2 \
         + np.log(2.*np.pi/inv_sigma2)
 
     # if the peak fluxes are defined, add the components for the
     # likelihood here; also want to trap underflows
     # First the lower limits for the non-PRE bursts:
 
-    for _i in self.non_pre:
-        _log_arg = .5-.5*erf((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1]) 
+    for _i in bean.non_pre:
+        _log_arg = .5-.5*erf((bean.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])
         if _log_arg == 0.0:
             return -np.inf, model
 
@@ -515,9 +515,9 @@ def lnlike_sys(self, theta_in, x, y, yerr, components=False):
 
     # and then for the PRE bursts
 
-    for _i in self.pre:
-        cpts = np.append(cpts, 
-      -0.5 * (((self.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
+    for _i in bean.pre:
+        cpts = np.append(cpts,
+      -0.5 * (((bean.bpflux[_i]-model2['F_Edd'][0])/model2['F_Edd'][1])**2
       + np.log(2.*np.pi*model2['F_Edd'][1]**2) ) )
 
     # if the components flag is set, also add those to the model dict
@@ -1446,7 +1446,7 @@ Initial parameters:
         # if you swap lnlike for lnlike_sys below (or vice versa) make
         # sure you update LNPROB_USES_LNLIKE_SYS at the start of this file
 
-        like, model = self.lnlike(theta_in, x, y, yerr)
+        like, model = self.lnlike(self, theta_in, x, y, yerr)
 
         if (not np.isfinite(like)):
             return -np.inf, -np.inf, model
@@ -1635,7 +1635,8 @@ Initial parameters:
 
         else:
             # ensemble mode plot here
-            ax2.scatter(self.bstart, self.fluen, color = OBS_COLOUR, marker = '.', label='observed', s =200)
+            ax2.errorbar(self.bstart, self.fluen, yerr=self.fluene,
+                linestyle='', color = OBS_COLOUR, marker = '.', label='observed', ms =13)
             if show_model:
                 ax2.scatter(self.bstart, ebpred, marker = '*',color=BURSTS_COLOUR,s = 100, label = 'predicted')
 
@@ -1706,27 +1707,32 @@ Initial parameters:
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
         print ('{}corresponding to source at\n{}  d={:.2f} kpc, xi_b={:.4f}, xi_p={:.4f}, X={:.2f}, Z={:.3f}, M_NS={:.2f}, R_NS={:.2f}, 1+z={:.3f}, Q_b={:.2f}'.format(
             _comm, _comm, dist,  xi_b, xi_p, X, Z, mass, radius, opz, Q_b), file=f)
-        if self.obsname is not None:
-            print ('{}Persistent fluxes from {}, interp={}{}, bc={}'.format(
-                _comm, self.obsname, self.interp,
-                ('' if self.smooth is None else ', smooth={}'.format(self.smooth)), self.bc), file=f)
+        print ('{}Persistent fluxes from {}{}'.format(
+            _comm, self.obsname if self.obsname is not None else self.burstname,
+            ', interp={}{}, bc={}'.format(self.interp,
+                ('' if self.smooth is None else ', smooth={}'.format(self.smooth)), self.bc) if self.train else ''),
+            file=f)
 
         if self.corr is not None:
             print ('{}Correction function {}'.format(_comm, self.corr), file=f)
 
         # assign fluence and alpha errors here, and match string, if
         # we have observed bursts to match to
+        _matched = [''] * _n
         if self.numburstsobs > 0:
-            _fluene, _alphae = np.mean(self.fluene), np.mean(self.alphae[1:])
-            _matched = ['	'+str(i in full_model['imatch']) for i in range(_n)]
-            if hasattr(self, 'tdele'):
-                # only for ensemble mode input data, I think
-                _tdele = mean(self.tdele)
+            if self.train:
+                _fluene, _alphae = np.full(_n, np.mean(self.fluene)), np.full(_n, np.mean(self.alphae[1:]))
+                _matched = ['	'+str(i in full_model['imatch']) for i in range(_n)]
+                if hasattr(self, 'tdele'):
+                    # only for ensemble mode input data, I think
+                    _tdele = np.full(_n, mean(self.tdele))
+                else:
+                    _tdele = np.full(_n, 0.1) # hr
             else:
-                _tdele = 0.1 # hr
+                # for ensemble mode we can just use the actual errors
+                _fluene, _alphae, _tdele = self.fluene, self.alphae, self.tdele
         else:
-            _fluene, _alphae, _tdele = 0.01, 1.0, 0.1 # dummy values
-            _matched = [''] * _n
+            _fluene, _alphae, _tdele = np.full(_n, 0.01), np.full(_n, 1.0), np.full(_n, 0.1) # dummy values
 
         if self.train & (not ensemble):
             print ('{}\n{}"burst start time [d]"	"bolometric fluence [1e-6 erg/cm^2]"	"error on bolometric fluence"	"alpha"	"error on alpha"'.format(_comm, _comm), file=f)
@@ -1738,25 +1744,25 @@ Initial parameters:
                 else:
                     print(_line_fmt.format(full_model['time'][i]+self.tref,
                         full_model['fluen'][i-1], _fluene,
-                        full_model['alpha'][i-1], _alphae, _matched[i]), file=f)
+                        full_model['alpha_obs'][i-1], _alphae, _matched[i]), file=f)
 
         else:
-            # originally this was for the ensemble mode data, but I don't
-            # think I ever tested it (and it looks like the code was just
-            # a placeholder that replicated the input data).
-            # The version implemented below is where we have the "train"
-            # data but we're going to save it as ensemble mode, taking
-            # each burst interval as a component of the "ensemble"
+            # originally this was for the ensemble mode data, now tested on SRGA J144459.2-604207
+            # The version implemented below is hopefully also compatible with "train"
+            # data that we're going to save as ensemble mode, taking each burst interval
+            # as a component of the "ensemble" (reasonable to do for a simulation)
 
             print ('{}\n{}"burst epoch [MJD]"	"bolometric fluence [1e-6 erg/cm^2]"	"error on bolometric fluence"	"alpha value"	"error on alpha value"	"bolometric persistant flux [1e-9 erg/cm^2/s^-1]"	"error on bol.  per flux"	"inferred recurrence time [hr]"	"error on recurrence time"'.format(_comm, _comm), file=f)
             _line_fmt = '{:.5f}	{:.3f}	{:.3f}	{:.1f}	{:.1f}	{:.3f}	{:.3f}	{:.3f}	{:.3f}'
             # for i in range(len(self.bstart)):
-            for i in range(1, _n):
+            for i in range(1-(not self.train), _n):
                 print(_line_fmt.format(
-                    full_model['time'][i], full_model['fluen'][i-1], _fluene,
-                    full_model['alpha'][i-1], _alphae,
-                    self.mean_flux(full_model['time'][i-1],full_model['time'][i],self), 0.0,
-                    (full_model['time'][i]-full_model['time'][i-1])*24., _tdele
+                    full_model['time'][i] if self.train else self.bstart[i],
+                    full_model['fluen'][i-self.train], _fluene[i],
+                    full_model['alpha_obs'][i-1], _alphae[i],
+                    self.mean_flux(full_model['time'][i-1],full_model['time'][i],self) if self.train else self.pflux[i],
+                    0.0 if self.train else self.pfluxe[i],
+                    (full_model['time'][i]-full_model['time'][i-1])*24. if self.train else full_model['time'][i], _tdele[i],
                     # self.bstart[i], self.fluen[i], self.fluene[i],
                     # self.alpha[i],self.alphae[i],self.pflux[i],
                     # self.pfluxe[i],self.tdel[i],self.tdele[i]
@@ -1962,7 +1968,7 @@ Initial parameters:
         print("# ---------------------------------------------------------------------------#")
         # Testing the various functions. Each of these will display the likelihood value, followed by the model-results "blob"
         logger.info("testing the prior and likelihood functions..")
-        print("lnlike:", self.lnlike(self.theta, None, self.y, self.yerr))
+        print("lnlike:", self.lnlike(self, self.theta, None, self.y, self.yerr))
         if self.sampler == 'emcee':
             print("lnprior:", self.lnprior(self.theta))
             print("lnprob:", self.lnprob(self.theta, None, self.y, self.yerr))
@@ -2052,7 +2058,7 @@ Initial parameters:
             self.run_id, _end-_start, self.nsteps))
 
         if analyse & (sampler == 'emcee'):
-            logger.info ("running analses with do_analysis...")
+            logger.info ("running analyses with do_analysis...")
             self.do_analysis(burnin=burnin)
         #if self.restart == False:
             #sampler.reset()
@@ -2270,7 +2276,7 @@ Initial parameters:
         if show:
             # show the headers for the LaTeX table
             print (r'''
-\\begin{tabular}{ccccccc} 
+\\begin{tabular}{ccccccc}
   \hline
         & MINBAR & Start  & $\Delta t$ & Fluence & \multicolumn{2}{c}{$\\alpha$-value} \\\\
   Burst & ID     & (MJD)  & (hr)       & $10^{-6}\\ {\\rm erg\,cm^{-2}}$ & Measured & Inferred \\\\
@@ -2506,7 +2512,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
 
     def do_analysis(self, options=['autocor','posteriors'],
-                          part=None, truths=None, burnin=2000,
+                          part=None, truths=False, burnin=2000,
                           ilab=None, title=None, savefig=False):
         """
         This method is for running standard analysis and displaying the
@@ -2735,7 +2741,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # swap keys for values below to test out LaTeX approach
 
             _df = pd.DataFrame(_samples, columns=_plot_labels.values())
-            _chain = Chain(samples=_df, 
+            _chain = Chain(samples=_df,
                 name='beansp v{} run {} last {}/{}'.format(
                 self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed))
 
@@ -2746,6 +2752,14 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             self.samples = _samples # keep the samples up to date
             self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
+
+            # common truths/title settings for all corner plots
+
+            if truths is None:
+                truths = list(self.theta)
+            if truths:
+                self.cc.add_truth(Truth(location={
+                    list(self.cc_parameters.values())[i]: truths[i] for i in range(len(truths))}))
 
         # ---------------------------------------------------------------------#
         if 'last' in options:
@@ -2798,7 +2812,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     _summed = np.all(_summed)
                     if not(_summed):
                         logger.warning('missing likelihood compoonents in breakdown')
-                        return 
+                        return
 
                 pprior = self.lnprior(self.last[_i,:])
                 probs.loc[_i] = [ptot, pprior, p_time, p_fluen, p_alpha, p_pflux]
@@ -2862,26 +2876,6 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 self.nsteps_completed)
 
         # ---------------------------------------------------------------------#
-        if ('posteriors' in options) | ('mrcorner' in options) | ('fig6'
-in options):
-
-            # common truths/title settings for all corner plots
-
-            if truths is None:
-                truths = list(self.theta)
-            elif truths is False:
-                truths = None
-
-            # don't have the option anymore of showing a title via
-            # ChainConsumer, but the information is included in the legend
-            # via the Chain name
-
-            # if title is not None:
-            #     if type(title) == str:
-            #         logger.warning("can't override title for posterior plots, sorry")
-            #         title=True
-            # else:
-            #     title=True
 
         if 'posteriors' in options:
 
@@ -2947,7 +2941,7 @@ in options):
             #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
             fig = self.cc.plotter.plot(
                 columns=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
-                figsize=(8,8) ) # figsize="page", 
+                figsize=(8,8) ) # figsize="page",
                 # truth=truths, legend=title, display=False)
 
             if (self.cc_nchain == 1) & (title is not False):
@@ -3077,7 +3071,7 @@ in options):
                     _sel = np.array(part) == _n
                     _check = np.shape(self.samples[_sel])[0]
                     if _check > 1000:
-                        _df = pd.DataFrame(self.samples[_sel], 
+                        _df = pd.DataFrame(self.samples[_sel],
                             columns=list(self.cc_parameters.values()))
                         _chain = Chain(samples=_df,
                             name = _n if type(_n) == str else str(_n))
@@ -3092,6 +3086,11 @@ in options):
                 if self.cc_nchain > 1:
                     CC_PLOT_CONFIG['show_legend'] = True
                 self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
+
+                if truths:
+                    # this may be a bit misleading if your different chains also have different "truths"
+                    self.cc.add_truth(Truth(location={
+                        list(self.cc_parameters.values())[i]: truths[i] for i in range(len(truths))}))
 
                 logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
@@ -3298,7 +3297,7 @@ in options):
 
                     ax1.errorbar(timepred, ebpred,
                         yerr=[ebpred_errlow, ebpred_errup],
-                        xerr=[timepred_errup, timepred_errlow], 
+                        xerr=[timepred_errup, timepred_errlow],
                         # color=bursts_colour
                         marker='*', ms=11, linestyle='', color='C{}'.format(i),
                         label='predicted ({})'.format(tkey))
@@ -3410,11 +3409,11 @@ in options):
                     chain_flat = chain[:, burnin:, :].reshape((-1, 12))
                 else:
                     chain_flat = chain[:, :, :].reshape((-1, 12))
-                _df = pd.DataFrame(chain_flat, 
+                _df = pd.DataFrame(chain_flat,
                     # have to make sure the names of common parameters
                     # here match what's set in do_analysis
                     columns=[r'$\dot{m}_1$',r'$\dot{m}_2$',r'$\dot{m}_3$',
-                        r'$Q_{b,1}$ (MeV)', r'$Q_{b,2}$ (MeV)', 
+                        r'$Q_{b,1}$ (MeV)', r'$Q_{b,2}$ (MeV)',
                         r'$Q_{b,3}$ (MeV)',
                         self.cc_parameters['X'], self.cc_parameters['Z'],
                         r'\ensuremath{g\ (\mathrm{cm\,s}^{-2}})',

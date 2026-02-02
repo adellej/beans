@@ -75,9 +75,16 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
 
     print("\n# ---------------------------------------------------------------------------#")
     # TODO: make this information less sampler-specific
-    print('    Running run={} with sampler {}, {} walkers, target {} steps...'.format(
-        bean.run_id, sampler, bean.nwalkers, bean.nsteps))
+    if sampler == 'emcee':
+        print('    Running run={} with sampler {}, {} walkers, target {} steps...'.format(
+-        bean.run_id, sampler, bean.nwalkers, bean.nsteps))
+    elif sampler == 'dynesty':
+        print('    Running run={} with sampler {}, {} live points, target dlogz {}...'.format(
+        bean.run_id, sampler, bean.nlive, bean.dlogz))
+    else:
+        print('    Running run={} with sampler {}...'.format(sampler))
 
+    breakpoint()
     bilby.utils.check_directory_exists_and_if_not_mkdir(outdir)
     bean.outdir = outdir
 
@@ -120,6 +127,8 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
 
     print("# ---------------------------------------------------------------------------#")
     # run sampler
+    # TODO call this with parameters set conditionally by choice of
+    # sampler
     result = bilby.run_sampler(
         likelihood=likelihood,
         priors=priors,
@@ -131,12 +140,12 @@ def runbilby(bean, outdir='bilby_out', sampler='emcee', **kwargs):
         # nsamples=100,
         # emcee settings:
         sampler=sampler,
-        nwalkers=bean.nwalkers, nsteps=bean.nsteps, a=bean.stretch_a,
-        nburn=nburn,
-        # dynesty:
-        # nlive=1000,
+        # nwalkers=bean.nwalkers, nsteps=bean.nsteps, a=bean.stretch_a,
+        # nburn=nburn,
+        # dynesty settings:
+        nlive=bean.nlive, dlogz=bean.dlogz,
         npool=bean.threads, # 4 threads?
-        **kwargs
+        # **kwargs
     )
 
     return result
