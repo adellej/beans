@@ -1740,11 +1740,11 @@ Initial parameters:
             for i in range(_n):
                 if i == 0:
                     print(_line_fmt.format(full_model['time'][0]+self.tref,
-                        full_model['fluen'][0],_fluene,0.,0., _matched[i]), file=f)
+                        full_model['fluen'][0],_fluene[i],0.,0., _matched[i]), file=f)
                 else:
                     print(_line_fmt.format(full_model['time'][i]+self.tref,
-                        full_model['fluen'][i-1], _fluene,
-                        full_model['alpha_obs'][i-1], _alphae, _matched[i]), file=f)
+                        full_model['fluen'][i-1], _fluene[i],
+                        full_model['alpha_obs'][i-1], _alphae[i], _matched[i]), file=f)
 
         else:
             # originally this was for the ensemble mode data, now tested on SRGA J144459.2-604207
