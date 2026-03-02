@@ -225,7 +225,12 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
         # returns a rec_array with elements t2, e_b, alpha, mdot
 
         if result_b is None:
-            # this can happen if the flux history begins later than the earliest simulated event
+            # this can happen if the flux history doesn't cover enough
+            # time prior to the first observed burst; but is catastrophic
+            # in terms of the model, since we're short a burst
+            # We carry on below, but this is trapped in runmodel and a
+            # negative result returned
+
             assert iburst == 0
 
         else:

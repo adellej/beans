@@ -181,6 +181,12 @@ def runmodel(theta_in, bean, match=True, debug=False):
                 if debug:
                     print ('runmodel: all gaps')
                 return None, False, result
+            if result['imatch'][0] > 0:
+                # this is the case when the reverse run on the initial
+                # observed burst fails, can't recover
+                if debug:
+                    print ('runmodel: backwards search omitted first observed burst')
+                return None, False, result
         else:
             tpred = result["time"]
         npred = len(tpred)
