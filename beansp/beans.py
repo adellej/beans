@@ -81,6 +81,23 @@ L_EDD_ERR = 1.6e38*u.erg/u.s
 
 BILBY_OUTPUT = 'bilby_out'
 
+# some parameter limits etc
+# current parameter list has at most 9 fit parameters:
+#
+# 1 = X hydrogen mass fraction (settle)
+# 2 = Z CNO element mass fraction (settle)
+# 3 = Q_b base flux [MeV/nucleon] (settle)
+# 4 = dist [kpc]
+# 5 = xi_b burst emission anisotropy (diskmodel)
+# 6 = xi_p persistent emission anisotropy (diskmodel)
+# [optional]
+# 7 = M_NS neutron star mass [M_sun] (settle)
+# 8 = R_NS neutron star radius [km] (settle)
+# 9 = f_t systematic fractional variation in burst times
+
+NDIM_MIN = 6
+NDIM_MAX = 9
+
 # switch to remember what I'm using in lnprob
 
 LNPROB_USES_LNLIKE_SYS = True
@@ -974,16 +991,17 @@ class Beans:
         # here; previously this was via the (boolean) has_systematic
 
         self.ndim = len(self.theta)
-        if (self.ndim < 6) | (self.ndim > 9):
+        if (self.ndim < NDIM_MIN) | (self.ndim > NDIM_MAX):
             logger.error('number of dimensions of input parameter vector should be 6-9')
             return
-        self.num_systematic = self.ndim-8
+        self.num_systematic = self.ndim-(NDIM_MAX-1)
         if (self.num_systematic > 0) & (not LNPROB_USES_LNLIKE_SYS):
             logger.warning('''likelihood calculation does not currently support systematic errors;
                 you need to swap out the lnlike method for lnlike_sys''')
-        if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
-            ((self.ndim == 10) & (not (self.cmpr_alpha and self.cmpr_fluen))):
-            logger.warning("systematic errors are provided for ignored quantities!")
+        # this check is redundant now that we only have systematic error on the times
+        # if ((self.ndim == 9) & (not self.cmpr_fluen)) | \
+        #     ((self.ndim == 10) & (not (self.cmpr_alpha and self.cmpr_fluen))):
+        #     logger.warning("systematic errors are provided for ignored quantities!")
 
         self.gti_checking = self.gtiname is not None
 
@@ -2205,17 +2223,18 @@ Initial parameters:
         plt.show()
 
 
-    def burst_table(self, show=True, predicted=False, key=None):
+    def burst_table(self, show=True, nsep=None, predicted=False, key=None):
         """
-	This method creates and, optionally, displays a table from the
+        This method creates and, optionally, displays a table from the
         model and observed bursts.
 
         The table is returned as an astropy Table object that can be saved
         as an MRT file, like so: ``tab.write('test.dat',format='mrt')``
-	although you will have to then edit the file afterwards to
+        although you will have to then edit the file afterwards to
         complete the metadata
 
         :param show: set to True to display each row (in LaTeX format)
+        :param nsep: number of inferred bursts between each pair, for use when model data is unavailable and the automatic code doesn't return the desired values
         :param predicted: set to True to show predicted bursts also (not yet implemented)
         :param key: for the case where we have more than one set of predictions (e.g. for different numbers of predicted bursts), the key will identify which to return
 
@@ -2226,71 +2245,117 @@ Initial parameters:
             logger.error ('alpha calculation requires concord')
             return None
 
+        has_model = True
         if not hasattr(self, 'model_pred'):
-            logger.error ('no model predictions available, run the comparison first')
-            return None
+            # logger.error ('no model predictions available, run the comparison first')
+            # return None
+            has_model = False
 
-        if (key is None) & (len(self.model_pred['time_stats'].keys()) > 1):
-            logger.error ('multiple solutions are available, please specify one with the key keyword')
-            print (self.model_pred['time_stats'].keys())
-            return None
-
-        elif key is None:
-            key = list(self.model_pred['time_stats'].keys())[0]
-
-        timepred = [x[0] for x in self.model_pred['time_stats'][key]]
-        ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
-
-        # have to do different matching procedures if not continuous
-        # cf. with the comparison option of do_analysis
-
-        if self.continuous:
-            imatch = burst_time_match(self.ref_ind, self.bstart, ref_tpred, np.array(timepred))
+            if nsep is not None:
+                if (len(nsep) != self.numburstsobs) | (nsep[0] != 0):
+                    logger.error ('problem with nsep array; should be the same length as the number of bursts, with the first element zero (null)')
+                    return None
         else:
-            imatch = burst_time_match(0, self.bstart, 0, np.array(timepred))
+            # if we have a model then check we know which one to use
+            if (key is None) & (len(self.model_pred['time_stats'].keys()) > 1):
+                logger.error ('multiple solutions are available, please specify one with the key keyword')
+                print (self.model_pred['time_stats'].keys())
+                return None
+
+            elif key is None:
+                key = list(self.model_pred['time_stats'].keys())[0]
+            _sel = np.where(np.array(self.model_pred['partition']) == key)[0]
+
+            if nsep is not None:
+                logger.warning ('nsep parameter ignored when model predictions are available')
+        # Now create the table
 
         bursts = Table()
-        bursts['num'] = np.arange(self.numburstsobs)+1
+        bursts['num'] = np.arange(self.numburstsobs) + 1
         bursts['num'].info.description = 'Burst number'
-        bursts['minbar_id'] = np.full(self.numburstsobs, 9999) # filler
+        bursts['minbar_id'] = np.full(self.numburstsobs, 9999)  # filler
         bursts['minbar_id'].info.description = 'MINBAR DR1 ID'
-        bursts['time'] = Time(self.bstart+self.tref, format='mjd')
+        bursts['time'] = Time(self.bstart + self.tref, format='mjd')
         # we can set this, but it doesn't seem to be written when output
         # as MRT
         bursts['time'].info.description = 'Burst start time'
         bursts['bfluen'] = MaskedColumn(self.fluen, mask=self.fluen <= 0.,
-            unit=FLUEN_U, description='Integrated burst fluence')
+                                        unit=FLUEN_U, description='Integrated burst fluence')
         bursts['e_bfluen'] = MaskedColumn(self.fluene, mask=self.fluen <= 0.,
-            unit=FLUEN_U, description='Error on burst fluence')
+                                          unit=FLUEN_U, description='Error on burst fluence')
         # following list comprehension mask expression is to trap the
         # blanks that come from MINBAR
         # bursts['alpha_obs'] = MaskedColumn(self.alpha, mask=self.alpha <=0.,
         bursts['alpha_obs'] = MaskedColumn(self.alpha,
-            mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
-            description='Burst alpha-value')
+                                           mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
+                                           description='Burst alpha-value')
         # bursts['e_alpha_obs'] = MaskedColumn(self.alphae, mask=self.alpha <=0.,
         bursts['e_alpha_obs'] = MaskedColumn(self.alphae,
-            mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
-            description='Error on alpha-value')
+                                             mask=[float(x) <= 0.0 if x != '--' else True for x in self.alpha],
+                                             description='Error on alpha-value')
 
+        if has_model:
+            timepred = [x[0] for x in self.model_pred['time_stats'][key]]
+            ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
+
+            # have to do different matching procedures if not continuous
+            # cf. with the comparison option of do_analysis
+
+            if self.continuous:
+                imatch = burst_time_match(self.ref_ind, self.bstart, ref_tpred, np.array(timepred))
+            else:
+                imatch = burst_time_match(0, self.bstart, 0, np.array(timepred))
+
+        elif nsep is not None:
+            # generate imatch from user-specified nsep array
+            imatch = list(np.cumsum(nsep))
+        else:
+            logger.warning ('no model predictions are available, estimating recurrence time as best-guess')
+            # dummy here for 1808
+            # imatch = [0, 3, 4, 5]
+            # a more general attempt
+            _dt = np.array(self.bstart[1:])-np.array(self.bstart[:-1])
+            _dt_imin = np.argmin(_dt)
+            n_missed = [0] # implied
+            _dt_trial = _dt[_dt_imin]
+            for _i in np.arange(_dt_imin-1,-1,-1):
+                # print ('backwards',_dt_imin,_i)
+                _nb = int(_dt[_i]/_dt_trial+0.5)
+                n_missed.insert(0, _nb-1)
+                _dt_trial = _dt[_i]/_nb
+            _dt_trial = _dt[_dt_imin]
+            for _i in np.arange(_dt_imin+1, len(_dt)):
+                # print ('forwards',_dt_imin,_i)
+                _nb = int(_dt[_i]/_dt_trial+0.5)
+                n_missed.append(_nb-1)
+                _dt_trial = _dt[_i]/_nb
+            imatch = [0]+list(np.cumsum([x+1 for x in n_missed]))
+            # print (imatch, n_missed)
+
+        bursts['n_missed'] = MaskedColumn([-1]+[x-imatch[_i]-1 for _i, x in enumerate(imatch[1:])],
+                                          mask=[True]+[False]*(len(imatch)-1),
+                                          description='Number of missed bursts inferred')
         if show:
             # show the headers for the LaTeX table
             print (r'''
 \\begin{tabular}{ccccccc}
   \hline
-        & MINBAR & Start  & $\Delta t$ & Fluence & \multicolumn{2}{c}{$\\alpha$-value} \\\\
-  Burst & ID     & (MJD)  & (hr)       & $10^{-6}\\ {\\rm erg\,cm^{-2}}$ & Measured & Inferred \\\\
+        & MINBAR & Start  & $\Delta t$ & & Fluence & \multicolumn{2}{c}{$\\alpha$-value} \\\\
+  Burst & ID     & (MJD)  & (hr)       & $n_{\rm missed}$ & $10^{-6}\\ {\\rm erg\,cm^{-2}}$ & Measured & Inferred \\\\
   \hline ''')
 
         # Now loop over the bursts and calculate the derived quantities
+        # TODO: implement the printing of the predicted (but not observed) bursts (predicted=True)
         dt, e_dt, alpha, e_alpha, E_alpha = [], [], [], [], []
-        _sel = np.where(np.array(self.model_pred['partition']) == key)[0]
         for i in np.arange(self.numburstsobs):
             if imatch[i] > 0:
-                if imatch[i]-imatch[i-1] == 1:
-                    # no missed bursts
-                    _dt = (self.bstart[i]-self.bstart[i-1])*24.
-                    perflx = self.mean_flux(self.bstart[i-1], self.bstart[i], self)
+                # burst was matched, so let's display it
+                _db = imatch[i]-imatch[i-1]
+                if (_db == 1) | (not has_model):
+                    # split up the interval evenly if there were missed bursts
+                    _dt = (self.bstart[i]-self.bstart[i-1])/_db*24.
+                    perflx = self.mean_flux(self.bstart[i-1] + (_db-1)/_db*(self.bstart[i]-self.bstart[i-1]),
+                                            self.bstart[i], self)
                 else:
 		    # one or more missed bursts, so use the model
 		    # predictions for the previous time
@@ -2310,8 +2375,8 @@ Initial parameters:
                     dt.append(_dt)
                     e_dt.append(0.)
                     if show:
-                        print ("{} & [minbar ID] & {} & {:.2f} & {} & {} & {} \\\\".format(
-                            bursts['num'][i], bursts['time'][i], dt[-1],
+                        print ("{} & [minbar ID] & {} & {:.2f} & {} & {} & {} & {} \\\\".format(
+                            bursts['num'][i], bursts['time'][i], dt[-1], bursts['n_missed'][i],
                             (strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]) if bursts['bfluen'][i] > 0. else '--'),
                             strmeas(bursts['alpha_obs'][i], bursts['e_alpha_obs'][i]),
                             (strmeas(_alpha[0], _alpha[1], _alpha[2]) if bursts['bfluen'][i] > 0. else '--')))
@@ -2320,9 +2385,9 @@ Initial parameters:
                     dt.append(dt_stats[1])
                     e_dt.append((dt_stats[2]-dt_stats[0])*0.5)
                     if show:
-                        print ("{} & [minbar ID] & {} & {} & {} & {} & {} \\\\".format(
+                        print ("{} & [minbar ID] & {} & {} & {} & {} & {} & {} \\\\".format(
                             bursts['num'][i], bursts['time'][i],
-                            strmeas(dt[-1], e_dt[-1]),
+                            strmeas(dt[-1], e_dt[-1]), bursts['n_missed'][i],
                             (strmeas(bursts['bfluen'][i], bursts['e_bfluen'][i]) if bursts['bfluen'][i] > 0. else '--'),
                             strmeas(bursts['alpha_obs'][i], bursts['e_alpha_obs'][i]),
                             (strmeas(_alpha[0], _alpha[1], _alpha[2]) if bursts['bfluen'][i] > 0. else '--')))
@@ -2424,6 +2489,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
 
         # have to duplicate the calculation of redshift and gravity here, as
         # those quantities are not saved to the samples
+        # TODO I think this really should be 7 below, as the (optional) 7 & 8th parameters are mass and radius; but they
+        #   are always both present, so probably no issue
         if self.ndim >= 8:
             M = np.array(self.samples[:,6])*const.M_sun.to('g') #cgs
             R = np.array(self.samples[:,7])*1e5*u.cm #cgs
@@ -3436,7 +3503,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         logger.info('added posteriors for run "{}" to the ChainConsumer object; re-run do_analysis to show the posterior comparison'.format(label))
 
 
-    def prune(self, key=None, nwalkers=None, scale=0.0, savefile=None):
+    def prune(self, key=None, nwalkers=None, scale=0.0, add_param=None, savefile=None):
         '''
         This method will "prune" the walkers to keep only one set of
         solutions. It is necessary that :meth:`Beans.do_analysis` has
@@ -3449,34 +3516,70 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         :param key: model class to keep, usually labeled by the number of predicted bursts
         :param nwalkers: number of samples to generate, if not the current number of walkers
         :param scale: in case it's necessary to distribute the walker positions around the seed values, this parameter sets the Gaussian scale
+        :param add_param: number of additional parameters to add in the saved array
         :param savefile: name of pickle file to save to
 
         :returns: array of walker positions, dimensions (nwalkers, ndim)
         '''
 
-        if not hasattr(self, 'model_pred'):
-            print ('** ERROR ** no model predictions available, run the comparison first')
+        if not hasattr(self, 'reader'):
+            logger.error('no run results loaded, call do_analysis first')
             return None
 
-        # TODO: if no key is supplied, could just save all the positions
-        if key is None:
-            print ("** ERROR ** no key supplied, don't know which set to keep")
-            return None
-
-        if not (key in set(self.model_pred['partition'])):
-            print ("** ERROR ** key not present in model prediction set: {}".format(set(self.model_pred['partition'])))
-            return None
+        if add_param is not None:
+            # here we can optionally add parameters that were previously
+            # fixed
+            if (type(add_param) != int): 
+                logger.error('please supply an integer number of additional parameters to add to the array')
+                return None
+            elif (add_param < 0) | (self.ndim+add_param < NDIM_MIN+2) \
+                | (self.ndim+add_param > NDIM_MAX):
+                logger.error('invalid number of additional parameters')
+                return None
+            elif scale <= 0.0:
+                logger.error('need to provide a scale>0 to distribute additional values')
+                return None
 
         new_pos, d1, d2, d3 = self.reader.get_last_sample()
 
-        # now redistribute the "bad" walkers
+        if key is None:
+            # if no key is supplied, could just save all the positions
+            logger.info('retaining all walkers from last position')
+            # print ("** ERROR ** no key supplied, don't know which set to keep")
+            # return None
 
-        bad = np.array(self.model_pred['partition'])[-self.nwalkers:] != key
+        elif not hasattr(self, 'model_pred'):
+            logger.error ('no model predictions available, run the comparison first')
+            return None
 
-        print ('Redistributing {} of {} walkers...'.format(len(np.where(bad)[0]), self.nwalkers))
+        elif not (key in set(self.model_pred['partition'])):
+            print ("** ERROR ** key not present in model prediction set: {}".format(set(self.model_pred['partition'])))
+            return None
 
-        for i in (np.where(bad)[0]):
-            new_pos[i] = new_pos[np.random.choice(np.where(~bad)[0])] + scale*np.random.randn(self.ndim)
+        else:
+            bad = np.array(self.model_pred['partition'])[-self.nwalkers:] != key
+            logger.info('retaining {} of {} walkers with key={} from last position'.format(sum(~bad), self.nwalkers, key))
+
+            # now redistribute the "bad" walkers
+
+            logger.info ('redistributing {} walkers...'.format(sum(bad)))
+
+            for i in (np.where(bad)[0]):
+                new_pos[i] = new_pos[np.random.choice(np.where(~bad)[0])] + scale*np.random.randn(self.ndim)
+
+        if add_param is not None:
+            if (add_param >= 2) & (self.ndim == 6):
+                # add mass, radius
+                logger.info('adding mass, radius to output array')
+                new_pos = np.c_[new_pos,
+                    self.M_NS+scale*np.random.randn(self.nwalkers),
+                    self.R_NS+10*scale*np.random.randn(self.nwalkers) ]
+            if ((add_param == 3) & (self.ndim == 6)) | \
+               ((add_param == 1) & (self.ndim == 8)):
+                # add f_t
+                logger.info('adding systematic error on time to output array')
+                new_pos = np.c_[new_pos, 
+                    1.+1e-5*abs(np.random.randn(self.nwalkers))]
 
         if savefile is not None:
             print ('Saving positions to {}'.format(savefile))
