@@ -3101,15 +3101,19 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             times = get_param_uncert_part(time, partition=part)
 
             # Here we calculate the parameter uncertainties on the
-            # predcted fluences, for comparison with the observations
+            # predcted fluences and alphas, for comparison with the observations
+            # this calculation replicates what's in runmodel
 
+            # TODO avoid repeating conversion to observed quantities by storing them in the model
             # this fails with inhomogeneous arrays; need to do something
             # a bit more complicated
             # fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
             fpred = [list(np.array(_e_b)*self.fluen_fac/self.samples[_i,4]/self.samples[_i,3]**2) for _i, _e_b in enumerate(e_b)]
             ebs = get_param_uncert_part(fpred, partition=part)
 
-            alphas = get_param_uncert_part(alpha, partition=part)
+            # the factor of xi_b/xi_p was omitted prior to v2.68.0
+            alpha_obs = [list(np.array(_alpha)*self.samples[_i,4]/self.samples[_i,5]) for _i, _alpha in enumerate(alpha)]
+            alphas = get_param_uncert_part(alpha_obs, partition=part)
 
 	    # store these parameters and flag it so we don't need to
 	    # calculate them again (unless burnin changes)
@@ -3256,31 +3260,33 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 else:
                     itoff = 0  # time offset for models produced with punkt_train
 
-                fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
-                ax1 = axs['main']
-
-                ax1.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
-                    yerr=self.fluene[self.ifluen],
-                    color=OBS_COLOUR, linestyle='', marker='.', ms=13,
-                    label='observed')
-                # non-redundant option for missing fluence values
-                for i in range(self.numburstsobs):
-                    if (i not in self.ifluen) & (i != self.ref_ind):
-                        ax1.axvline(self.bstart[i], color=OBS_COLOUR, ls='--')
-
-                if self.continuous:
-                    # only show reference burst for continuous runs
-                    ax1.axvline(self.bstart[self.ref_ind], c='k', ls='--')
+                # fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
+                # ax1 = axs['main']
+                # new version with more informative names
+                _layout = [['time','time'],
+                           ['time', 'time'],
+                           ['resid','resid']]
+                _has_pflux, _has_alpha = (max(self.bpflux) > 0.), (max(self.alpha) > 0.)
+                if _has_pflux or _has_alpha:
+                    _layout += [['alpha' if _has_alpha else '.', 'pflux' if _has_pflux else '.']] * 2
+                fig, axs = plt.subplot_mosaic(_layout, constrained_layout=True)
+                axs['resid'].sharex(axs['time'])
+                axs['time'].set(xticklabels=[])
+                ax1 = axs['time'] # label for the title etc.
 
                 if self.gti_checking:
-                    #plot satellite gtis
+                    # plot satellite gtis, on both the time and residual panels
                     for i in range(1,len(self.st)):
-                        ax1.axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
-                    ax1.axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite GTIs')
+                        axs['time'].axvspan(self.st[i],self.et[i],facecolor='0.5', alpha=0.2)
+                        axs['resid'].axvspan(self.st[i], self.et[i], facecolor='0.5', alpha=0.2)
+                    axs['time'].axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2,label='Satellite GTIs')
+                    axs['resid'].axvspan(self.st[0],self.et[0], facecolor='0.5',alpha=0.2)
 
                 # loop over all the different solutions
                 _label = 'matched'
                 for i, numburstssim in enumerate(times.keys()):
+
+                    # populates both the main and residuals panel for each solution
                     # print (i, numburstssim, times, ebs)
                     timepred = [x[0] for x in times[numburstssim]]
                     timepred_errup = [x[1] for x in times[numburstssim]]
@@ -3288,7 +3294,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     ebpred = [x[0] for x in ebs[numburstssim]]
                     ebpred_errup = [x[1] for x in ebs[numburstssim]]
                     ebpred_errlow = [x[2] for x in ebs[numburstssim]]
-                    ax1.errorbar(timepred[itoff:], ebpred,
+                    axs['time'].errorbar(timepred[itoff:], ebpred,
                         yerr=[ebpred_errlow, ebpred_errup],
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
                         marker='*', ms=11, linestyle='', color='C{}'.format(i),
@@ -3299,6 +3305,8 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         ref_tpred = np.argmin(np.abs(self.bstart[self.ref_ind]-timepred))
                         imatch = burst_time_match(self.ref_ind, self.bstart,
                             ref_tpred, np.array(timepred))
+                        # we don't have a fluence for the first burst, so just show the time
+                        axs['time'].axvline(timepred[0], color='C{}'.format(i), ls='--')
                     else:
                         imatch = burst_time_match(0, self.bstart,
                             0, np.array(timepred))
@@ -3308,7 +3316,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     # multiple sets of solutions
                     # if len(times.keys()) == 1:
                     imatchm1 = [x-itoff for x in imatch if x-itoff >= 0]
-                    ax1.plot(np.array(timepred[itoff:])[imatchm1],
+                    axs['time'].plot(np.array(timepred[itoff:])[imatchm1],
                         np.array(ebpred)[imatchm1],
                         marker='*', ms=5, linestyle='', color='tab:red',
                         label=_label,zorder=99)
@@ -3323,12 +3331,56 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
                         np.sqrt(np.mean(resid**2))))
 
-                ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
+                    if _has_alpha:
+                        # populate the alphas panel
+                        alpred = [x[0] for x in alphas[numburstssim]]
+                        alpred_errup = [x[1] for x in alphas[numburstssim]]
+                        alpred_errlow = [x[2] for x in alphas[numburstssim]]
+                        axs['alpha'].errorbar(self.alpha[1:], np.array(alpred)[imatchm1],
+                            xerr=self.alphae[1:],
+                            yerr=[np.array(alpred_errlow)[imatchm1], np.array(alpred_errup)[imatchm1]],
+                            marker='*', ms=11, linestyle='', color='C{}'.format(i))
+
+                # and finally plot the observations, so they come out on top
+                axs['time'].errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
+                             yerr=self.fluene[self.ifluen],
+                             color=OBS_COLOUR, linestyle='', marker='.', ms=13,
+                             label='observed')
+
+                if _has_pflux:
+                    # plot the peak flux values
+                    if not self.cmpr_pflux:
+                        axs['pflux'].set_facecolor('lightgrey')
+                    axs['pflux'].errorbar(np.arange(len(self.bpflux)) + 1, self.bpflux,
+                                 yerr=self.bpfluxe, marker='*', ms=11, linestyle='', color='C0')
+                    axs['pflux'].set_ylabel("Peak burst flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}}$)")
+                    axs['pflux'].set_xlabel("Burst number")
+
+                # non-redundant option for missing fluence values
+                for i in range(self.numburstsobs):
+                    if (i not in self.ifluen) & (i != self.ref_ind):
+                        axs['time'].axvline(self.bstart[i], color=OBS_COLOUR, ls='--')
+
+                if self.continuous:
+                    # only show reference burst for continuous runs
+                    axs['time'].axvline(self.bstart[self.ref_ind], c='k', ls='--')
+
+                axs['time'].set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
 
                 axs['resid'].axhline(0.0, color=OBS_COLOUR, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
                 axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
-                ax1.legend(loc=2)
+
+                if _has_alpha:
+                    _ident = min(self.alpha[1:][self.ifluen[1:] - 1] - self.alphae[1:][self.ifluen[1:] - 1]), \
+                        max(self.alpha[1:][self.ifluen[1:] - 1] + self.alphae[1:][self.ifluen[1:] - 1])
+                    axs['alpha'].plot(_ident, _ident, 'k--')
+                    if not self.cmpr_alpha:
+                        axs['alpha'].set_facecolor('lightgrey')
+                    axs['alpha'].set_xlabel(r'Observed $\alpha$')
+                    axs['alpha'].set_ylabel(r'Predicted $\alpha$')
+
+                axs['time'].legend(loc=2)
 
             else:
                 # different style plot for the ensemble mode; the bstart
@@ -3405,7 +3457,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             if title:
                 ax1.set_title(title, loc='right')
-                fig.tight_layout()  # otherwise the main panel x-label is clipped
+                # fig.tight_layout()  # otherwise the main panel x-label is clipped
 
             fig.show()
 
@@ -3529,7 +3581,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         if add_param is not None:
             # here we can optionally add parameters that were previously
             # fixed
-            if (type(add_param) != int): 
+            if (type(add_param) != int):
                 logger.error('please supply an integer number of additional parameters to add to the array')
                 return None
             elif (add_param < 0) | (self.ndim+add_param < NDIM_MIN+2) \
@@ -3578,7 +3630,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                ((add_param == 1) & (self.ndim == 8)):
                 # add f_t
                 logger.info('adding systematic error on time to output array')
-                new_pos = np.c_[new_pos, 
+                new_pos = np.c_[new_pos,
                     1.+1e-5*abs(np.random.randn(self.nwalkers))]
 
         if savefile is not None:
