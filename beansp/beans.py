@@ -1424,8 +1424,11 @@ Initial parameters:
 
         opz = 1./(np.sqrt(1.-self.gmrc2*mass/radius))
 
-        return (self.r1*flux*self.bc*dist**2*xi_p*opz**2
-            / (radius**2*(opz-1)) / _mdot_Edd ).decompose().value
+        # prior to v2.68.1 there was a spurious bolometric correction in the expression below;
+        # introduced in v2.25.0. no longer needed since we apply the bolometric correction once
+        # only on reading in the data, since v1.6.0 (10/6/23)
+        return (self.r1 * flux * dist**2 * xi_p * opz**2
+            / (radius**2 * (opz-1)) / _mdot_Edd ).decompose().value
 
 
     # -------------------------------------------------------------------------#
