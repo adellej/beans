@@ -18,9 +18,13 @@ def test_run_model():
     # errors on the fluences and alphas
     # theta = 0.5, 0.015, 0.2, 2.1, 3.5, 0.108, 0.90, 0.5, 1.4, 11.2
     # theta = 0.5, 0.02, 0.36, 4.0, 0.56, 1.1, 1.4, 11.8, 1.0, 1.0
+
     # Another mod to make more sensible outputs for v2.2.0 onwards,
     # adjusted the flux to mdot conversion
-    theta = 0.5, 0.02, 0.36, 2.25, 0.56, 1.1, 1.4, 11.8, 1.0
+    # theta = 0.5, 0.02, 0.36, 2.25, 0.56, 1.1, 1.4, 11.8, 1.0
+
+    # And another, after fixing a bug with the flux_to_mdot in 2.68.1
+    theta = 0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8, 1.0
 
     path_to_data_file_obs = (
             pathlib.Path(__file__).resolve().parent.parent / "beansp/data" / "1808_obs.txt"
@@ -79,9 +83,9 @@ def test_run_model():
     # and the fix to the mdot_Edd function, v2.21.1
     # added the reference burst time for v.2.32.0
 
-    exp = [  0.3371498 ,  2.30514, 3.84590496,  6.76410934,    # burst times (d)
-           17.94856258, 17.35869927, 20.12729269, 27.51898359,  # fluences
-           60.40744506, 66.85451224, 74.21961878] # alphas
+    exp = [0.0837645978, 2.30514000, 3.34174103, 4.80458512,   # burst times (d)
+           4.13526712, 4.14180596, 4.23639823, 4.51396060,     # fluences
+           87.4369606, 99.9951515, 115.241809]                 # alphas
 
     result = np.allclose(test, exp, rtol=1e-3)
     assert result
@@ -106,9 +110,9 @@ def test_run_model():
 
     # with the canonical mass and radius there are slight differences
 
-    exp_nomr = [ 0.55146657,  2.30514, 3.64700296,  5.89032248,
-                 14.92333594, 14.96612381, 17.06069978, 21.61310762,
-                 62.70263335, 69.5733182 , 76.85360513 ]
+    exp_nomr = [ 0.46491736,  2.30514   ,  3.0527464 ,  4.04051396, 
+                 3.89453988, 3.80815407,  3.76096016,  3.83814064,
+                 76.18839969, 83.26951394, 95.6513451 ]
     result = np.allclose(test, exp_nomr, rtol=1e-3)
     assert result
 
@@ -119,9 +123,9 @@ def test_run_model():
 
     # which gives slight differences again in the predictions
 
-    exp_spline = [ 0.37045536,  2.30514, 3.85703407,  6.82600001, 
-                   16.91872503, 17.25034895, 20.18742875, 27.78212457,
-                   60.04565281, 66.9551983 , 74.37555756 ]
+    exp_spline = [ 0.11768532,   2.30514   ,   3.34364842,   4.82542518,
+                   4.13300978,   4.13817863,   4.23738724,   4.52798589,
+                   86.26987599, 100.07861092, 115.79040439]
     result = np.allclose(test, exp_spline, rtol=1e-3)
     assert result
 
@@ -132,9 +136,9 @@ def test_run_model():
 
     # which gives not-so-slight differences in the predictions
 
-    exp_corr = [ 0.41762404,  2.30514, 3.19702031,  4.48089481,
-                 10.99004728, 11.32612194, 12.51036817, 14.61326653,
-                 60.62210726, 65.20925343, 70.08695522 ]
+    exp_corr = [ 0.86491876,   2.30514   ,   2.92768344,   4.73361625,
+                 2.68662256,   2.69279975,   2.72743122,   2.96238376,
+                 87.70798574,  96.33965845, 116.90341011]
     result = np.allclose(test, exp_corr, rtol=1e-3)
     assert result
 
