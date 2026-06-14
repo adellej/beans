@@ -3248,8 +3248,6 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # make plot of observed burst comparison with predicted bursts:
 
-            plt.figure(figsize=(10,7))
-
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             times = self.model_pred['time_stats']
             ebs = self.model_pred['e_b_stats']
@@ -3339,9 +3337,12 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         alpred = [x[0] for x in alphas[numburstssim]]
                         alpred_errup = [x[1] for x in alphas[numburstssim]]
                         alpred_errlow = [x[2] for x in alphas[numburstssim]]
-                        axs['alpha'].errorbar(self.alpha[1:], np.array(alpred)[imatchm1],
-                            xerr=self.alphae[1:],
-                            yerr=[np.array(alpred_errlow)[imatchm1], np.array(alpred_errup)[imatchm1]],
+                        # some tricky indexing required here
+                        axs['alpha'].errorbar(self.alpha[self.ifluen][1:],
+                                              np.array(alpred)[imatchm1][self.ifluen][1:],
+                            xerr=self.alphae[self.ifluen][1:],
+                            yerr=[np.array(alpred_errlow)[imatchm1][self.ifluen][1:],
+                                  np.array(alpred_errup)[imatchm1][self.ifluen][1:]],
                             marker='*', ms=11, linestyle='', color='C{}'.format(i))
 
                 # and finally plot the observations, so they come out on top
