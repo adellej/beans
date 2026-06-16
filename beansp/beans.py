@@ -328,6 +328,34 @@ def prior_kepler(theta_in):
         return -np.inf
 
 
+def prior_mr(theta_in):
+    """
+    This function implements a simple box prior for all the parameters
+    excluding mass and radius, which comes instead from
+    :meth:`Beans.mr_prior` as also used for prior_1808.
+
+    :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
+      *xi_p*, *mass*, *radius*, and (optionally) *f_t*
+
+    :return: prior probability
+    """
+
+    X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
+    mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
+
+    # upper bound and lower bounds of each parameter defined here. Bounds were
+    # found by considering an estimated value for each parameter then giving
+    # reasonable limits.
+    if (0.00001 < X < 0.76) and (0.000010000001 < Z < 0.056) and \
+        (0.000001 <= Q_b < 5.0) and (1 < dist < 20) and \
+        (0.01 < xi_b < 2) and (0.01 < xi_p < 10) and \
+        (1 <= f_t < 10):
+
+        return 0.0 + mr_prior(mass, radius)
+    else:
+        return -np.inf
+
+
 def prior_1808(theta_in):
     """
     This function implements a simple box prior for all the parameters
@@ -2075,7 +2103,7 @@ Initial parameters:
             result = self.runbilby(self, sampler=sampler, **kwargs)
 
         _end = time.time()
-        logger.info ("  run_id {} took {:.1f} seconds for {} steps".format(
+        logger.info (" run_id {} took {:.1f} seconds to reach {} steps".format(
             self.run_id, _end-_start, self.nsteps))
 
         if analyse & (sampler == 'emcee'):
@@ -3338,11 +3366,12 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         alpred_errup = [x[1] for x in alphas[numburstssim]]
                         alpred_errlow = [x[2] for x in alphas[numburstssim]]
                         # some tricky indexing required here
+                        breakpoint()
                         axs['alpha'].errorbar(self.alpha[self.ifluen][1:],
-                                              np.array(alpred)[imatchm1][self.ifluen][1:],
+                                              np.array(alpred)[imatch][self.ifluen][1:],
                             xerr=self.alphae[self.ifluen][1:],
-                            yerr=[np.array(alpred_errlow)[imatchm1][self.ifluen][1:],
-                                  np.array(alpred_errup)[imatchm1][self.ifluen][1:]],
+                            yerr=[np.array(alpred_errlow)[imatch][self.ifluen][1:],
+                                  np.array(alpred_errup)[imatch][self.ifluen][1:]],
                             marker='*', ms=11, linestyle='', color='C{}'.format(i))
 
                 # and finally plot the observations, so they come out on top
