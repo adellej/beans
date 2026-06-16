@@ -200,6 +200,26 @@ def punkt_train(bean, base, x_0, z, dist, xi_p, mass, radius,
     :param full_model: if set to True, include all the parameters in the
       dict that is returned
     :param debug: set to True to show additional debugging information
+
+    :return: a dictionary with the following keys: ``['time', 'mdot', 'alpha', 'e_b', 'imatch','gap']``, and optionally (if full_model is set to True) also: ``['base', 'z', 'x_0', 'dist', 'xi_p', 'mdot_max', 'mass', 'radius']`` (copies of the input parameters).
+
+    As for generate_burst_train, the main outputs are the ``time``, ``mdot``,
+    ``alpha``, and ``e_b`` elements (numpy arrays) which are the predicted
+    properties of the bursts and the accretion rate inferred for each interval.
+
+    IN CONTRAST with generate_burst_train, we have the same number of elements
+    of the time array than the other arrays, because for each burst segment
+    (beginning with the first) we do a reverse step to find the properties of
+    the present burst, BUT we don't keep the time of the previous burst (as
+    it wasn't observed). So the ith element of e_b, alpha etc.
+    belongs with the ith element of time:
+
+    .. code-block:: text
+
+        time  [ 0  1  2  3  4  5  6  7 ... n ]
+        mdot  [ 0  1  2  3  4  5  6  7 ... n ]
+        alpha [ 0  1  2  3  4  5  6  7 ... n ]
+        e_b   [ 0  1  2  3  4  5  6  7 ... n ]
     """
 
     fn = 'punkt_train'

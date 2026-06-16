@@ -3285,9 +3285,9 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 # 2-panel plot like in plot
 
                 if self.continuous:
-                    itoff = 1  # time offset for models produced with generate_burst_train
+                    itoff = 1  # fluen & alpha array offset for models produced with generate_burst_train
                 else:
-                    itoff = 0  # time offset for models produced with punkt_train
+                    itoff = 0  # fluen & alpha array offset for models produced with punkt_train
 
                 # fig, axs = plt.subplot_mosaic([['main'],['main'],['resid']], sharex=True)
                 # ax1 = axs['main']
@@ -3341,9 +3341,10 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                             0, np.array(timepred))
 
                     print (numburstssim, imatch)
-                    # Not sure this will work so well if there are
-                    # multiple sets of solutions
-                    # if len(times.keys()) == 1:
+                    # Here we define imatchm1, which is an exact copy of imatch for punkt_train results
+                    # (i.e. where itoff = 0). This array should replace imatch below when indexing
+                    # alpha and fluence arrays, so that the numbering is consistent between the two
+                    # types of models
                     imatchm1 = [x-itoff for x in imatch if x-itoff >= 0]
                     axs['time'].plot(np.array(timepred[itoff:])[imatchm1],
                         np.array(ebpred)[imatchm1],
@@ -3365,13 +3366,14 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                         alpred = [x[0] for x in alphas[numburstssim]]
                         alpred_errup = [x[1] for x in alphas[numburstssim]]
                         alpred_errlow = [x[2] for x in alphas[numburstssim]]
-                        # some tricky indexing required here
-                        breakpoint()
+                        # some tricky indexing required here, for consistency with both the
+                        # generate_burst_train and punkt_train results, which have different indexing
+                        # for the alpha and fluence arrays
                         axs['alpha'].errorbar(self.alpha[self.ifluen][1:],
-                                              np.array(alpred)[imatch][self.ifluen][1:],
+                                              np.array(alpred)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:],
                             xerr=self.alphae[self.ifluen][1:],
-                            yerr=[np.array(alpred_errlow)[imatch][self.ifluen][1:],
-                                  np.array(alpred_errup)[imatch][self.ifluen][1:]],
+                            yerr=[np.array(alpred_errlow)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:],
+                                  np.array(alpred_errup)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:]],
                             marker='*', ms=11, linestyle='', color='C{}'.format(i))
 
                 # and finally plot the observations, so they come out on top
