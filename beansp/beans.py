@@ -1916,7 +1916,7 @@ Initial parameters:
 
     # -------------------------------------------------------------- #
 
-    def do_run(self, sampler=None, plot=False, analyse=True, burnin=2000, **kwargs):
+    def do_run(self, sampler=None, plot=False, analyse=True, burnin=-1000, **kwargs):
         """
         This routine runs the chain for as many steps as is specified in
         the init call.  Emcee parameters are defined in runemcee module.
@@ -2610,7 +2610,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
 
     def do_analysis(self, options=['autocor','posteriors'],
-                          part=None, truths=False, burnin=2000,
+                          part=None, truths=False, burnin=-1000,
                           ilab=None, title=None, savefig=False):
         """
         This method is for running standard analysis and displaying the
@@ -2629,7 +2629,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         | cc_parameters - plot labels for cc object
         | model_pred - dictionary with model realisations read in from the "blobs"
 
-	By default the method will also create several files, labeled by
+	    By default the method will also create several files, labeled by
         the run_id; drawn from
 
         | {}_autocorrelationtimes.pdf (via plot_autocorr)
@@ -2640,7 +2640,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
         :param options: array of strings corresponding to various analysis
           options, listed in the analyses dict below
-	:param part: string or array "partition" dividing the set of
+	    :param part: string or array "partition" dividing the set of
           samples into two or more separate groups for analysis
         :param truths: parameter vector to overplot on (one of the) corner
           plots (TODO: need to check if >1 corner plot are selected
@@ -3383,13 +3383,34 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                              label='observed')
 
                 if _has_pflux:
-                    # plot the peak flux values
+                    # plot the peak flux values and compare against the Eddington fluxes
+                    # Fluxes are just calculated as bean.L_Edd/dist**2, bean.L_Edd_err/dist**2
+                    # so can generate (for example) a histogram of Eddington fluxes for comparison
+                    # with the measured peak fluxes
+                    _bin_width, _max_int = 5, 0.5
                     if not self.cmpr_pflux:
                         axs['pflux'].set_facecolor('lightgrey')
-                    axs['pflux'].errorbar(np.arange(len(self.bpflux)) + 1, self.bpflux,
-                                 yerr=self.bpfluxe, marker='*', ms=11, linestyle='', color='C0')
+                    else:
+                        _bnum = np.arange(len(self.bpflux)) + 1
+                        _F_Edd = self.L_Edd/self.samples[:,3]**2
+                        _hst, _bins = np.histogram(_F_Edd,
+                            bins=np.arange(int(min(_F_Edd)/_bin_width)*_bin_width, max(_F_Edd), _bin_width))
+                        plt.stackplot([0,max(_bnum)+1],[[_bins[0], _bins[0]]] + [[_bin_width, _bin_width]]*(len(_hst)-1),
+                                      colors=['{:.2f}'.format(1-x/max(_hst)*_max_int) for x in _hst])
+                        # this does something weird
+                        # axs['pflux'].set_ylim(0, (int(max(_F_Edd)/_bin_width)+1)*_bin_width )
+                    # axs['pflux'].errorbar(np.arange(len(self.bpflux)) + 1, self.bpflux,
+                    #              yerr=self.bpfluxe, marker='*', ms=11, linestyle='', color='C0')
+                    axs['pflux'].errorbar(_bnum[self.pre], self.bpflux[self.pre],
+                                          yerr=self.bpfluxe[self.pre], ms=11, linestyle='', color='C0',
+                                          marker='*', label='PRE' )
+                    axs['pflux'].errorbar(_bnum[self.non_pre], self.bpflux[self.non_pre],
+                                 yerr=self.bpfluxe[self.non_pre], linestyle='', color='C0',
+                                          marker='.', ms=13, label='non-PRE')
                     axs['pflux'].set_ylabel("Peak burst flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}}$)")
                     axs['pflux'].set_xlabel("Burst number")
+                    axs['pflux'].set_xlim(min(_bnum),max(_bnum))
+                    axs['pflux'].legend()
 
                 # non-redundant option for missing fluence values
                 for i in range(self.numburstsobs):
