@@ -3302,6 +3302,16 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 axs['resid'].sharex(axs['time'])
                 axs['time'].set(xticklabels=[])
                 ax1 = axs['time'] # label for the title etc.
+                # indicate by the background colour if the data is present but not used
+                if (_has_pflux):
+                    # want about 10 bins covering the whole range of peak fluxes
+                    # _bin_width, _max_int = 5, 0.5
+                    _max_int, _bin_width, = 0.5, (int((max(self.bpflux+self.bpfluxe)
+                            - min((self.bpflux-self.bpfluxe)[np.concatenate((self.pre, self.non_pre))]))/10./5.)+1)*5
+                    if not self.cmpr_pflux:
+                        axs['pflux'].set_facecolor('lightgrey')
+                if (_has_alpha) & (not self.cmpr_alpha):
+                    axs['alpha'].set_facecolor('lightgrey')
 
                 if self.gti_checking:
                     # plot satellite gtis, on both the time and residual panels
@@ -3376,6 +3386,26 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                                   np.array(alpred_errup)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:]],
                             marker='*', ms=11, linestyle='', color='C{}'.format(i))
 
+                    if _has_pflux:
+                        # plot the peak flux values and compare against the Eddington fluxes
+                        # Fluxes are just calculated as bean.L_Edd/dist**2, bean.L_Edd_err/dist**2
+                        # so can generate (for example) a histogram of Eddington fluxes for comparison
+                        # with the measured peak fluxes
+                        # show the model distribution of Eddington fluxes
+                        _bnum = np.arange(len(self.bpflux)) + 1
+                        _F_Edd = self.L_Edd/self.samples[:,3][np.array(self.model_pred['partition']) == numburstssim]**2
+                        _hst, _bins = np.histogram(_F_Edd,
+                                                   bins=np.arange(int(min(_F_Edd)/_bin_width)*_bin_width, max(_F_Edd), _bin_width))
+                        plt.stackplot([0,max(_bnum)+1],[[_bins[0], _bins[0]]] + [[_bin_width, _bin_width]]*(len(_hst)-1),
+                                      # colors=['{:.2f}'.format(1-x/max(_hst)*_max_int) for x in _hst])
+                                      colors=[('C{}'.format(i), x/max(_hst)*_max_int) for x in _hst])
+                        # this does something weird
+                        # axs['pflux'].set_ylim(0, (int(max(_F_Edd)/_bin_width)+1)*_bin_width )
+                        # axs['pflux'].errorbar(np.arange(len(self.bpflux)) + 1, self.bpflux,
+                        #              yerr=self.bpfluxe, marker='*', ms=11, linestyle='', color='C0')
+
+                # end loop over key(s)
+
                 # and finally plot the observations, so they come out on top
                 axs['time'].errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                              yerr=self.fluene[self.ifluen],
@@ -3384,33 +3414,19 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
                 if _has_pflux:
                     # plot the peak flux values and compare against the Eddington fluxes
-                    # Fluxes are just calculated as bean.L_Edd/dist**2, bean.L_Edd_err/dist**2
-                    # so can generate (for example) a histogram of Eddington fluxes for comparison
-                    # with the measured peak fluxes
-                    _bin_width, _max_int = 5, 0.5
-                    if not self.cmpr_pflux:
-                        axs['pflux'].set_facecolor('lightgrey')
-                    else:
-                        _bnum = np.arange(len(self.bpflux)) + 1
-                        _F_Edd = self.L_Edd/self.samples[:,3]**2
-                        _hst, _bins = np.histogram(_F_Edd,
-                            bins=np.arange(int(min(_F_Edd)/_bin_width)*_bin_width, max(_F_Edd), _bin_width))
-                        plt.stackplot([0,max(_bnum)+1],[[_bins[0], _bins[0]]] + [[_bin_width, _bin_width]]*(len(_hst)-1),
-                                      colors=['{:.2f}'.format(1-x/max(_hst)*_max_int) for x in _hst])
-                        # this does something weird
-                        # axs['pflux'].set_ylim(0, (int(max(_F_Edd)/_bin_width)+1)*_bin_width )
-                    # axs['pflux'].errorbar(np.arange(len(self.bpflux)) + 1, self.bpflux,
-                    #              yerr=self.bpfluxe, marker='*', ms=11, linestyle='', color='C0')
-                    axs['pflux'].errorbar(_bnum[self.pre], self.bpflux[self.pre],
-                                          yerr=self.bpfluxe[self.pre], ms=11, linestyle='', color='C0',
-                                          marker='*', label='PRE' )
-                    axs['pflux'].errorbar(_bnum[self.non_pre], self.bpflux[self.non_pre],
-                                 yerr=self.bpfluxe[self.non_pre], linestyle='', color='C0',
-                                          marker='.', ms=13, label='non-PRE')
+                    if (len(self.pre) > 0):
+                        # trying to match the marker='.', ms=13 from the main panel
+                        axs['pflux'].errorbar(_bnum[self.pre], self.bpflux[self.pre],
+                                              yerr=self.bpfluxe[self.pre], linestyle='', color=OBS_COLOUR,
+                                              marker='o', ms=7, label='PRE' )
+                    if (len(self.non_pre) > 0):
+                        axs['pflux'].errorbar(_bnum[self.non_pre], self.bpflux[self.non_pre],
+                                     yerr=self.bpfluxe[self.non_pre], linestyle='', color=OBS_COLOUR,
+                                              marker='o', fillstyle='none', ms=7, label='non-PRE')
+                    axs['pflux'].legend()
                     axs['pflux'].set_ylabel("Peak burst flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}}$)")
                     axs['pflux'].set_xlabel("Burst number")
-                    axs['pflux'].set_xlim(min(_bnum),max(_bnum))
-                    axs['pflux'].legend()
+                    axs['pflux'].set_xlim(min(_bnum)-0.5,max(_bnum)+0.5)
 
                 # non-redundant option for missing fluence values
                 for i in range(self.numburstsobs):
@@ -3431,8 +3447,6 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     _ident = min(self.alpha[1:][self.ifluen[1:] - 1] - self.alphae[1:][self.ifluen[1:] - 1]), \
                         max(self.alpha[1:][self.ifluen[1:] - 1] + self.alphae[1:][self.ifluen[1:] - 1])
                     axs['alpha'].plot(_ident, _ident, 'k--')
-                    if not self.cmpr_alpha:
-                        axs['alpha'].set_facecolor('lightgrey')
                     axs['alpha'].set_xlabel(r'Observed $\alpha$')
                     axs['alpha'].set_ylabel(r'Predicted $\alpha$')
 

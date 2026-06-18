@@ -88,12 +88,10 @@ def get_obs(bean, logger, alpha, fluen, pflux):
             bean.bpflux = np.array(burstdata['col4'])
             bean.bpfluxe = np.array(burstdata['col5'])
             bean.pre_flag = np.array(burstdata['col6'])
-            if bean.cmpr_pflux:
-                # only set these arrays if we're doing the peak flux
-                # comparison; otherwise leave them empty
-                # could implement the MINBAR definitions for the PRE flag here
-                bean.non_pre = np.where((bean.pre_flag == 1) & (bean.bpflux > 0.0))[0]
-                bean.pre = np.where((bean.pre_flag == 2) & (bean.bpflux > 0.0))[0]
+            # when originally implemented these two arrays were only set if cmpr_pflux also was set
+            # could implement the MINBAR definitions for the PRE flag here
+            bean.non_pre = np.where((bean.pre_flag == 1) & (bean.bpflux > 0.0))[0]
+            bean.pre = np.where((bean.pre_flag == 2) & (bean.bpflux > 0.0))[0]
             bean.alpha = np.array(burstdata['col7'])
             bean.alphae = np.array(burstdata['col8'])
         else:
