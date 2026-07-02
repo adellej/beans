@@ -70,8 +70,8 @@ CC_PLOT_CONFIG = { 'serif': True, 'usetex': USETEX}
 BSTART_ERR = 10*u.min # Default uncertainty for burst start times
 M_NS = 1.4 # canonical NS mass [M_sun]
 R_NS = 11.2 # canonical NS mass [km]
-FLUX_U = 1e-9*u.erg/u.cm**2/u.s
-FLUEN_U = 1e-6*u.erg/u.cm**2
+FLUX_U, FLUX_U_LATEX = 1e-9*u.erg/u.cm**2/u.s, r"$10^{-9}\,{\rm erg\,cm^{-2}\,s^{-1}}$",
+FLUEN_U, FLUEN_U_LATEX = 1e-6*u.erg/u.cm**2, r"$10^{-6}\,{\rm erg\,cm^{-2}}$"
 
 # Adopted value of the Eddington luminosity/peak luminosity of PRE bursts
 # (preliminary values from Galloway et al. 2026, in prep)
@@ -95,8 +95,26 @@ BILBY_OUTPUT = 'bilby_out'
 # 8 = R_NS neutron star radius [km] (settle)
 # 9 = f_t systematic fractional variation in burst times
 
-NDIM_MIN = 6
-NDIM_MAX = 9
+# utility dicts etc. for parameter labels
+PARAM_LATEX = {"X": r"\ensuremath{X}", "Z": r"\ensuremath{Z}",
+          "Q_b": r"\ensuremath{Q_b}", "d": r"\ensuremath{d}",
+          "xi_b": r"\ensuremath{\xi_b}", "xi_p": r"\ensuremath{\xi_p}",
+          "M": r"\ensuremath{M_{\rm NS}}", "R": r"\ensuremath{R_{\rm NS}}",
+          "f_t": r"\ensuremath{f_t}}",
+          # extras
+          "cosi": r"\ensuremath{\cos i}", "g": r"\ensuremath{g}", "1+z": r"\ensuremath{1+z}",
+          # for grid mode
+          "dxi_b": r"\ensuremath{d\xi_b} (kpc)", "xi_p/xi_b": r"\ensuremath{\xi_p/\xi_b}",
+          # observeables
+          "fluen": r"Fluence", "perflx": r"Persistent flux", "fpeak": r"Peak burst flux" }
+UNIT_LATEX = {"X": r"", "Z": r"", "Q_b": r"MeV/nucleon", "d": r"kpc", "xi_b": r"", "xi_p": r"",
+              "M": r"$M_\odot$", "R": r"km", "f_t": r"",
+              "cosi": r"", "g": r"$10^{14}\ {\rm cm\,s^{-2}}$", "1+z": r"",
+              "dxi_b": r"kpc", "xi_p/xi_b": r"",
+              "fluen": FLUEN_U_LATEX, "perflx": FLUX_U_LATEX, "fpeak": FLUX_U_LATEX }
+assert PARAM_LATEX.keys() == UNIT_LATEX.keys()
+
+NDIM_MIN, NDIM_MAX = 6, 9
 
 # switch to remember what I'm using in lnprob
 
@@ -1623,10 +1641,10 @@ Initial parameters:
                 ax1.set_xlabel("Epoch (MJD)")
         else:
             # showing here the persistent flux rather than mdot
-            ax1.set_ylabel('Persistent flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}\\,s^{-1}}$)', color=FLUX_COLOUR)
+            ax1.set_ylabel('{} ({})'.format(PARAM_LATEX['perflx'], UNIT_LATEX['perflx']), color=FLUX_COLOUR)
             if self.train:
                 ax1.errorbar(self.tobs, self.pflux, self.pfluxe,
-                    marker = '.', ls=ls, color=FLUX_COLOUR, label = 'persistent flux')
+                    marker = '.', ls=ls, color=FLUX_COLOUR, label = PARAM_LATEX['perflx'].lower())
                 if self.interp == 'spline':
                     t = np.arange(min(self.tobs), max(self.tobs), 0.1)
                     ax1.plot(t, BSpline(*self.tck_s)(t), color=FLUX_COLOUR)
@@ -1636,13 +1654,13 @@ Initial parameters:
             else:
                 # "ensemble" mode plot vs. epoch, rather than observation time
                 ax1.errorbar(self.bstart, self.pflux, self.pfluxe, fmt='.', color=FLUX_COLOUR,
-                         label='persistent flux')
+                         label=PARAM_LATEX['perflx'].lower())
                 ax1.set_xlabel("Epoch (MJD)")
 
         ax1.tick_params(axis='y', labelcolor=FLUX_COLOUR)
 
         # Plot the bursts here
-        ax2.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)", color=OBS_COLOUR)
+        ax2.set_ylabel("{} ({})".format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']), color=OBS_COLOUR)
         if self.train:
             if self.bstart is not None:
                 # Plot the observed bursts, if available
@@ -2213,9 +2231,6 @@ Initial parameters:
 
         f = plt.figure(figsize=figsize)
 
-        param = [r"$X$", r"$Z$", r"$Q_{\mathrm{b}}$", r"$d$", r"$\\xi_b$",
-            r"$\\xi_p$", r"$M$", r"$R$", r"$f_{\mathrm{E}}$", r"$f_{\mathrm{a}}$"]
-
         for j in range(self.ndim):
             chain = samples[:, :, j].T
             # print(np.shape(sampler))
@@ -2230,7 +2245,7 @@ Initial parameters:
 
             # Plot the comparisons
             #plt.loglog(N, gw2010, "o-", label="G\&W 2010")
-            plt.loglog(N, new, "o-", label=f"{param[j]}")
+            plt.loglog(N, new, "o-", label=f"{list(PARAM_LATEX.values())[j]}")
             plt.loglog(N, gw2010, "o-", label=None, color='grey')
             ylim = plt.gca().get_ylim()
 
@@ -2371,9 +2386,9 @@ Initial parameters:
             print (r'''
 \\begin{tabular}{ccccccc}
   \hline
-        & MINBAR & Start  & $\Delta t$ & & Fluence & \multicolumn{2}{c}{$\\alpha$-value} \\\\
-  Burst & ID     & (MJD)  & (hr)       & $n_{\rm missed}$ & $10^{-6}\\ {\\rm erg\,cm^{-2}}$ & Measured & Inferred \\\\
-  \hline ''')
+        & MINBAR & Start  & $\Delta t$ & & {} & \multicolumn{2}{c}{$\\alpha$-value} \\\\
+  Burst & ID     & (MJD)  & (hr)       & $n_{\rm missed}$ & {} & Measured & Inferred \\\\
+  \hline '''.format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
 
         # Now loop over the bursts and calculate the derived quantities
         # TODO: implement the printing of the predicted (but not observed) bursts (predicted=True)
@@ -2478,11 +2493,8 @@ Initial parameters:
 
         file = f'{self.run_id}_parameterconstraints_pred.txt'
 
-        latex_header = "Parameter"
-        latex_rows = ["$X$", "$Z$", "$Q_{\\rm b}$", "$d$", "$\\xi_b$",
-            "$\\xi_p$", "$M_{\\rm NS}$", "$R_{\\rm NS}$", "$g$", "$1+z$", "$f_t$"]
-        latex_unit = ["", "", "MeV/nucleon", "kpc", "", "", "$M_\\odot$",
-            "km", "$10^{14}\\ {\\rm cm\\,s^{-2}}$", "", ""]
+        latex_header = "Parameter & Units"
+        latex_rows = [" & ".join((PARAM_LATEX[key], UNIT_LATEX[key])) for key in self.cc_parameters]
 
         if (clobber is False) and (os.path.exists(file)):
             logger.error ('will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
@@ -2500,8 +2512,8 @@ Each row has the 50th percentile value, upper & lower 68% uncertainties
 
 Rows are:
 H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
-persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
-'''.format(__version__, self.run_id, self.nsteps_completed,self.samples_burnin)
+persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
+            __version__, self.run_id, self.nsteps_completed,self.samples_burnin)
 
         # Now get the remainder of the parameter uncertainties and
         # save to the text file
@@ -2536,9 +2548,9 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
                 Zpred = get_param_uncert(self.samples[sel,1])
                 basepred = get_param_uncert(self.samples[sel,2])
                 dpred = get_param_uncert(self.samples[sel,3])
-                # cosipred = get_param_uncert(cosi)
                 xibpred = get_param_uncert(self.samples[sel,4])
                 xippred = get_param_uncert(self.samples[sel,5])
+                cosipred = get_param_uncert(self.samples[sel,self.ndim])
 
                 if len(parts) > 1:
                     latex_header += ' & {} ({:.2f}%)'.format(_part,
@@ -2552,6 +2564,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
                 latex_rows[4] += ' & {}'.format(strmeas(xibpred[0], xibpred[2], xibpred[1]))
                 latex_rows[5] += ' & {}'.format(strmeas(xippred[0], xippred[2], xippred[1]))
 
+                latex_rows[self.ndim] += ' & {}'.format(strmeas(cosipred[0], cosipred[2], cosipred[1]))
+
                 if self.ndim >= 7:
                     masspred = get_param_uncert(self.samples[sel,6])
                     latex_rows[6] += ' & {}'.format(strmeas(masspred[0], masspred[2], masspred[1]))
@@ -2560,40 +2574,39 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)
                     redshiftpred = get_param_uncert(redshift[sel])
                     gravitypred = get_param_uncert(gravity[sel]/1e14)
                     latex_rows[7] += ' & {}'.format(strmeas(radiuspred[0], radiuspred[2], radiuspred[1]))
-                    latex_rows[8] += ' & {}'.format(strmeas(gravitypred[0], gravitypred[2], gravitypred[1]))
-                    latex_rows[9] += ' & {}'.format(strmeas(redshiftpred[0], redshiftpred[2], redshiftpred[1]))
+                    latex_rows[self.ndim+1] += ' & {}'.format(strmeas(gravitypred[0], gravitypred[2], gravitypred[1]))
+                    latex_rows[self.ndim+2] += ' & {}'.format(strmeas(redshiftpred[0], redshiftpred[2], redshiftpred[1]))
 
                 if self.ndim >=9:
                     ftpred = get_param_uncert(self.samples[sel,8])
-                    latex_rows[10] += ' & {}'.format(strmeas(ftpred[0], ftpred[2], ftpred[1]))
+                    latex_rows[8] += ' & {}'.format(strmeas(ftpred[0], ftpred[2], ftpred[1]))
 
                 if len(parts) > 1:
                     header += '''
 Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
     100*self.model_pred['part_stats'][_part]/n_samples)
 
-	        # save to text file with columns: value, upper uncertainty,
+            # save to text file with columns: value, upper uncertainty,
 	        # lower uncertainty
-                # have to have a few options here depending on whether the
-                # mass is included or not
-                # TODO also include f_E, f_a if they're included
+            # have to have a few options here depending on whether the
+            # mass is included or not
 
                 if self.ndim == 6:
-                    np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred),
-                        fmt='%9.6f', header=header)
+                    np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred, cosipred),
+                        fmt='%9.6f', header=header+',\ncos i (fuji88)')
                 elif self.ndim == 7:
-                    header = header+',\nNS mass (M_sun)'
+                    header = header+',\nNS mass (M_sun), cos i (fuji88)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
-                        masspred), fmt='%9.6f', header=header)
+                        masspred, cosipred), fmt='%9.6f', header=header)
                 elif self.ndim == 8:
-                    header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z)'
+                    header = header+',\nNS mass (M_sun), NS radius (km), cos i (fuji88), gravity (g, 10^14 cm/s^2),\nredshift (1+z)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
-                        masspred, radiuspred, gravitypred, redshiftpred),
+                        masspred, radiuspred, cosipred, gravitypred, redshiftpred),
                         fmt='%9.6f', header=header)
                 else:
-                    header = header+',\nNS mass (M_sun), NS radius (km), gravity (g, 10^14 cm/s^2), redshift (1+z), f_t'
+                    header = header+',\nNS mass (M_sun), NS radius (km), cos i (fuji88), gravity (g, 10^14 cm/s^2),\nredshift (1+z), f_t'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
-                        masspred, radiuspred, gravitypred, redshiftpred, ftpred),
+                        masspred, radiuspred, cosipred, gravitypred, redshiftpred, ftpred),
                         fmt='%9.6f', header=header)
 
                 if i < len(parts)-1:
@@ -2602,11 +2615,11 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # output as LaTeX as well, to paste into a paper (for example)
 
-            print ('\\begin{tabular}{c'+'c' * len(parts)+'l}\n\\hline')
-            print (latex_header+' & Units \\\\\n\\hline')
+            print ('\\begin{tabular}{cl'+'c' * len(parts)+'}\n\\hline')
+            print (latex_header+'\\\\\n\\hline')
             for i, row in enumerate(latex_rows):
-                print (row+' & '+latex_unit[i]+' \\\\')
-            print ('\\hline')
+                print (row+' \\\\')
+            print ('\\hline\n\\end{tabular}')
 
 
     def do_analysis(self, options=['autocor','posteriors'],
@@ -2626,7 +2639,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         | last - last walker positions
         | probs - likelihoods (total, prior, and contributions from each parameter) for the last walker positions
         | cc - ChainConsumer object with samples and derived cosi, gravity, redshift
-        | cc_parameters - plot labels for cc object
+        | cc_parameters - list of parameters for cc object; keys for PARAM_LATEX
         | model_pred - dictionary with model realisations read in from the "blobs"
 
 	    By default the method will also create several files, labeled by
@@ -2776,28 +2789,26 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 self.samples = samples.reshape((-1,self.ndim))
             self.samples_burnin = burnin
 
-            cosi_2 = 1/(2*self.samples[:,5])
-            cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
-
-            # here now create the overall chainconsumer object that will
             # enable the various posterior plots below
 
-            # the labels dict maps the "short" parameter names to the
-            # LaTeX labels for use with ChainConsumer, so the plots look
-            # nice
+            # the labels dict originally mapped the "short" parameter names to the
+            # LaTeX labels for use with ChainConsumer, so the plots look nice
+            # now we just keep the plot labels as cc_parameters, and refer back to
+            # PARAM_LATEX
 
-            labels = {"X": r"\ensuremath{X}", "Z": r"\ensuremath{Z}",
-                "Qb": r"\ensuremath{Q_b\ ({\mathrm{MeV})}",
-                "d": r"\ensuremath{d\ (\mathrm{kpc})",
-                "xi_b": r"\ensuremath{\xi_b}", "xi_p": r"\ensuremath{\xi_p}"}
+            self.cc_parameters = list(PARAM_LATEX.keys())[:self.ndim]
 
-            # we also need to add entries for any extra parameters
+            # we also need to add any additional parameters
+            # this estimate of cos i comes from inverting eq. 5 of Fujimoto et al. (1988)
+
+            cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
+            _samples = np.column_stack((self.samples, cosi))
+            self.cc_parameters += ['cosi']
+
             if self.ndim >= 7:
-                labels["M"] = r"\ensuremath{M\ (M_\odot)}"
                 mass = self.samples[:,6]
                 # masspred = get_param_uncert(mass)
             if self.ndim >= 8:
-                labels["R"] = r"\ensuremath{R\ (\mathrm{km})}"
                 radius = self.samples[:,7]
                 # radiuspred = get_param_uncert(radius)
 
@@ -2814,31 +2825,13 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
                 gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
-                # redshiftpred = get_param_uncert(redshift)
-                # gravitypred = get_param_uncert(gravity)
-
-            if self.ndim >= 9:
-                labels["ft"] = r"\ensuremath{f_t}"
-
-            # this dict also has the labels for the derived quantities,
-            # which will be added to the sample table below
-
-            _plot_labels = labels
-            # _plot_labels['cosi'] = r'$\cos i$'
-            _plot_labels['cosi'] = r'\ensuremath{\cos i}'
-            if self.ndim >= 8:
-                # _plot_labels['g'] = '$g$ (cm s$^{-2}$)'
-                # _plot_labels['1+z'] = '$1+z$'
-                _plot_labels['g'] = r"\ensuremath{g\ (\mathrm{cm\,s}^{-2}})"
-                _plot_labels['1+z'] = r"\ensuremath{1+z}"
                 _samples =np.column_stack((self.samples, cosi, gravity, redshift))
-            else:
-                _samples =np.column_stack((self.samples, cosi))
+                self.cc_parameters += ['g', '1+z']
 
             # now create the chainconsumer object
             # swap keys for values below to test out LaTeX approach
 
-            _df = pd.DataFrame(_samples, columns=_plot_labels.values())
+            _df = pd.DataFrame(_samples, columns=[PARAM_LATEX[x] for x in self.cc_parameters])
             _chain = Chain(samples=_df,
                 name='beansp v{} run {} last {}/{}'.format(
                 self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed))
@@ -2848,7 +2841,6 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
 
             self.samples = _samples # keep the samples up to date
-            self.cc_parameters = _plot_labels
             self.cc_nchain = 1 # initially
 
             # common truths/title settings for all corner plots
@@ -2857,7 +2849,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 truths = list(self.theta)
             if truths:
                 self.cc.add_truth(Truth(location={
-                    list(self.cc_parameters.values())[i]: truths[i] for i in range(len(truths))}))
+                    PARAM_LATEX[self.cc_parameters[i]]: truths[i] for i in range(len(truths))}))
 
         # ---------------------------------------------------------------------#
         if 'last' in options:
@@ -2982,7 +2974,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
             # figsize='page' seemingly does something weird
             # swap keys for values below to test out LaTeX approach
-            fig = self.cc.plotter.plot(columns=list(self.cc_parameters.values())[:self.ndim], figsize=(8,8) )
+            fig = self.cc.plotter.plot(columns=[PARAM_LATEX[x] for x in self.cc_parameters[:self.ndim]], figsize=(8,8) )
                 # these params not available (here) with new ChainConsumer
                 # truth=truths, legend=title, display=False)
 
@@ -3009,7 +3001,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # cc = ChainConsumer()
             # cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
 
-            fig = self.cc.plotter.plot(columns=[self.cc_parameters[x] for x in ["M", "R", "g", "1+z"]],
+            fig = self.cc.plotter.plot(columns=[PARAM_LATEX[x] for x in ["M", "R", "g", "1+z"]],
                 figsize=(8,8) ) # figsize="page",
                 # truth=truths, legend=title, display=False)
 
@@ -3038,7 +3030,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             # cc.add_chain(fig6data, parameters=["X", "$Z$", "$Q_b$ (MeV)",
             #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
             fig = self.cc.plotter.plot(
-                columns=[self.cc_parameters[x] for x in ['X','Z','Qb','d','xi_b','xi_p']],
+                columns=[PARAM_LATEX[x] for x in ['X','Z','Q_b','d','xi_b','xi_p']],
                 figsize=(8,8) ) # figsize="page",
                 # truth=truths, legend=title, display=False)
 
@@ -3063,11 +3055,11 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
             _cc = ChainConsumer()
             _n = int(np.shape(self.samples)[0]/2)
             _cc.add_chain(self.samples[:_n,:self.ndim],
-                parameters=list(self.cc_parameters.keys())[:self.ndim],
+                parameters=[PARAM_LATEX[x] for x in self.cc_parameters[:self.ndim]],
                 name='{}-{}'.format(self.samples_burnin,
                 self.samples_burnin+int(_n/self.nwalkers)))
             _cc.add_chain(self.samples[_n:,:self.ndim],
-                parameters=list(self.cc_parameters.keys())[:self.ndim],
+                parameters=[PARAM_LATEX[x] for x in self.cc_parameters[:self.ndim]],
                 name='{}-{}'.format(self.samples_burnin+int(_n/self.nwalkers),
                 self.nsteps_completed))
 
@@ -3174,7 +3166,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     _check = np.shape(self.samples[_sel])[0]
                     if _check > 1000:
                         _df = pd.DataFrame(self.samples[_sel],
-                            columns=list(self.cc_parameters.values()))
+                            columns=[PARAM_LATEX[x] for x in self.cc_parameters])
                         _chain = Chain(samples=_df,
                             name = _n if type(_n) == str else str(_n))
                         self.cc.add_chain(_chain)
@@ -3192,7 +3184,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 if truths:
                     # this may be a bit misleading if your different chains also have different "truths"
                     self.cc.add_truth(Truth(location={
-                        list(self.cc_parameters.values())[i]: truths[i] for i in range(len(truths))}))
+                        PARAM_LATEX[self.cc_parameters[i]]: truths[i] for i in range(len(truths))}))
 
                 logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
@@ -3424,7 +3416,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                                      yerr=self.bpfluxe[self.non_pre], linestyle='', color=OBS_COLOUR,
                                               marker='o', fillstyle='none', ms=7, label='non-PRE')
                     axs['pflux'].legend()
-                    axs['pflux'].set_ylabel("Peak burst flux ($10^{-9}\\,{\\rm erg\\,cm^{-2}}$)")
+                    axs['pflux'].set_ylabel("{} ({})".format(PARAM_LATEX['fpeak'], UNIT_LATEX['fpeak']))
                     axs['pflux'].set_xlabel("Burst number")
                     axs['pflux'].set_xlim(min(_bnum)-0.5,max(_bnum)+0.5)
 
@@ -3437,7 +3429,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     # only show reference burst for continuous runs
                     axs['time'].axvline(self.bstart[self.ref_ind], c='k', ls='--')
 
-                axs['time'].set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
+                axs['time'].set_ylabel("{} ({})".format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
 
                 axs['resid'].axhline(0.0, color=OBS_COLOUR, ls='--')
                 axs['resid'].set_ylabel('Time offset (hr)')
@@ -3510,7 +3502,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
                 ax1.set_xlabel("Recurrence time (hr)")
 
-                ax1.set_ylabel("Fluence ($10^{-6}\\,{\\rm erg\\,cm^{-2}}$)")
+                ax1.set_ylabel("{} ({})".format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
                 ax1.legend(loc=2)
 
                 if max(self.alpha) > 0.:
@@ -3557,13 +3549,12 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
         # augment with some additional parameters, e.g. as used in the
         # 1826 work
         # TODO probably should check if these have already been added
-        self.cc_parameters['dxi_b'] = r'\ensuremath{d\xi_b} (kpc)'
-        self.cc_parameters['xi_p/xi_b'] = r'\ensuremath{\xi_p/\xi_b}'
+        self.cc_parameters += ['dxi_b', 'xi_p/xi_b']
         _samples = np.column_stack((self.samples,
             self.samples[:,3]*self.samples[:,4],
             self.samples[:,5]/self.samples[:,4]))
 
-        _df = pd.DataFrame(_samples, columns=self.cc_parameters.values())
+        _df = pd.DataFrame(_samples, columns=[PARAM_LATEX[x] for x in self.cc_parameters])
         _chain = Chain(samples=_df, name=self.run_id)
 
         self.cc = ChainConsumer().add_chain(_chain)
@@ -3578,7 +3569,7 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                 logger.error ('comparison object has no samples, run do_analysis first')
                 return
 
-            _df = pd.DataFrame(alt.samples, columns=alt.cc_parameters.values())
+            _df = pd.DataFrame(alt.samples, columns=[PARAM_LATEX[x] for x in alt.cc_parameters])
             _chain = Chain(samples=_df, name=label)
 
             self.cc.add_chain(_chain)
@@ -3604,11 +3595,11 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
                     columns=[r'$\dot{m}_1$',r'$\dot{m}_2$',r'$\dot{m}_3$',
                         r'$Q_{b,1}$ (MeV)', r'$Q_{b,2}$ (MeV)',
                         r'$Q_{b,3}$ (MeV)',
-                        self.cc_parameters['X'], self.cc_parameters['Z'],
+                        PARAM_LATEX['X'], PARAM_LATEX['Z'],
                         r'\ensuremath{g\ (\mathrm{cm\,s}^{-2}})',
                         r'\ensuremath{M\ (M_\odot)}',
-                        self.cc_parameters['dxi_b'],
-                        self.cc_parameters['xi_p/xi_b']])
+                        PARAM_LATEX['dxi_b'],
+                        PARAM_LATEX['xi_p/xi_b']])
                 _chain = Chain(samples=_df, name=label)
                 self.cc.add_chain(_chain)
             else:
