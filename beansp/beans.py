@@ -2508,7 +2508,7 @@ Initial parameters:
 
 run_id {}, nsteps_completed={}, skipping {} steps for burnin
 
-Each row has the 50th percentile value, upper & lower 68% uncertainties
+Each row has the 50th percentile value, upper & lower 68% uncertainties (resp)
 
 Rows are:
 H mass fraction (X), metallicity (Z), base flux (Q_b), distance (d, kpc),
@@ -2543,6 +2543,16 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
         with open(file, 'w') as f:
 
+            # set up all the columns for the first header
+            if self.ndim == 6:
+                header = header + ',\ncos i (fuji88)\n'
+            elif self.ndim == 7:
+                header = header + ',\nNS mass (M_sun), cos i (fuji88)\n'
+            elif self.ndim == 8:
+                header = header + ',\nNS mass (M_sun), NS radius (km), cos i (fuji88), gravity (g, 10^14 cm/s^2),\nredshift (1+z)\n'
+            else:
+                header = header + ',\nNS mass (M_sun), NS radius (km), cos i (fuji88), gravity (g, 10^14 cm/s^2),\nredshift (1+z), f_t\n'
+
             for i, _part in enumerate(parts):
                 Xpred = get_param_uncert(self.samples[sel,0])
                 Zpred = get_param_uncert(self.samples[sel,1])
@@ -2557,6 +2567,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                         100*self.model_pred['part_stats'][_part]/n_samples)
                 else:
                     latex_header += ' & Value'
+                # get_param_uncert returns 50th percentile, upper, lower error; so have to reverse
+                # error ordering for stremas
                 latex_rows[0] += ' & {}'.format(strmeas(Xpred[0], Xpred[2], Xpred[1]))
                 latex_rows[1] += ' & {}'.format(strmeas(Zpred[0], Zpred[2], Zpred[1]))
                 latex_rows[2] += ' & {}'.format(strmeas(basepred[0], basepred[2], basepred[1]))
@@ -2582,8 +2594,9 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     latex_rows[8] += ' & {}'.format(strmeas(ftpred[0], ftpred[2], ftpred[1]))
 
                 if len(parts) > 1:
-                    header += '''
-Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
+                    header += '''------------------------------------------------------------------------------
+ Sample subset {} of {}, label {}, {}%
+------------------------------------------------------------------------------'''.format(i+1,len(parts),_part,
     100*self.model_pred['part_stats'][_part]/n_samples)
 
             # save to text file with columns: value, upper uncertainty,
@@ -2593,33 +2606,33 @@ Sample subset {} of {}, label {}, {}%'''.format(i+1,len(parts),_part,
 
                 if self.ndim == 6:
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred, cosipred),
-                        fmt='%9.6f', header=header+',\ncos i (fuji88)')
+                        fmt='%9.6f', header=header)
                 elif self.ndim == 7:
-                    header = header+',\nNS mass (M_sun), cos i (fuji88)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
                         masspred, cosipred), fmt='%9.6f', header=header)
                 elif self.ndim == 8:
-                    header = header+',\nNS mass (M_sun), NS radius (km), cos i (fuji88), gravity (g, 10^14 cm/s^2),\nredshift (1+z)'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
                         masspred, radiuspred, cosipred, gravitypred, redshiftpred),
                         fmt='%9.6f', header=header)
                 else:
-                    header = header+',\nNS mass (M_sun), NS radius (km), cos i (fuji88), gravity (g, 10^14 cm/s^2),\nredshift (1+z), f_t'
                     np.savetxt(f, (Xpred, Zpred, basepred, dpred, xippred, xibpred,
                         masspred, radiuspred, cosipred, gravitypred, redshiftpred, ftpred),
                         fmt='%9.6f', header=header)
 
                 if i < len(parts)-1:
+                    # get the next selection, and also reset the header, to avoid displaying it for each set
                     sel = np.array(self.model_pred['partition']) == parts[i+1]
                     header = ''
 
             # output as LaTeX as well, to paste into a paper (for example)
+            # this version has each part as a column, so we only need to do it once
 
-            print ('\\begin{tabular}{cl'+'c' * len(parts)+'}\n\\hline')
-            print (latex_header+'\\\\\n\\hline')
-            for i, row in enumerate(latex_rows):
-                print (row+' \\\\')
-            print ('\\hline\n\\end{tabular}')
+            if latex:
+                print ('\\begin{tabular}{cl'+'c' * len(parts)+'}\n\\hline')
+                print (latex_header+'\\\\\n\\hline')
+                for i, row in enumerate(latex_rows):
+                    print (row+' \\\\')
+                print ('\\hline\n\\end{tabular}')
 
 
     def do_analysis(self, options=['autocor','posteriors'],
