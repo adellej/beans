@@ -1077,13 +1077,14 @@ class Beans:
 
         # pre-calculate the sigmas and other parameters, for use in lnlike
 
-        self.inv_sigma2 = 1. / self.yerr[:self.ly] ** 2
-        # In versons 2.56.1 and earlier, there was a missing factor of
-        # 2\pi in this expression!
-        self.log_2pi_sigma2 = np.log(2.*np.pi/self.inv_sigma2)
-        if self.train:
-            # self.log_inv_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
-            self.log_2pi_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
+        if self.burstname is not None:
+            self.inv_sigma2 = 1. / self.yerr[:self.ly] ** 2
+            # In versons 2.56.1 and earlier, there was a missing factor of
+            # 2\pi in this expression!
+            self.log_2pi_sigma2 = np.log(2.*np.pi/self.inv_sigma2)
+            if self.train:
+                # self.log_inv_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
+                self.log_2pi_sigma2[self.ref_ind] = 0.  # no contribution from the reference burst
 
         # Set interpolation mode, and define averaging function
 
@@ -1167,8 +1168,7 @@ class Beans:
             # self.plot_model(test2)
 
             if (not valid) & (self.numburstsobs > 0):
-                logger.warning ('''
-the model is not valid. You need to adjust the model
+                logger.warning ('''the model is not valid. You need to adjust the model
                 parameters to better suit the data.  ''')
 
         # having completed the __init__ routine, we mark the object as
@@ -1558,6 +1558,8 @@ Initial parameters:
             test, valid, model = runmodel(self.theta, self,
                 match=(False or not self.continuous),
                 debug=False)
+            logger.warning('''the model is not valid. You need to adjust the model
+                parameters to better suit the data.  ''')
 
             show_model = valid
 
@@ -1565,19 +1567,20 @@ Initial parameters:
             # assume a passed model is valid
             valid = show_model
 
-        if (imatch is None) & ('imatch' not in model) & (valid & self.train & (self.numburstsobs > 0)):
-            # ... but it's useful to know if it's possible
-            # (not relevant for punkt_train, or ensemble mode)
+        if show_model & valid & self.train:
+            if (imatch is None) & ('imatch' not in model) & (self.numburstsobs > 0):
+                # ... but it's useful to know if it's possible
+                # (not relevant for punkt_train, or ensemble mode)
 
-            imatch = burst_time_match(self.ref_ind, self.bstart,
-                model['iref'], np.array(model['time']))
+                imatch = burst_time_match(self.ref_ind, self.bstart,
+                    model['iref'], np.array(model['time']))
 
-            if imatch is None:
-                logger.warning ("can't match predicted bursts to observations")
+                if imatch is None:
+                    logger.warning ("can't match predicted bursts to observations")
 
-        elif 'imatch' in model:
-            imatch = model['imatch']
-            itoff = 0
+            elif 'imatch' in model:
+                imatch = model['imatch']
+                itoff = 0
 
         full_model = False  # Flag to remember whether we're plotting the
                             # full model output of generate burst train or
@@ -3463,14 +3466,14 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 # to plot vs. recurrence time
 
                 # if self.cmpr_alpha:
-                if max(self.alpha) > 0.:
+                if (max(self.alpha) > 0.) & (self.model != self.grid_interp):
                     # always show the alpha comparison, if we have some
-		    # measurements, even if we're not using it in the
-		    # likelihood
+                    # measurements, even if we're not using it in the
+                    # likelihood, except for grid_interp, which doesn't provide alphas
                     fig, axs = plt.subplot_mosaic("""
                                                   AA
                                                   BC
-                                                  """)
+                                                  """, constrained_layout=True)
                     ax1 = axs['A']
                 else:
                     fig, ax1 = plt.subplots()
