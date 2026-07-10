@@ -2387,10 +2387,10 @@ Initial parameters:
         if show:
             # show the headers for the LaTeX table
             print (r'''
-\\begin{tabular}{ccccccc}
+\\begin{{tabular}}{{ccccccc}}
   \hline
-        & MINBAR & Start  & $\Delta t$ & & {} & \multicolumn{2}{c}{$\\alpha$-value} \\\\
-  Burst & ID     & (MJD)  & (hr)       & $n_{\rm missed}$ & {} & Measured & Inferred \\\\
+        & MINBAR & Start  & $\Delta t$ & & {} & \multicolumn{{2}}{{c}}{{$\\alpha$-value}} \\\\
+  Burst & ID     & (MJD)  & (hr)       & $n_{{\rm missed}}$ & {} & Measured & Inferred \\\\
   \hline '''.format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
 
         # Now loop over the bursts and calculate the derived quantities
