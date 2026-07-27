@@ -3214,10 +3214,10 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             counts, ybins, xbins, image = plt.hist2d(self.samples[:,5],
                 self.samples[:,4], bins=50, norm=LogNorm(), cmap='OrRd')
 
-            xi_p_model2 = np.arange(0, 2.5, 0.01)
+            xi_p_model2 = np.arange(0.01, 10., 0.01)
             xi_b_model2 = np.empty(len(xi_p_model2))
 
-            for i in range(0,250):
+            for i in range(0,len(xi_p_model2)):
 
                 xi_b_model2[i] = 1./((1./(2*xi_p_model2[i])) + 0.5)
 
@@ -3261,10 +3261,14 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             plt.xlabel(r'$\xi_{\mathrm{p}}$',fontsize='xx-large')
             plt.ylabel(r'$\xi_{\mathrm{b}}$',fontsize='xx-large')
 
-            plt.legend(loc='best',fontsize='large')
+            # plt.legend(loc='best',fontsize='large')
+            plt.legend(loc='lower right',fontsize='large')
 
-            plt.axis([0.,2.1,0.,2.1])
+            # original axis limits too restrictive; xi_p (x-axis) can now be up to 10
+            # plt.axis([0.,2.1,0.,2.1])
+            plt.axis([0.,max(np.append(self.samples[:,5], 2.1)),0.,2.1])
 
+            # TODO check these commands for consistency with the other plots
             plt.xticks(fontsize=14)
             plt.yticks(fontsize=14)
 

@@ -129,7 +129,8 @@ def runemcee(nwalkers, nsteps, theta, lnprob, prior, x, y, yerr, run_id,
 
         print("# ---------------------------------------------------------------------------#")
 
-        for sample in sampler.sample(pos, iterations=nsteps, progress=True):
+        for sample in sampler.sample(pos, iterations=nsteps, 
+            progress=True, progress_kwargs={'desc': run_id}):
 
             # Only check convergence every few steps
             if sampler.iteration % conv_check_interval:
