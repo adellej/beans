@@ -192,6 +192,21 @@ def strmeas(val, err, err_hi=None, mask_str='--'):
     :returns: formatted string
     '''
 
+    def min_sig_fig(err):
+        '''
+        Determines the minimum number of significang figures to represent
+        an error
+        '''
+
+        fudge=0.0222764
+
+        s = np.floor(np.log10(abs(err))+fudge)
+        if (err < 2.*10.**s):
+            # need an extra significant figure if the leading digit is 1
+            return s-1
+
+        return s
+
     # check for string values
     if (type(val) == str) | (type(val) == np.str_):
         try:
@@ -212,21 +227,16 @@ def strmeas(val, err, err_hi=None, mask_str='--'):
     asym_templ = r'${{{}}}_{{{{{{{}}}}}}}^{{{{{{{}}}}}}}$'
 
     # get the number of significant figures of each of the errors
-    fudge=0.0222764
     n_lo, n_hi = -1, -1
     if abs(err) > eta:
-        n_lo=np.floor(np.log10(abs(err))+fudge)
+        n_lo = min_sig_fig(err)
 
-    if err_hi is None:
-        err_hi = err
+    err_hi = err_hi or err
 
     if abs(err_hi) > eta:
-        n_hi=np.floor(np.log10(abs(err_hi))+fudge)
+        n_hi = min_sig_fig(err_hi)
 
     lmin = int(min([n_lo, n_hi]))
-    if (err < 2.*10.**n_lo) | (err_hi < 2.*10.**n_hi):
-        # need an extra significant figure if the leading digit is 1
-        lmin -= 1
 
     if (lmin < 0):
 
