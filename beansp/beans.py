@@ -50,6 +50,12 @@ plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = ['Times']
 plt.rcParams['text.usetex'] = USETEX
 
+# figure defaults, based on PASA preprint on A4 paper
+
+FONT_SIZE_DEFAULT = 7.5 # points
+FIGSIZE_COLUMN = (3.3, 3.3) # inches
+FIGSIZE_PAGE = (7, 5) # inches
+
 # Keywords etc. for common appearance of ChainConsumer plots
 # configure params below copied initially from Adelle's jupyter notebook
 #
@@ -60,9 +66,14 @@ plt.rcParams['text.usetex'] = USETEX
 #
 # updated config parameters for v1.25+ here
 #   https://samreay.github.io/ChainConsumer/api/chainconfig/
+# note in particular the statistics='cumulative' option, which is chosen
+# (instead of the default 'max') so that the parameter limits generated
+# by theta_table match what's shown on the contour plots
+#
+# we also modify CC_PLOT_CONFIG in do_analysis with the chosen font size
 
 CC_CONFIG = { 'shade': True, 'shade_alpha': 1.0, 'bar_shade': True,
-              'smooth': True, 'sigmas': [0,1,2] }
+              'smooth': True, 'sigmas': [0,1,2] , 'statistics': 'cumulative'}
 CC_PLOT_CONFIG = { 'serif': True, 'usetex': USETEX}
 
 # Some constants & standard units
@@ -100,13 +111,13 @@ PARAM_LATEX = {"X": r"\ensuremath{X}", "Z": r"\ensuremath{Z}",
           "Q_b": r"\ensuremath{Q_b}", "d": r"\ensuremath{d}",
           "xi_b": r"\ensuremath{\xi_b}", "xi_p": r"\ensuremath{\xi_p}",
           "M": r"\ensuremath{M_{\rm NS}}", "R": r"\ensuremath{R_{\rm NS}}",
-          "f_t": r"\ensuremath{f_t}}",
+          "f_t": r"\ensuremath{f_t}",
           # extras
           "cosi": r"\ensuremath{\cos i}", "g": r"\ensuremath{g}", "1+z": r"\ensuremath{1+z}",
           # for grid mode
           "dxi_b": r"\ensuremath{d\xi_b} (kpc)", "xi_p/xi_b": r"\ensuremath{\xi_p/\xi_b}",
           # observeables
-          "fluen": r"Fluence", "perflx": r"Persistent flux", "fpeak": r"Peak burst flux" }
+          "fluen": r"Fluence", "perflx": r"Persistent flux", "fpeak": r"Peak flux" }
 UNIT_LATEX = {"X": r"", "Z": r"", "Q_b": r"MeV/nucleon", "d": r"kpc", "xi_b": r"", "xi_p": r"",
               "M": r"$M_\odot$", "R": r"km", "f_t": r"",
               "cosi": r"", "g": r"$10^{14}\ {\rm cm\,s^{-2}}$", "1+z": r"",
@@ -125,6 +136,9 @@ LNPROB_USES_LNLIKE_SYS = True
 FLUX_COLOUR = 'tab:red'
 BURSTS_COLOUR = 'tab:blue'
 OBS_COLOUR = 'tab:grey'
+DOT_SIZE = 9
+CIRC_SIZE = 5
+STAR_SIZE = 7
 
 # -------------------------------------------------------------------------#
 ## load local  modules
@@ -823,14 +837,14 @@ class Beans:
     except:
         pass
 
-    def __init__(self, prior=prior_func, lnlike=lnlike_sys, corr=None,
-		 config_file=None, run_id="test",
+    def __init__(self, config_file=None, run_id="test",
+                 prior=prior_func, lnlike=lnlike_sys, corr=None,
                  obsname=None, burstname=None, gtiname=None,
                  continuous=True, maxgap=2,
                  interp='linear', smooth=0.02, model = settle,
                  theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
                  sampler='emcee', fluen=True, alpha=False, pflux=True,
-                 numburstssim=3, bc=2.21, ref_ind=1, threads = 4,
+                 numburstssim=3, bc=1.0, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
         """
         Initialise a Beans object. In addition to the parameters below,
@@ -1399,7 +1413,7 @@ Initial parameters:
                     setattr(self, option, config.getfloat(section, option))
                 elif (option == 'prior'):
                     function_name = config.get(section, option).split(' ')[1]
-                    if (option == 'prior') & (function_name != str(self.lnprior).split(' ')[1]):
+                    if (function_name != str(self.lnprior).split(' ')[1]):
                         logger.warning ('''config file lists the prior function as {},
                 but supplied prior is {}
               To fully replicate the previous run you need to specify the
@@ -1568,8 +1582,11 @@ Initial parameters:
             test, valid, model = runmodel(self.theta, self,
                 match=(False or not self.continuous),
                 debug=False)
-            logger.warning('''the model is not valid. You need to adjust the model
-                parameters to better suit the data.  ''')
+            if not valid:
+                logger.warning('''the model is not valid. You need to adjust the model
+                    parameters to better suit the data.  ''')
+            else:
+                logger.info('plotting model for theta = {}'.format(self.theta))
 
             show_model = valid
 
@@ -1680,7 +1697,7 @@ Initial parameters:
                 # ax2.scatter(tobs,ebobs, color = 'darkgrey', marker = '.', label='observed', s =200)
                 ax2.errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
                     yerr=self.fluene[self.ifluen],
-                    color=OBS_COLOUR, linestyle='', marker='.', ms=13,
+                    color=OBS_COLOUR, linestyle='', marker='.', ms=DOT_SIZE,
                     label='observed bursts')
                 for i in range(self.numburstsobs):
                     if (i not in self.ifluen) & (i != self.ref_ind):
@@ -1703,7 +1720,7 @@ Initial parameters:
                     # show the burst time comparison
                     resid = -(self.bstart-np.array(timepred)[imatch])*24.
                     axs['resid'].plot(imatch, resid,
-                        linestyle='', marker='.', ms=13, color=OBS_COLOUR)
+                        linestyle='', marker='.', ms=DOT_SIZE, color=OBS_COLOUR)
                     for i in range(self.numburstsobs):
                         axs['resid'].annotate(' {}'.format(i+1),
                             (imatch[i], resid[i]) )
@@ -1832,6 +1849,7 @@ Initial parameters:
             # data that we're going to save as ensemble mode, taking each burst interval
             # as a component of the "ensemble" (reasonable to do for a simulation)
 
+            breakpoint()
             print ('{}\n{}"burst epoch [MJD]"	"bolometric fluence [1e-6 erg/cm^2]"	"error on bolometric fluence"	"alpha value"	"error on alpha value"	"bolometric persistant flux [1e-9 erg/cm^2/s^-1]"	"error on bol.  per flux"	"inferred recurrence time [hr]"	"error on recurrence time"'.format(_comm, _comm), file=f)
             _line_fmt = '{:.5f}	{:.3f}	{:.3f}	{:.1f}	{:.1f}	{:.3f}	{:.3f}	{:.3f}	{:.3f}'
             # for i in range(len(self.bstart)):
@@ -1839,7 +1857,7 @@ Initial parameters:
                 print(_line_fmt.format(
                     full_model['time'][i] if self.train else self.bstart[i],
                     full_model['fluen'][i-self.train], _fluene[i],
-                    full_model['alpha_obs'][i-1], _alphae[i],
+                    full_model['alpha_obs'][i-self.train], _alphae[i],
                     self.mean_flux(full_model['time'][i-1],full_model['time'][i],self) if self.train else self.pflux[i],
                     0.0 if self.train else self.pfluxe[i],
                     (full_model['time'][i]-full_model['time'][i-1])*24. if self.train else full_model['time'][i], _tdele[i],
@@ -2263,16 +2281,16 @@ Initial parameters:
             ylim = plt.gca().get_ylim()
 
             #plt.ylim(ylim)
-        plt.xlabel("Number of samples, $N$", fontsize='xx-large')
-        plt.ylabel(r"$\tau$ estimates",fontsize='xx-large')
+        plt.xlabel("Number of samples, $N$")#, fontsize='xx-large')
+        plt.ylabel(r"$\tau$ estimates")#,fontsize='xx-large')
 
         if title is not False:
             plt.title(title, loc='right')
 
         plt.plot(N, np.array(N)/50.0, "--k")# label=r"$\tau = N/50$")
-        plt.legend(fontsize='large',loc='best',ncol=2) #bbox_to_anchor=(0.99, 1.02)
-        plt.xticks(fontsize=14)
-        plt.yticks(fontsize=14)
+        plt.legend(loc='best',ncol=2) #fontsize='large',bbox_to_anchor=(0.99, 1.02)
+        # plt.xticks(fontsize=14)
+        # plt.yticks(fontsize=14)
         if savefile is not None:
             logger.info ('saving autocorrelation plot to {}'.format(savefile))
             plt.savefig(savefile)
@@ -2650,7 +2668,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=False, burnin=-1000,
-                          ilab=None, title=None, savefig=False):
+                          ilab=None, title=None, savefig=False,
+                          layout=None, figsize=None, fontsize=None):
         """
         This method is for running standard analysis and displaying the
         results.
@@ -2689,6 +2708,9 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
           posteriors. If -ve, discard all but that number
         :param title: set to a string to add a title to the plot, or False to omit; if set to None will print some generic information
         :param ilab: set to a list of (integer) inclination values to label in the anisotropy model plot ('fig8')
+        :param layout: options "page" or "column"; will set figsize accordingly
+        :param figsize: figure size to set, None for default
+        :param fontsize: default font size, None for default
         :param savefig: set to True to save figures to .pdf files, False to skip
 
         :return: none
@@ -2700,6 +2722,25 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         # constants:
         c = const.c.to('cm s-1')
         G = const.G.to('cm3 g-1 s-2')
+
+        # possible you might want to set specific font sizes for different
+        # layout options
+        # would also like to ensure square figures for the corner plots,
+        # but the settings below will apply to any figures you're
+        # displaying with this call to do_analysis
+        if layout not in ('page', 'column', None):
+            logger.error("layout option '{}' unknown, ignored".format(layout))
+        elif (layout is not None) & (figsize is not None):
+            logger.warning("'{}' layout option ignored with supplied figsize".format(layout))
+        if layout == 'column':
+            figsize = figsize or FIGSIZE_COLUMN
+        figsize = figsize or FIGSIZE_PAGE
+
+        fontsize = fontsize or FONT_SIZE_DEFAULT
+        plt.rcParams.update({'font.size': fontsize})
+        CC_PLOT_CONFIG['label_font_size'] = int(fontsize+0.5)
+        CC_PLOT_CONFIG['tick_font_size'] = int(fontsize+0.5)
+        CC_PLOT_CONFIG['summary_font_size'] = int(fontsize+0.5)
 
         # set the default title (copied from plot_autocor)
 
@@ -2781,6 +2822,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
             self.samples_burnin = None
             self.models_burnin = None
+            self.truths = False # default don't show any truths
 
         # convert -ve burnin here
 
@@ -2870,12 +2912,23 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             self.cc_nchain = 1 # initially
 
             # common truths/title settings for all corner plots
+            # TODO need to trigger an update when new truths added (not
+            # just a different burnin)
+
+        if truths != self.truths:
 
             if truths is None:
                 truths = list(self.theta)
-            if truths:
-                self.cc.add_truth(Truth(location={
-                    PARAM_LATEX[self.cc_parameters[i]]: truths[i] for i in range(len(truths))}))
+            if (truths != False):
+                if (len(truths) < self.ndim):
+                    logger.error('length of truths array < number of parameters, ignoring')
+                elif (len(truths) >= self.ndim):
+                    if len(truths) > self.ndim:
+                        logger.error('length of truths array > number of parameters, extras will be ignored')
+
+                    self.cc.add_truth(Truth(location={
+                        PARAM_LATEX[self.cc_parameters[i]]: truths[i] for i in range(self.ndim)}))
+            self.truths = truths
 
         # ---------------------------------------------------------------------#
         if 'last' in options:
@@ -2944,7 +2997,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
             # plot autocorrelation times
 
-            self.plot_autocorr(reader=self.reader, title=title,
+            self.plot_autocorr(reader=self.reader, title=title, figsize=figsize,
                 savefile='{}_autocorrelationtimes.pdf'.format(self.run_id)
                 if savefig else None)
 
@@ -2958,7 +3011,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             logger.info ("plotting the chains...")
             labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_t$"]
             # plt.clf()
-            fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=(8, 9))
+            fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=figsize)
 
             for i in range(self.ndim):
                 # Previously the transposed sampler object below meant
@@ -3000,21 +3053,23 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
             # figsize='page' seemingly does something weird
             # swap keys for values below to test out LaTeX approach
-            fig = self.cc.plotter.plot(columns=[PARAM_LATEX[x] for x in self.cc_parameters[:self.ndim]], figsize=(8,8) )
+            fig = self.cc.plotter.plot(columns=[PARAM_LATEX[x] for x in self.cc_parameters[:self.ndim]],
+                figsize=(max(figsize), max(figsize)) )
                 # these params not available (here) with new ChainConsumer
                 # truth=truths, legend=title, display=False)
 
             if (self.cc_nchain == 1) & (title is not False):
                 fig.suptitle(title, x=0.98, ha='right')
-            fig.show()
 
             if savefig:
                 # save the figure
                 savefile = '{}_posteriors.pdf'.format(self.run_id)
                 logger.info ('saving posteriors plot to {}'.format(savefile))
-                plt.savefig(savefile)
+                plt.savefig(savefile, bbox_inches='tight')
             else:
                 logger.info ('skipping posteriors plot save')
+
+            fig.show()
 
         # ---------------------------------------------------------------------#
         if ('mrcorner' in options) & (self.ndim < 8):
@@ -3028,20 +3083,21 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             # cc.add_chain(mrgr, parameters=["M", "R", "g", "1+z"])
 
             fig = self.cc.plotter.plot(columns=[PARAM_LATEX[x] for x in ["M", "R", "g", "1+z"]],
-                figsize=(8,8) ) # figsize="page",
+                figsize=(max(figsize), max(figsize)) )
                 # truth=truths, legend=title, display=False)
 
             if (self.cc_nchain == 1) & (title is not False):
                 fig.suptitle(title, x=0.98, ha='right')
-            fig.show()
 
             if savefig:
                 # save the figure
                 savefile = '{}_massradius.pdf'.format(self.run_id)
                 logger.info ('saving mass-radius posteriors plot to {}'.format(savefile))
-                plt.savefig(savefile)
+                plt.savefig(savefile, bbox_inches='tight')
             else:
                 logger.info ('skipping mass-radius posteriors plot save')
+
+            fig.show()
 
         # ---------------------------------------------------------------------#
         if 'fig6' in options:
@@ -3057,20 +3113,21 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             #     "$d$ (kpc)", "$\\xi_b$", "$\\xi_p$"])\
             fig = self.cc.plotter.plot(
                 columns=[PARAM_LATEX[x] for x in ['X','Z','Q_b','d','xi_b','xi_p']],
-                figsize=(8,8) ) # figsize="page",
+                figsize=(max(figsize), max(figsize)) )
                 # truth=truths, legend=title, display=False)
 
             if (self.cc_nchain == 1) & (title is not False):
                 fig.suptitle(title, x=0.98, ha='right')
-            fig.show()
 
             if savefig:
                 # save the figure
                 savefile = '{}_fig6.pdf'.format(self.run_id)
                 logger.info ('saving restricted posteriors plot to {}'.format(savefile))
-                plt.savefig(savefile)
+                plt.savefig(savefile, bbox_inches='tight')
             else:
                 logger.info ('skipping restricted posteriors plot save')
+
+            fig.show()
 
         # ---------------------------------------------------------------------#
         if ('converge' in options):
@@ -3089,16 +3146,16 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 name='{}-{}'.format(self.samples_burnin+int(_n/self.nwalkers),
                 self.nsteps_completed))
 
-            fig.show()
-
             if savefig:
                 savefile = '{}_converge.pdf'.format(self.run_id)
                 logger.info ('saving convergence check plot to {}'.format(savefile))
                 _cc.plotter.plot_summary(
-                    filename=savefile)#,figsize="page")
+                    filename=savefile, figsize=figsize)
             else:
-                fig = _cc.plotter.plot_summary()#figsize="page")
+                fig = _cc.plotter.plot_summary(figsize=figsize)
                 logger.info ('skipping convergence check plot save')
+
+            fig.show()
 
         # ---------------------------------------------------------------------#
         if ('comparison' in options) & ((self.models_burnin != burnin) | (part is not None)):
@@ -3217,9 +3274,10 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         # ---------------------------------------------------------------------#
         if 'fig8' in options:
 
-            # here we read in data from the anisotropy models. There's
-            # probably a better way to do this, via concord (if it's
-            # available)
+            # here we plot the distribution of anisotropy parameters,
+            # along with models from concord (if it's available)
+
+            f = plt.figure(figsize=figsize, constrained_layout=True)
 
             counts, ybins, xbins, image = plt.hist2d(self.samples[:,5],
                 self.samples[:,4], bins=50, norm=LogNorm(), cmap='OrRd')
@@ -3268,23 +3326,22 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 logger.warning ('''install concord if you want to overplot model curves
               See https://github.com/outs1der/concord''')
 
-            plt.xlabel(r'$\xi_{\mathrm{p}}$',fontsize='xx-large')
-            plt.ylabel(r'$\xi_{\mathrm{b}}$',fontsize='xx-large')
+            plt.xlabel(r'$\xi_{\mathrm{p}}$')#,fontsize='xx-large')
+            plt.ylabel(r'$\xi_{\mathrm{b}}$')#,fontsize='xx-large')
 
             # plt.legend(loc='best',fontsize='large')
-            plt.legend(loc='lower right',fontsize='large')
+            plt.legend(loc='lower right')#,fontsize='large')
 
             # original axis limits too restrictive; xi_p (x-axis) can now be up to 10
             # plt.axis([0.,2.1,0.,2.1])
-            plt.axis([0.,max(np.append(self.samples[:,5], 2.1)),0.,2.1])
+            plt.axis([0.,max(np.append(self.samples[:,5], 2.1)),0.,2.0])
 
             # TODO check these commands for consistency with the other plots
-            plt.xticks(fontsize=14)
-            plt.yticks(fontsize=14)
+            # plt.xticks(fontsize=12)
+            # plt.yticks(fontsize=12)
 
             if (self.cc_nchain == 1) & (title is not False):
                 plt.suptitle(title, x=0.98, ha='right')
-            plt.show()
 
             if savefig:
                 savefile = '{}_xipvsxib_models_contourlines.pdf'.format(self.run_id)
@@ -3292,6 +3349,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 plt.savefig(savefile)
             else:
                 logger.info ('skipping xi_p vs xi_b plot save')
+
+            plt.show()
 
         # ---------------------------------------------------------------------#
         if 'comparison' in options:
@@ -3320,7 +3379,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 _has_pflux, _has_alpha = (max(self.bpflux) > 0.), (max(self.alpha) > 0.)
                 if _has_pflux or _has_alpha:
                     _layout += [['alpha' if _has_alpha else '.', 'pflux' if _has_pflux else '.']] * 2
-                fig, axs = plt.subplot_mosaic(_layout, constrained_layout=True)
+                fig, axs = plt.subplot_mosaic(_layout, figsize=figsize,
+                    constrained_layout=True)
                 axs['resid'].sharex(axs['time'])
                 axs['time'].set(xticklabels=[])
                 ax1 = axs['time'] # label for the title etc.
@@ -3356,9 +3416,9 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     ebpred_errup = [x[1] for x in ebs[numburstssim]]
                     ebpred_errlow = [x[2] for x in ebs[numburstssim]]
                     axs['time'].errorbar(timepred[itoff:], ebpred,
-                        yerr=[ebpred_errlow, ebpred_errup],
+                        yerr=[ebpred_errlow, ebpred_errup], linestyle='', 
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
-                        marker='*', ms=11, linestyle='', color='C{}'.format(i),
+                        marker='*', ms=STAR_SIZE, color='C{}'.format(i),
                         label='predicted ({})'.format(numburstssim))
 
                     if self.continuous:
@@ -3379,8 +3439,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     # types of models
                     imatchm1 = [x-itoff for x in imatch if x-itoff >= 0]
                     axs['time'].plot(np.array(timepred[itoff:])[imatchm1],
-                        np.array(ebpred)[imatchm1],
-                        marker='*', ms=5, linestyle='', color='tab:red',
+                        np.array(ebpred)[imatchm1], linestyle='', 
+                        marker='*', ms=STAR_SIZE/2, color='tab:red',
                         label=_label,zorder=99)
                     _label = None # only give the label the first time
 
@@ -3388,7 +3448,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     axs['resid'].errorbar(self.bstart, resid,
                         yerr=[np.array(timepred_errlow)[imatch]*24.,
                         np.array(timepred_errup)[imatch]*24.],
-                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
+                        marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
                     logger.info ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
                         numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
                         np.sqrt(np.mean(resid**2))))
@@ -3406,7 +3466,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                             xerr=self.alphae[self.ifluen][1:],
                             yerr=[np.array(alpred_errlow)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:],
                                   np.array(alpred_errup)[imatchm1][self.ifluen[itoff:]-itoff][1-itoff:]],
-                            marker='*', ms=11, linestyle='', color='C{}'.format(i))
+                            marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
 
                     if _has_pflux:
                         # plot the peak flux values and compare against the Eddington fluxes
@@ -3430,8 +3490,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
                 # and finally plot the observations, so they come out on top
                 axs['time'].errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
-                             yerr=self.fluene[self.ifluen],
-                             color=OBS_COLOUR, linestyle='', marker='.', ms=13,
+                             yerr=self.fluene[self.ifluen], linestyle='', 
+                             marker='.', ms=DOT_SIZE, color=OBS_COLOUR, 
                              label='observed')
 
                 if _has_pflux:
@@ -3440,13 +3500,13 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                         # trying to match the marker='.', ms=13 from the main panel
                         axs['pflux'].errorbar(_bnum[self.pre], self.bpflux[self.pre],
                                               yerr=self.bpfluxe[self.pre], linestyle='', color=OBS_COLOUR,
-                                              marker='o', ms=7, label='PRE' )
+                                              marker='o', ms=CIRC_SIZE, label='PRE' )
                     if (len(self.non_pre) > 0):
                         axs['pflux'].errorbar(_bnum[self.non_pre], self.bpflux[self.non_pre],
                                      yerr=self.bpfluxe[self.non_pre], linestyle='', color=OBS_COLOUR,
-                                              marker='o', fillstyle='none', ms=7, label='non-PRE')
+                                              marker='o', fillstyle='none', ms=CIRC_SIZE, label='non-PRE')
                     axs['pflux'].legend()
-                    axs['pflux'].set_ylabel("{} ({})".format(PARAM_LATEX['fpeak'], UNIT_LATEX['fpeak']))
+                    axs['pflux'].set_ylabel("{}\n({})".format(PARAM_LATEX['fpeak'], UNIT_LATEX['fpeak']))
                     axs['pflux'].set_xlabel("Burst number")
                     axs['pflux'].set_xlim(min(_bnum)-0.5,max(_bnum)+0.5)
 
@@ -3459,10 +3519,10 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     # only show reference burst for continuous runs
                     axs['time'].axvline(self.bstart[self.ref_ind], c='k', ls='--')
 
-                axs['time'].set_ylabel("{} ({})".format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
+                axs['time'].set_ylabel("{}\n({})".format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
 
                 axs['resid'].axhline(0.0, color=OBS_COLOUR, ls='--')
-                axs['resid'].set_ylabel('Time offset (hr)')
+                axs['resid'].set_ylabel('Time offset\n(hr)')
                 axs['resid'].set_xlabel("Time (days after MJD {})".format(self.tref))
 
                 if _has_alpha:
@@ -3480,21 +3540,22 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 # to plot vs. recurrence time
 
                 # if self.cmpr_alpha:
-                if (max(self.alpha) > 0.) & (self.model != self.grid_interp):
+                if (max(self.alpha) > 0.) & (self.model_name != 'grid_interp'):
                     # always show the alpha comparison, if we have some
                     # measurements, even if we're not using it in the
                     # likelihood, except for grid_interp, which doesn't provide alphas
                     fig, axs = plt.subplot_mosaic("""
                                                   AA
                                                   BC
-                                                  """, constrained_layout=True)
+                                                  """, 
+                        figsize=figsize, constrained_layout=True)
                     ax1 = axs['A']
                 else:
                     fig, ax1 = plt.subplots()
 
                 # main fluence vs. time plot in the main panel
                 ax1.errorbar(self.tdel, self.fluen, xerr=self.tdele, yerr=self.fluene,
-                    color='black', linestyle='', marker='.', ms=13, label='Observed')
+                    color=OBS_COLOUR, linestyle='', marker='.', ms=DOT_SIZE, label='observed')
                 if not self.cmpr_fluen:
                     axs['B'].set_facecolor('lightgrey')
 
@@ -3508,9 +3569,9 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
                     ax1.errorbar(timepred, ebpred,
                         yerr=[ebpred_errlow, ebpred_errup],
-                        xerr=[timepred_errup, timepred_errlow],
+                        xerr=[timepred_errup, timepred_errlow], linestyle='', 
                         # color=bursts_colour
-                        marker='*', ms=11, linestyle='', color='C{}'.format(i),
+                        marker='*', ms=STAR_SIZE, color='C{}'.format(i),
                         label='predicted ({})'.format(tkey))
 
                     if max(self.alpha) > 0.:
@@ -3520,19 +3581,19 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
                         axs['B'].errorbar(self.fluen, ebpred,
                             xerr=self.fluene, yerr=[ebpred_errlow, ebpred_errup],
-                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
+                        marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
 
                         alpred = [x[0] for x in alphas[tkey]]
                         alpred_errup = [x[1] for x in alphas[tkey]]
                         alpred_errlow = [x[2] for x in alphas[tkey]]
                         axs['C'].errorbar(self.alpha, alpred,
                             xerr=self.alphae, yerr=[alpred_errlow, alpred_errup],
-                        marker='*', ms=11, linestyle='', color='C{}'.format(i))
+                        marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
 
 
                 ax1.set_xlabel("Recurrence time (hr)")
 
-                ax1.set_ylabel("{} ({})".format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
+                ax1.set_ylabel("{}\n({})".format(PARAM_LATEX['fluen'], UNIT_LATEX['fluen']))
                 ax1.legend(loc=2)
 
                 if max(self.alpha) > 0.:
@@ -3551,14 +3612,14 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 ax1.set_title(title, loc='right')
                 # fig.tight_layout()  # otherwise the main panel x-label is clipped
 
-            fig.show()
-
             if savefig:
                 savefile = '{}_predictedburstscomparison.pdf'.format(self.run_id)
                 logger.info ('saving burst comparison plot to {}'.format(savefile))
                 fig.savefig(savefile)
             else:
                 logger.info ('skipping burst comparison plot save')
+
+            fig.show()
 
 
     def compare(self, alt, burnin=None, label='result 2'):
@@ -3615,6 +3676,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 logger.info ('read in array with {} walkers, {} steps and {} parameters from\n  {}'.format(*np.shape(chain), alt))
                 # shape is (nwalkers, nsteps, ndim)
                 assert np.shape(chain)[2] == 12 # won't work for the other files
+                # TODO need to make this burnin consistent with the main code, i.e. allowing negative values
                 if burnin is not None:
                     chain_flat = chain[:, burnin:, :].reshape((-1, 12))
                 else:
