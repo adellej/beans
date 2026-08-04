@@ -31,6 +31,7 @@ def test_SFT():
     B = Beans(nwalkers=20,
               nsteps=10,
               run_id=written_data_filename_base,
+              bc=2.21,
               gti_checking=0,
               restart=False)
     B.do_run(plot=False, analyse=False)
