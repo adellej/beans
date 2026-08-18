@@ -3898,7 +3898,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             logger.error ('will overwrite existing archive file {}, set clobber=True to replace'.format(savefile))
             return
 
-        if not os.path.exits(self.run_id+'_chain-plot.pdf'):
+        if not os.path.exists(self.run_id+'_chain-plot.pdf'):
             # save the chain plot before we delete the result array
             self.do_analysis(['chain'],savefig=True,show=False)
         delattr(self, 'result')
