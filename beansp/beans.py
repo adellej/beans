@@ -808,6 +808,32 @@ def get_a_b(pflux, pfluxe, tobs):
     return a0, b0
 
 
+def restore(savefile=None):
+    """
+    Method to restore a beansp object from a pickle file; see the archive
+    method
+    """
+
+    if savefile is None:
+        logger.error('please enter a valid pickle file name for the archived Beans object')
+        return
+  
+    if os.path.exists(savefile):
+        _bean = pickle.load(open(savefile, 'rb'))
+        logger.info('restored beans v{} object with run_id {}'.format(_bean.version, _bean.run_id))
+
+        # set the samples here
+
+        _bean.samples_burnin = _bean.nsteps_completed - \
+            int(np.shape(_bean.samples)[0]/_bean.nwalkers)
+        _bean.models_burnin = _bean.samples_burnin
+
+        return _bean
+
+    else:
+        logger.error('file {} not found'.format(savefile))
+
+
 class Beans:
     """
     The main object class that includes the basic functionality required for
@@ -901,6 +927,7 @@ class Beans:
 
         # Some housekeeping
 
+        self.from_archive = False
         self.valid = False
         if 'ndim' in kwargs.keys():
             logger.warning('parameter ndim is redundant (ignored), setting from len of param array')
@@ -1747,7 +1774,7 @@ Initial parameters:
         fig.legend(loc=1)
 
         if savefig:
-            file = f'{self.run_id}_plot.pdf'
+            file = savefig if type(savefig) is str else f'{self.run_id}_plot.pdf'
             logger.info ('Saving figure plot to {}'.format(file))
             fig.savefig(file)
 
@@ -2668,7 +2695,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=False, burnin=-1000,
-                          ilab=None, title=None, savefig=False,
+                          ilab=None, title=None, savefig=False, show=True,
                           layout=None, figsize=None, fontsize=None):
         """
         This method is for running standard analysis and displaying the
@@ -2694,8 +2721,6 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         | {}_posteriors.pdf
         | {}_parameterconstraints_pred.txt
 
-        TODO: need to reorganise a bit, and add more options
-
         :param options: array of strings corresponding to various analysis
           options, listed in the analyses dict below
 	    :param part: string or array "partition" dividing the set of
@@ -2711,7 +2736,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         :param layout: options "page" or "column"; will set figsize accordingly
         :param figsize: figure size to set, None for default
         :param fontsize: default font size, None for default
-        :param savefig: set to True to save figures to .pdf files, False to skip
+        :param savefig: set to True to save figures to .pdf files, string for non-standard names, or False to skip (default)
+        :param show: set to False to skip showing the plot
 
         :return: none
         """
@@ -2762,6 +2788,15 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
         if options == 'all':
             options = analyses.keys()
+
+        if type(options) is str:
+            # convert a single option to a list, for compatibility with
+            # the following code
+            options = [options]
+
+        if (type(savefig) is str) & (len(options) > 1):
+            logger.error('if specifying filename, choose only one analysis option to avoid ambiguity')
+            return
 
         # check the chosen option is one of those implemented
 
@@ -2849,71 +2884,75 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             # need to read in the samples and create the ChainConsumer
             # object every time
 
-            # print ("Reading in flattened samples to show posteriors...")
-            # samples = self.reader.get_chain(flat=True, discard=burnin)
-            if self.result is not None:
-                samples = self.result[burnin:,:,:]
-                self.last = samples[-1,:,:]
-                self.samples = samples.reshape((-1,self.ndim))
-            self.samples_burnin = burnin
+            if self.from_archive:
+                logger.error("can't modify burnin for archived run, continuing with {} samples".format(np.shape(self.samples)[0]))
+            else:
 
-            # enable the various posterior plots below
+                # print ("Reading in flattened samples to show posteriors...")
+                # samples = self.reader.get_chain(flat=True, discard=burnin)
+                if self.result is not None:
+                    samples = self.result[burnin:,:,:]
+                    self.last = samples[-1,:,:]
+                    self.samples = samples.reshape((-1,self.ndim))
+                self.samples_burnin = burnin
 
-            # the labels dict originally mapped the "short" parameter names to the
-            # LaTeX labels for use with ChainConsumer, so the plots look nice
-            # now we just keep the plot labels as cc_parameters, and refer back to
-            # PARAM_LATEX
+                # enable the various posterior plots below
 
-            self.cc_parameters = list(PARAM_LATEX.keys())[:self.ndim]
+                # the labels dict originally mapped the "short" parameter names to the
+                # LaTeX labels for use with ChainConsumer, so the plots look nice
+                # now we just keep the plot labels as cc_parameters, and refer back to
+                # PARAM_LATEX
 
-            # we also need to add any additional parameters
-            # this estimate of cos i comes from inverting eq. 5 of Fujimoto et al. (1988)
+                self.cc_parameters = list(PARAM_LATEX.keys())[:self.ndim]
 
-            cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
-            _samples = np.column_stack((self.samples, cosi))
-            self.cc_parameters += ['cosi']
+                # we also need to add any additional parameters
+                # this estimate of cos i comes from inverting eq. 5 of Fujimoto et al. (1988)
 
-            if self.ndim >= 7:
-                mass = self.samples[:,6]
-                # masspred = get_param_uncert(mass)
-            if self.ndim >= 8:
-                radius = self.samples[:,7]
-                # radiuspred = get_param_uncert(radius)
+                cosi = 0.5/(2*(self.samples[:,5]/self.samples[:,4])-1)
+                _samples = np.column_stack((self.samples, cosi))
+                self.cc_parameters += ['cosi']
 
-                # calculate redshift and gravity from mass and radius:
-                # keep the parameters that we're going to calculate limits on
-                # below, dimensionless
+                if self.ndim >= 7:
+                    mass = self.samples[:,6]
+                    # masspred = get_param_uncert(mass)
+                if self.ndim >= 8:
+                    radius = self.samples[:,7]
+                    # radiuspred = get_param_uncert(radius)
 
-                R = np.array(radius)*1e5*u.cm #cgs
-                M = np.array(mass)*const.M_sun.to('g') #cgs
+                    # calculate redshift and gravity from mass and radius:
+                    # keep the parameters that we're going to calculate limits on
+                    # below, dimensionless
 
-                # ChainConsumer's plot method can't handle Quantity objects,
-                # so we need to convert gravity and redshift back to numpy
-                # arrays here
-                redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
-                gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
+                    R = np.array(radius)*1e5*u.cm #cgs
+                    M = np.array(mass)*const.M_sun.to('g') #cgs
 
-                _samples =np.column_stack((self.samples, cosi, gravity, redshift))
-                self.cc_parameters += ['g', '1+z']
+                    # ChainConsumer's plot method can't handle Quantity objects,
+                    # so we need to convert gravity and redshift back to numpy
+                    # arrays here
+                    redshift = np.power((1 - (2*G*M/(R*c**2))), -0.5).value
+                    gravity = (M*redshift*G/R**2 / (u.cm/u.s**2)).value #cgs
 
-            # now create the chainconsumer object
-            # swap keys for values below to test out LaTeX approach
+                    _samples =np.column_stack((self.samples, cosi, gravity, redshift))
+                    self.cc_parameters += ['g', '1+z']
 
-            _df = pd.DataFrame(_samples, columns=[PARAM_LATEX[x] for x in self.cc_parameters])
-            _chain = Chain(samples=_df,
-                name='beansp v{} run {} last {}/{}'.format(
-                self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed))
+                # now create the chainconsumer object
+                # swap keys for values below to test out LaTeX approach
 
-            self.cc = ChainConsumer().add_chain(_chain)
-            self.cc.set_override(ChainConfig( **CC_CONFIG ))
-            self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
+                _df = pd.DataFrame(_samples, columns=[PARAM_LATEX[x] for x in self.cc_parameters])
+                _chain = Chain(samples=_df,
+                    name='beansp v{} run {} last {}/{}'.format(
+                    self.version, self.run_id, self.nsteps_completed-self.samples_burnin, self.nsteps_completed))
 
-            self.samples = _samples # keep the samples up to date
-            self.cc_nchain = 1 # initially
+                self.cc = ChainConsumer().add_chain(_chain)
+                self.cc.set_override(ChainConfig( **CC_CONFIG ))
+                self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
 
-            # common truths/title settings for all corner plots
-            # TODO need to trigger an update when new truths added (not
-            # just a different burnin)
+                self.samples = _samples # keep the samples up to date
+                self.cc_nchain = 1 # initially
+
+                # common truths/title settings for all corner plots
+                # TODO need to trigger an update when new truths added (not
+                # just a different burnin)
 
         if truths != self.truths:
 
@@ -2998,43 +3037,49 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             # plot autocorrelation times
 
             self.plot_autocorr(reader=self.reader, title=title, figsize=figsize,
-                savefile='{}_autocorrelationtimes.pdf'.format(self.run_id)
-                if savefig else None)
+                savefile=savefig if type(savefig) is str else '{}_autocorrelationtimes.pdf'.format(self.run_id) if savefig else None)
 
         #sampler = emcee.EnsembleSampler(self.nwalkers, self.ndim, self.lnprob, args=(self.x, self.y, self.yerr), backend=reader)
 
         # ---------------------------------------------------------------------#
         if 'chain' in options:
 
-            # plot the chains:
-
-            logger.info ("plotting the chains...")
-            labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_t$"]
-            # plt.clf()
-            fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=figsize)
-
-            for i in range(self.ndim):
-                # Previously the transposed sampler object below meant
-                # that we were plotting with walker number on the x-axis,
-                # instead of step. Now fixed
-                axes[i].plot(self.result[:,:,i], color="k", alpha=0.4)
-                axes[i].yaxis.set_major_locator(MaxNLocator(5))
-                axes[i].set_ylabel(labels[i])
-
-            axes[self.ndim-1].set_xlabel("step number")
-            if title is not False:
-                axes[0].set_title(title, loc='right')
-            plt.tight_layout(h_pad=0.0)
-
-            if savefig:
-                savefile = '{}_chain-plot.pdf'.format(self.run_id)
-                logger.info ('saving chain plot to {}'.format(savefile))
-                plt.savefig(savefile)
+            if (self.from_archive) & (not hasattr(self, 'result')):
+                logger.error("can't plot chains for archived Beans object, missing full sample history")
             else:
-                logger.info ('skipping chain plot save')
 
-            plt.show()
-            logger.info ("... done")
+                # plot the chains:
+
+                logger.info ("plotting the chains...")
+                labels = ["$X$","$Z$","$Q_b$","$d$", "$\\xi_b$", "$\\xi_p$", "$M$", "$R$","$f_t$"]
+                # plt.clf()
+                fig, axes = plt.subplots(self.ndim, 1, sharex=True, figsize=figsize)
+
+                for i in range(self.ndim):
+                    # Previously the transposed sampler object below meant
+                    # that we were plotting with walker number on the x-axis,
+                    # instead of step. Now fixed
+                    axes[i].plot(self.result[:,:,i], color="k", alpha=0.4)
+                    axes[i].yaxis.set_major_locator(MaxNLocator(5))
+                    axes[i].set_ylabel(labels[i])
+
+                axes[self.ndim-1].set_xlabel("step number")
+                if title is not False:
+                    axes[0].set_title(title, loc='right')
+                plt.tight_layout(h_pad=0.0)
+
+                if savefig:
+                    savefile = savefig if type(savefig) is str else '{}_chain-plot.pdf'.format(self.run_id)
+                    logger.info ('saving chain plot to {}'.format(savefile))
+                    plt.savefig(savefile)
+                else:
+                    logger.info ('skipping chain plot save')
+
+                if show:
+                    plt.show()
+                else:
+                    logger.warning('skipping plot display')
+                logger.info ("... done")
 
         # for the remaining plots, we add the burnin omission information
         # to the title
@@ -3063,13 +3108,16 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
             if savefig:
                 # save the figure
-                savefile = '{}_posteriors.pdf'.format(self.run_id)
+                savefile = savefig if type(savefig) is str else '{}_posteriors.pdf'.format(self.run_id)
                 logger.info ('saving posteriors plot to {}'.format(savefile))
                 plt.savefig(savefile, bbox_inches='tight')
             else:
                 logger.info ('skipping posteriors plot save')
 
-            fig.show()
+            if show:
+                fig.show()
+            else:
+                logger.warning('skipping plot display')
 
         # ---------------------------------------------------------------------#
         if ('mrcorner' in options) & (self.ndim < 8):
@@ -3091,13 +3139,16 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
             if savefig:
                 # save the figure
-                savefile = '{}_massradius.pdf'.format(self.run_id)
+                savefile = savefig if type(savefig) is str else '{}_massradius.pdf'.format(self.run_id)
                 logger.info ('saving mass-radius posteriors plot to {}'.format(savefile))
                 plt.savefig(savefile, bbox_inches='tight')
             else:
                 logger.info ('skipping mass-radius posteriors plot save')
 
-            fig.show()
+            if show:
+                fig.show()
+            else:
+                logger.warning('skipping plot display')
 
         # ---------------------------------------------------------------------#
         if 'fig6' in options:
@@ -3121,13 +3172,16 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
             if savefig:
                 # save the figure
-                savefile = '{}_fig6.pdf'.format(self.run_id)
+                savefile = savefig if type(savefig) is str else '{}_fig6.pdf'.format(self.run_id)
                 logger.info ('saving restricted posteriors plot to {}'.format(savefile))
                 plt.savefig(savefile, bbox_inches='tight')
             else:
                 logger.info ('skipping restricted posteriors plot save')
 
-            fig.show()
+            if show:
+                fig.show()
+            else:
+                logger.warning('skipping plot display')
 
         # ---------------------------------------------------------------------#
         if ('converge' in options):
@@ -3147,7 +3201,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 self.nsteps_completed))
 
             if savefig:
-                savefile = '{}_converge.pdf'.format(self.run_id)
+                savefile = savefig if type(savefig) is str else '{}_converge.pdf'.format(self.run_id)
                 logger.info ('saving convergence check plot to {}'.format(savefile))
                 _cc.plotter.plot_summary(
                     filename=savefile, figsize=figsize)
@@ -3155,121 +3209,132 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 fig = _cc.plotter.plot_summary(figsize=figsize)
                 logger.info ('skipping convergence check plot save')
 
-            fig.show()
+            if show:
+                fig.show()
+            else:
+                logger.warning('skipping plot display')
 
         # ---------------------------------------------------------------------#
         if ('comparison' in options) & ((self.models_burnin != burnin) | (part is not None)):
 
-            # and finally read in the model realisations
-            # This loop can take a LOOOOOONG time for long runs
+            if self.from_archive:
+                logger.error("can't modify model predictions for archived run, continuing with {} samples".format(np.shape(self.samples)[0]))
+            else:
 
-            logger.info ("reading in and processing blobs, ignoring first {}...".format(burnin))
-            blobs = self.reader.get_blobs(flat=True)
+                # and finally read in the model realisations
+                # This loop can take a LOOOOOONG time for long runs
 
-            # Get predictions for each model run from the blobs structure:
+                logger.info ("reading in and processing blobs, ignoring first {}...".format(burnin))
+                blobs = self.reader.get_blobs(flat=True)
 
-            time, e_b, alpha, mdot = [], [], [], []
-            # X = [] # just for testing; won't be included in future blobs
-            for i in range(burnin*self.nwalkers, len(blobs["model"])):
-                _model = eval(blobs["model"][i].decode('ASCII', 'replace'))
-                time.append(_model['time'])
-                e_b.append(_model['e_b'])
-                alpha.append(_model['alpha'])
-                mdot.append(_model['mdot'])
-                # X.append(_model['x_0'][0])
-            logger.info ("... done")
+                # Get predictions for each model run from the blobs structure:
 
-            # here we split up the solutions based on the number of bursts
-            # in the model train, and populate the model_pred attribute,
-            # which we use also in the plotting part
-            # This approach is not perfect, as some solutions with different
-            # numbers of bursts have the same imatch, so are effectively
-            # equivalent;
-	    # TODO should combine the matching section in the plot segment
-	    # with this analysis, along with checks to combine solutions
-	    # with different burst numbers but the same imatch
+                time, e_b, alpha, mdot = [], [], [], []
+                # X = [] # just for testing; won't be included in future blobs
+                for i in range(burnin*self.nwalkers, len(blobs["model"])):
+                    _model = eval(blobs["model"][i].decode('ASCII', 'replace'))
+                    time.append(_model['time'])
+                    e_b.append(_model['e_b'])
+                    alpha.append(_model['alpha'])
+                    mdot.append(_model['mdot'])
+                    # X.append(_model['x_0'][0])
+                logger.info ("... done")
 
-            numbursts_pred = [len(x) for x in time]
+                # here we split up the solutions based on the number of bursts
+                # in the model train, and populate the model_pred attribute,
+                # which we use also in the plotting part
+                # This approach is not perfect, as some solutions with different
+                # numbers of bursts have the same imatch, so are effectively
+                # equivalent;
+                # TODO should combine the matching section in the plot segment
+                # with this analysis, along with checks to combine solutions
+                # with different burst numbers but the same imatch
 
-            # special here for the base20 run, to 3500 steps at least;
-            # more generally want to have a way of doing this on the fly
-            # part = ['loX-36' if ((_n == 36) & (self.samples[i,0] < 0.3))
-            #     else 'loX-37' if ((_n == 37) & (self.samples[i,0] < 0.3))
-            #     else 'hiX' #if (self.samples[i,0] > 0.3)
-            #     for i, _n in enumerate(numbursts_pred)]
-            if (part is None): # & (len(set(numbursts_pred)) > 1):
-                part = numbursts_pred
+                numbursts_pred = [len(x) for x in time]
 
-            # to get the parameter middle values and uncertainty use the
-            # functions get_param_uncert_obs and get_param_uncert_part
-            # e.g.
+                # special here for the base20 run, to 3500 steps at least;
+                # more generally want to have a way of doing this on the fly
+                # part = ['loX-36' if ((_n == 36) & (self.samples[i,0] < 0.3))
+                #     else 'loX-37' if ((_n == 37) & (self.samples[i,0] < 0.3))
+                #     else 'hiX' #if (self.samples[i,0] > 0.3)
+                #     for i, _n in enumerate(numbursts_pred)]
+                if (part is None): # & (len(set(numbursts_pred)) > 1):
+                    part = numbursts_pred
 
-            times = get_param_uncert_part(time, partition=part)
+                # to get the parameter middle values and uncertainty use the
+                # functions get_param_uncert_obs and get_param_uncert_part
+                # e.g.
 
-            # Here we calculate the parameter uncertainties on the
-            # predcted fluences and alphas, for comparison with the observations
-            # this calculation replicates what's in runmodel
+                times = get_param_uncert_part(time, partition=part)
 
-            # TODO avoid repeating conversion to observed quantities by storing them in the model
-            # this fails with inhomogeneous arrays; need to do something
-            # a bit more complicated
-            # fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
-            fpred = [list(np.array(_e_b)*self.fluen_fac/self.samples[_i,4]/self.samples[_i,3]**2) for _i, _e_b in enumerate(e_b)]
-            ebs = get_param_uncert_part(fpred, partition=part)
+                # Here we calculate the parameter uncertainties on the
+                # predcted fluences and alphas, for comparison with the observations
+                # this calculation replicates what's in runmodel
 
-            # the factor of xi_b/xi_p was omitted prior to v2.68.0
-            alpha_obs = [list(np.array(_alpha)*self.samples[_i,4]/self.samples[_i,5]) for _i, _alpha in enumerate(alpha)]
-            alphas = get_param_uncert_part(alpha_obs, partition=part)
+                # TODO avoid repeating conversion to observed quantities by storing them in the model
+                # this fails with inhomogeneous arrays; need to do something
+                # a bit more complicated
+                # fpred = (np.array(e_b).T*self.fluen_fac/np.array(xib)/np.array(distance)**2).T
+                _fpred = [list(np.array(_e_b)*self.fluen_fac/self.samples[_i,4]/self.samples[_i,3]**2) for _i, _e_b in enumerate(e_b)]
+                _fpred_stats = get_param_uncert_part(_fpred, partition=part)
 
-	    # store these parameters and flag it so we don't need to
-	    # calculate them again (unless burnin changes)
+                # the factor of xi_b/xi_p was omitted prior to v2.68.0
+                _alpha_obs = [list(np.array(_alpha)*self.samples[_i,4]/self.samples[_i,5]) for _i, _alpha in enumerate(alpha)]
+                _alpha_stats = get_param_uncert_part(_alpha_obs, partition=part)
 
-            # part_stats = None
-            # if part is not None:
-            #     part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in set(part)}
-            part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in times.keys()}
-            self.model_pred = { 'mdot': mdot,
-                'times': time, 'time_stats': times,
-                'numbursts': numbursts_pred, 'partition': part,
-                'part_stats': part_stats,
-                'e_b': e_b, 'e_b_stats': ebs,
-                'alpha': alpha, 'alpha_stats': alphas }
-            self.models_burnin = burnin
+                # store these parameters and flag it so we don't need to
+                # calculate them again (unless burnin changes)
 
-            # Here also we modify the ChainConsumer object if we have
-            # multiple models
-            # Updated syntax for ChainConsumer >= 1.2.5
+                # part_stats = None
+                # if part is not None:
+                #     part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in set(part)}
+                part_stats = {x: len(np.where(np.array(part) == x)[0]) for x in times.keys()}
+                # fixed the nomenclature here to be clear these are
+                # observation-equivalent parameters
+                self.model_pred = { 'mdot': mdot,
+                    'times': time, 'time_stats': times,
+                    'numbursts': numbursts_pred, 'partition': part,
+                    'part_stats': part_stats,
+                    # 'e_b': e_b, 'e_b_stats': ebs,
+                    # 'alpha': alpha, 'alpha_stats': alphas }
+                    'fluen': _fpred, 'fluen_stats': _fpred_stats,
+                    'alpha_obs': _alpha_obs, 'alpha_obs_stats': _alpha_stats }
+                self.models_burnin = burnin
 
-            if (len(times) != self.cc_nchain) & (part is not None):
-                self.cc = ChainConsumer()
-                self.cc_nchain = 0
-                for _n in set(part):
-                    # need to check that there are sufficient samples here
-                    _sel = np.array(part) == _n
-                    _check = np.shape(self.samples[_sel])[0]
-                    if _check > 1000:
-                        _df = pd.DataFrame(self.samples[_sel],
-                            columns=[PARAM_LATEX[x] for x in self.cc_parameters])
-                        _chain = Chain(samples=_df,
-                            name = _n if type(_n) == str else str(_n))
-                        self.cc.add_chain(_chain)
-                        self.cc_nchain += 1
-                    else:
-                      logger.info ('skipping walkers for n={}, too few samples ({})'.format(_n, _check))
-                # make sure we ad the same configuration as for the single
-                # chain object
+                # Here also we modify the ChainConsumer object if we have
+                # multiple models
+                # Updated syntax for ChainConsumer >= 1.2.5
 
-                self.cc.set_override(ChainConfig( **CC_CONFIG ))
-                if self.cc_nchain > 1:
-                    CC_PLOT_CONFIG['show_legend'] = True
-                self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
+                if (len(times) != self.cc_nchain) & (part is not None):
+                    self.cc = ChainConsumer()
+                    self.cc_nchain = 0
+                    for _n in set(part):
+                        # need to check that there are sufficient samples here
+                        _sel = np.array(part) == _n
+                        _check = np.shape(self.samples[_sel])[0]
+                        if _check > 1000:
+                            _df = pd.DataFrame(self.samples[_sel],
+                                columns=[PARAM_LATEX[x] for x in self.cc_parameters])
+                            _chain = Chain(samples=_df,
+                                name = _n if type(_n) == str else str(_n))
+                            self.cc.add_chain(_chain)
+                            self.cc_nchain += 1
+                        else:
+                          logger.info ('skipping walkers for n={}, too few samples ({})'.format(_n, _check))
+                    # make sure we ad the same configuration as for the single
+                    # chain object
 
-                if truths:
-                    # this may be a bit misleading if your different chains also have different "truths"
-                    self.cc.add_truth(Truth(location={
-                        PARAM_LATEX[self.cc_parameters[i]]: truths[i] for i in range(len(truths))}))
+                    self.cc.set_override(ChainConfig( **CC_CONFIG ))
+                    if self.cc_nchain > 1:
+                        CC_PLOT_CONFIG['show_legend'] = True
+                    self.cc.set_plot_config(PlotConfig( **CC_PLOT_CONFIG ))
 
-                logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
+                    if truths:
+                        # this may be a bit misleading if your different chains also have different "truths"
+                        self.cc.add_truth(Truth(location={
+                            PARAM_LATEX[self.cc_parameters[i]]: truths[i] for i in range(len(truths))}))
+
+                    logger.info ('updated chain object with {} model classes'.format(self.cc_nchain))
 
         # ---------------------------------------------------------------------#
         if 'fig8' in options:
@@ -3344,13 +3409,16 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 plt.suptitle(title, x=0.98, ha='right')
 
             if savefig:
-                savefile = '{}_xipvsxib_models_contourlines.pdf'.format(self.run_id)
+                savefile = savefig if type(savefig) is str else '{}_xipvsxib_models_contourlines.pdf'.format(self.run_id)
                 logger.info ('saving xi_p vs xi_b plot to {}'.format(savefile))
                 plt.savefig(savefile)
             else:
                 logger.info ('skipping xi_p vs xi_b plot save')
 
-            plt.show()
+            if show:
+                plt.show()
+            else:
+                logger.warning('skipping plot display')
 
         # ---------------------------------------------------------------------#
         if 'comparison' in options:
@@ -3359,8 +3427,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
             # plt.scatter(self.bstart, self.fluen, color = 'black', marker = '.', label='Observed', s =200)
             times = self.model_pred['time_stats']
-            ebs = self.model_pred['e_b_stats']
-            alphas = self.model_pred['alpha_stats']
+            ebs = self.model_pred['fluen_stats']
+            alphas = self.model_pred['alpha_obs_stats']
 
             if self.train:
                 # 2-panel plot like in plot
@@ -3432,7 +3500,6 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                         imatch = burst_time_match(0, self.bstart,
                             0, np.array(timepred))
 
-                    print (numburstssim, imatch)
                     # Here we define imatchm1, which is an exact copy of imatch for punkt_train results
                     # (i.e. where itoff = 0). This array should replace imatch below when indexing
                     # alpha and fluence arrays, so that the numbering is consistent between the two
@@ -3449,9 +3516,11 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                         yerr=[np.array(timepred_errlow)[imatch]*24.,
                         np.array(timepred_errup)[imatch]*24.],
                         marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
+                    # print some information about this set of analyses
                     logger.info ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
                         numburstssim, 100.*self.model_pred['part_stats'][numburstssim]/len(self.samples),
                         np.sqrt(np.mean(resid**2))))
+                    print (numburstssim, imatch)
 
                     if _has_alpha:
                         # populate the alphas panel
@@ -3590,6 +3659,13 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                             xerr=self.alphae, yerr=[alpred_errlow, alpred_errup],
                         marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
 
+                    # print some information about this set of analyses
+                    resid = -(self.tdel-np.array(timepred))*24.
+                    logger.info ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
+                        tkey, 100.*self.model_pred['part_stats'][tkey]/len(self.samples),
+                        np.sqrt(np.mean(resid**2))))
+                    # print (numburstssim, imatch)
+
 
                 ax1.set_xlabel("Recurrence time (hr)")
 
@@ -3613,13 +3689,16 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 # fig.tight_layout()  # otherwise the main panel x-label is clipped
 
             if savefig:
-                savefile = '{}_predictedburstscomparison.pdf'.format(self.run_id)
+                savefile = savefig if type(savefig) is str else '{}_predictedburstscomparison.pdf'.format(self.run_id)
                 logger.info ('saving burst comparison plot to {}'.format(savefile))
                 fig.savefig(savefile)
             else:
                 logger.info ('skipping burst comparison plot save')
 
-            fig.show()
+            if show:
+                fig.show()
+            else:
+                logger.warning('skipping plot display')
 
 
     def compare(self, alt, burnin=None, label='result 2'):
@@ -3745,28 +3824,33 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 logger.error('need to provide a scale>0 to distribute additional values')
                 return None
 
-        new_pos, d1, d2, d3 = self.reader.get_last_sample()
+        if not hasattr(self, 'model_pred'):
+            logger.error ('no model predictions available, run the comparison first')
+            return None
+
+        elif (key is not None) and (not (key in set(self.model_pred['partition']))):
+            logger.error ("key not present in model prediction set: {}".format(set(self.model_pred['partition'])))
+            return None
+
+        old_pos, d1, d2, d3 = self.reader.get_last_sample()
 
         if key is None:
             # if no key is supplied, could just save all the positions
             logger.info('retaining all walkers from last position')
             # print ("** ERROR ** no key supplied, don't know which set to keep")
-            # return None
-
-        elif not hasattr(self, 'model_pred'):
-            logger.error ('no model predictions available, run the comparison first')
-            return None
-
-        elif not (key in set(self.model_pred['partition'])):
-            print ("** ERROR ** key not present in model prediction set: {}".format(set(self.model_pred['partition'])))
-            return None
+            bad = np.full(self.nwalkers, False)
 
         else:
             bad = np.array(self.model_pred['partition'])[-self.nwalkers:] != key
             logger.info('retaining {} of {} walkers with key={} from last position'.format(sum(~bad), self.nwalkers, key))
 
-            # now redistribute the "bad" walkers
+        nwalkers = nwalkers or self.nwalkers
+        new_pos = np.zeros((nwalkers, np.shape(old_pos)[1]))
+        new_pos[:self.nwalkers,:] = old_pos
+        bad = np.concatenate((bad, np.full(nwalkers-self.nwalkers, True)))
 
+        if np.any(bad):
+            # now redistribute the "bad" walkers
             logger.info ('redistributing {} walkers...'.format(sum(bad)))
 
             for i in (np.where(bad)[0]):
@@ -3777,14 +3861,14 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 # add mass, radius
                 logger.info('adding mass, radius to output array')
                 new_pos = np.c_[new_pos,
-                    self.M_NS+scale*np.random.randn(self.nwalkers),
-                    self.R_NS+10*scale*np.random.randn(self.nwalkers) ]
+                    self.M_NS+scale*np.random.randn(nwalkers),
+                    self.R_NS+10*scale*np.random.randn(nwalkers) ]
             if ((add_param == 3) & (self.ndim == 6)) | \
                ((add_param == 1) & (self.ndim == 8)):
                 # add f_t
                 logger.info('adding systematic error on time to output array')
                 new_pos = np.c_[new_pos,
-                    1.+1e-5*abs(np.random.randn(self.nwalkers))]
+                    1.+1e-5*abs(np.random.randn(nwalkers))]
 
         if savefile is not None:
             print ('Saving positions to {}'.format(savefile))
@@ -3792,5 +3876,50 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
         return new_pos
 
+
+    def archive(self, savefile=None, clobber=False):
+        """
+        Method to archive the current object as a pickle file, so that you
+        can then delete the .h5 file to save disk space
+
+        For the moment, this keeps the reader attribute, which I think
+	stores the entire set of samples and blobs, so is maybe not the
+        smallest it could be; could remove it prior to saving with delattr,
+        although this doesn't seem to help
+        """
+
+        savefile = savefile or self.run_id+'.p'
+        if not hasattr(self, 'samples'):
+            self.do_analysis(['posteriors'], show=False)
+        if not hasattr(self, 'model_pred'):
+            self.do_analysis(['comparison'], show=False)
+
+        if os.path.exists(savefile) & (not clobber):
+            logger.error ('will overwrite existing archive file {}, set clobber=True to replace'.format(savefile))
+            return
+
+        if not os.path.exits(self.run_id+'_chain-plot.pdf'):
+            # save the chain plot before we delete the result array
+            self.do_analysis(['chain'],savefig=True,show=False)
+        delattr(self, 'result')
+
+        logger.info('writing Beans object to {}'.format(savefile))
+        self.from_archive = True
+        pickle.dump(self, open(savefile, 'wb'))
+        _pfile_size = os.path.getsize(savefile)
+
+        _h5file = self.run_id+'.h5'
+        if os.path.exists(_h5file):
+            _h5file_size = os.path.getsize(_h5file)
+            value = input('enter Y[RETURN] to delete .h5 file: ')
+            if (value == 'y') | (value == 'Y'):
+                _h5file_size = os.path.getsize(_h5file)
+                os.remove(_h5file)
+                logger.info('{} -> {}, {:.1f} Mb saved'.format(_h5file, savefile, (_h5file_size-_pfile_size)/1e6))
+        else:
+            logger.warning('{} file not found, cannot remove'.format(_h5file))
+
+        return savefile
+  
 
 # end of beans.py
