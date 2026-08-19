@@ -1,0 +1,25 @@
+# 17498_bursts_newalpha.txt
+# Copied from 17498_bursts_8.txt 12.6.26
+#
+# The data here are of bursts observed from IGR J17498-2921 during the
+# 2011 outburst. Burst data has been sourced from MINBAR (Galloway et al.
+# 2020, ApJS 249, #32) augmented with additional bursts observed by Swift
+# (Falanga et al. 2012, A&A 545, A26)
+#
+# Not sure where the fluence for burst #8244 comes from, as it's not in
+# MINBAR; Falanga et al. (2012) report that it's from Standard-2 mode data
+#
+# Alpha-values have been revised using "model" fluxes, via the burst_table
+# method in beans, assuming a burst number separation of [0,4,3,1,1,1,7,1]
+#
+# Replaced spaces with tabs
+#
+# "Burst start time MJD" "bfluen 1e-6 erg/cm^2" "bfluen error" "alpha" "error on alpha" "label/comment"
+55787.13924	0.6000	0.0800	0.0	0.0	"#8486, IJX"
+55789.64013	0.4383	0.0365	250.85	21.44	"#8239, XP2"
+55791.47419	0.4000	0.0600	264.86	39.21	"#8498, IJX; Swift"
+55792.14131	0.4500	0.0800	255.79	49.07	"#8503, IJX"
+55792.83207	0.4700	0.0800	247.16	45.47	"#8508, IJX"
+55793.59060	0.5171	0.0283	244.19	13.35	"#8244, XPa"
+55800.02405	0.5100	0.0800	223.34	35.23	"#8526, IJX"
+55801.42595	0.3900	0.0700	400.32	75.53	"Swift"

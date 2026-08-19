@@ -1,0 +1,43 @@
+# File 144459_ensbl_day.txt
+#
+# The data in this file is intended for use with the beans code, available
+# from https://github.com/outs1der/beans 
+#
+# The data have been assembled from Insight-HXMT and IXPE observations of
+# SRGA J144459.2-604207, provided by Zhaosheng Li
+# (lizhaosheng@xtu.edu.cn), and averaged daily with burst recurrence time
+# fits provided by minbar.analyse.fit_burst_times
+#
+# Burst numbers in the Epoch fit info column includes duplicates (events
+# observed both with Insight-HMXT and IXPE)
+#
+# Modification history
+# 19.1.26 added the alpha values for the later epochs, including IXPE
+#           bursts
+# 
+# The columns are as follows
+#"Burst epoch [MJD]"	"Bolometric fluence [1e-6 erg/cm^2]"	"Error on bolometric fluence"	"alpha value"	"Error on alpha value"	"Bolometric persistent Flux [1e-9 erg/cm^2/s^-1]"	"Error on bol. per flux"	"Inferred recurrence time [hr]"	"Error on recurrence time"	"Epoch fit info"
+60363.65801	0.285	0.020	69.85	4.78	3.593	0.171	1.579	0.006	"10 bursts RMS 0.052 hr"
+60364.36262	0.296	0.012	70.67	3.38	3.583	0.046	1.627	0.003	"8 bursts RMS 0.022 hr"
+60365.32604	0.295	0.038	64.30	9.30	3.030	0.285	1.851	0.013	"7 bursts RMS 0.095 hr"
+60366.48186	0.296	0.013	73.28	8.47	2.969	0.221	2.022	0.003	"8 bursts RMS 0.024 hr"
+# 60367.53183	0.315	0.027	79.33	9.28	3.073	0.195	2.137	0.011	"11 bursts RMS 0.109 hr"
+60367.53183	0.315	0.027	78.82	8.42	3.073	0.195	2.137	0.011	"11 bursts, RMS 0.109 hr"
+# 60368.47138	0.312	0.026	71.94	7.98	2.728	0.359	2.350	0.012	"13 bursts RMS 0.101 hr"
+60368.47138	0.312	0.026	75.12	11.58	2.727	0.359	2.350	0.012	"13 bursts, RMS 0.101 hr"
+# 60369.43403	0.296	0.024	59.12	7.99	2.111	0.373	2.737	0.013	"15 bursts RMS 0.129 hr"
+60369.43403	0.296	0.024	65.55	13.30	2.111	0.373	2.737	0.013	"15 bursts, RMS 0.129 hr"
+# 60370.66803	0.294	0.035	0.0	0.0	2.554	0.153	2.854	0.009	"5 bursts RMS 0.032 hr"
+60370.66803	0.294	0.035	90.66	12.23	2.554	0.153	2.854	0.009	"5 bursts, RMS 0.032 hr"
+# 60371.53694	0.295	0.026	54.08	1.91	2.062	0.431	3.183	0.022	"8 bursts RMS 0.085 hr"
+60371.53694	0.295	0.026	78.01	16.96	2.062	0.431	3.183	0.022	"8 bursts, RMS 0.085 hr"
+# 60372.43768	0.311	0.032	0.0	0.0	2.144	0.148	3.342	0.027	"7 bursts RMS 0.122 hr"
+60372.43768	0.311	0.032	82.48	6.16	2.144	0.148	3.342	0.027	"7 bursts, RMS 0.122 hr"
+# 60373.41549	0.304	0.019	108.07	4.46	2.061	0.437	3.727	0.052	"8 bursts RMS 0.236 hr"
+60373.41549	0.304	0.019	88.25	16.98	2.061	0.437	3.727	0.052	"8 bursts, RMS 0.236 hr"
+# 60374.49261	0.294	0.009	0.0	0.0	1.760	0.177	3.987	0.017	"3 bursts RMS 0.021 hr"
+60374.49261	0.294	0.009	86.21	9.87	1.760	0.177	3.987	0.017	"3 bursts, RMS 0.021 hr"
+# 60375.51728	0.279	0.021	0.0	0.0	1.290	0.283	4.779	0.085	"5 bursts RMS 0.21 hr"
+60375.51728	0.279	0.021	76.92	8.73	1.290	0.283	4.779	0.085	"5 bursts, RMS 0.208 hr"
+# 60376.44539	0.289	0.034	0.0	0.0	0.935	0.095	6.731	0.130	"3 bursts RMS 0.11 hr"
+60376.44539	0.289	0.034	75.25	8.66	0.935	0.095	6.731	0.130	"3 bursts, RMS 0.106 hr"

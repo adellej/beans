@@ -3701,6 +3701,62 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 logger.warning('skipping plot display')
 
 
+    def autocor(self, **kwargs):
+        '''
+        Shortcut for do_analysis('autocor'...
+        '''
+
+        self.do_analysis('autocor', **kwargs)
+
+
+    def chain(self, **kwargs):
+        '''
+        Shortcut for do_analysis('chain'...
+        '''
+
+        self.do_analysis('chain', **kwargs)
+
+
+    def posteriors(self, **kwargs):
+        '''
+        Shortcut for do_analysis('posteriors'...
+        '''
+
+        self.do_analysis('posteriors', **kwargs)
+
+
+    def mrcorner(self, **kwargs):
+        '''
+        Shortcut for do_analysis('mrcorner'...
+        '''
+
+        self.do_analysis('mrcorner', **kwargs)
+
+
+    def fig6(self, **kwargs):
+        '''
+        Shortcut for do_analysis('fig6'...
+        '''
+
+        self.do_analysis('fig6', **kwargs)
+
+
+    def fig8(self, **kwargs):
+        '''
+        Shortcut for do_analysis('fig8'...
+        '''
+
+        self.do_analysis('fig8', **kwargs)
+
+
+    def comparison(self, **kwargs):
+        '''
+        Shortcut for do_analysis('comparison'...
+        '''
+
+        self.do_analysis('comparison', **kwargs)
+
+
     def compare(self, alt, burnin=None, label='result 2'):
         '''
         This method will update the cc attribute to include data from a
@@ -3877,7 +3933,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         return new_pos
 
 
-    def archive(self, savefile=None, clobber=False):
+    def archive(self, savefile=None, samples=True, clobber=False):
         """
         Method to archive the current object as a pickle file, so that you
         can then delete the .h5 file to save disk space
@@ -3886,6 +3942,10 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 	stores the entire set of samples and blobs, so is maybe not the
         smallest it could be; could remove it prior to saving with delattr,
         although this doesn't seem to help
+
+        :param savefile: filename to save the pickled Beans object
+        :param samples: set to True to also save the samples as a separate pickle file
+        :param clobber: set to True to overwrite an existing file
         """
 
         savefile = savefile or self.run_id+'.p'
@@ -3918,6 +3978,19 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 logger.info('{} -> {}, {:.1f} Mb saved'.format(_h5file, savefile, (_h5file_size-_pfile_size)/1e6))
         else:
             logger.warning('{} file not found, cannot remove'.format(_h5file))
+
+        if samples:
+            # try to generate a sensible name for the samples file
+            dummy, file_ext = os.path.splitext(savefile)
+            samples_savefile = savefile.replace(file_ext, '_samples'+file_ext)
+            logger.info('writing samples and labels to {}'.format(samples_savefile))
+            pickle.dump((B.cc_parameters, B.samples), open(samples_savefile, 'wb'))
+            logger.info('archive complete')
+
+            return savefile, samples_savefile
+  
+
+        logger.info('archive complete')
 
         return savefile
   
