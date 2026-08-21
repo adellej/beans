@@ -26,9 +26,14 @@ Bayesian Estimation of Accreting Neutron Star parameters
 Features
 --------
 
-This software uses a Markov Chain Monte Carlo approach to match observations of an accreting neutron star in outburst with a simple ignition model to constrain parameters including the neutron star mass, radius, surface gravity, distance and system inclination, and accreted fuel composition. 
+This software uses a Markov Chain Monte Carlo approach to match observations of thermonuclear (type-I) bursts from accreting neutron stars with numerical models, to constrain parameters including the accreted fuel composition, source distance and system inclination, and neutron star mass and radius.
 
-The code is written in Python 3, except for settle which is a C++ code with a python wrapper. It makes use of Dan Foreman-Mackey's python implementation of MCMC, emcee, available at https://github.com/dfm/emcee.
+The code is written in Python 3, except for settle which is a C++ code
+with a Python wrapper (now implemented as pySettle, available via pypi or
+at
+https://github.com/adellej/pysettle.
+
+beansp makes use of Dan Foreman-Mackey's Python implementation of MCMC, emcee, available at https://github.com/dfm/emcee.
 
 Credits
 -------

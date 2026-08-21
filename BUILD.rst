@@ -15,7 +15,7 @@ Build and installation from this github repository
 
 #. Create and activate a clean conda environment
 
-   The example below will create an environment with python 3.13 (or newer), but beans should work with python 3.9 onwards.
+   The example below will create an environment with Python 3.13 (or newer), but beans should work with Python 3.9 onwards.
 
    .. code-block:: console
     
@@ -33,13 +33,17 @@ Build and installation from this github repository
       python3 -m pip install --upgrade pip
       python3 -m pip install --upgrade build
 
-   .. code-block:: console
-  
+..
+    removed from the code block below:
       # test build & local install
       # The "-e" install does not seem to be reliable for re-install on Linux
       #       - keeps pulling some old build from somewhere middlewhere.
       #         python -m pip install -e .*
       # This is more reliable:
+..
+
+   .. code-block:: console
+  
       python3 -m build
       python3 -m pip install .
 

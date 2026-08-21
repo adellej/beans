@@ -1,8 +1,8 @@
 .. highlight:: shell
 
-========================
+=============================
 Install and build from source
-========================
+=============================
 
 The source for beans can be downloaded from the `Github repo`_.
 
