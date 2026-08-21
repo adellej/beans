@@ -107,7 +107,7 @@ BILBY_OUTPUT = 'bilby_out'
 # 9 = f_t systematic fractional variation in burst times
 
 # utility dicts etc. for parameter labels
-PARAM_LATEX = {"X": r"\ensuremath{X}", "Z": r"\ensuremath{Z}",
+PARAM_LATEX = {"X": r"\ensuremath{X}", "Z": r"\ensuremath{Z_{\rm CNO}}",
           "Q_b": r"\ensuremath{Q_b}", "d": r"\ensuremath{d}",
           "xi_b": r"\ensuremath{\xi_b}", "xi_p": r"\ensuremath{\xi_p}",
           "M": r"\ensuremath{M_{\rm NS}}", "R": r"\ensuremath{R_{\rm NS}}",
@@ -115,7 +115,7 @@ PARAM_LATEX = {"X": r"\ensuremath{X}", "Z": r"\ensuremath{Z}",
           # extras
           "cosi": r"\ensuremath{\cos i}", "g": r"\ensuremath{g}", "1+z": r"\ensuremath{1+z}",
           # for grid mode
-          "dxi_b": r"\ensuremath{d\xi_b} (kpc)", "xi_p/xi_b": r"\ensuremath{\xi_p/\xi_b}",
+          "dxi_b": r"\ensuremath{d\xi_b}", "xi_p/xi_b": r"\ensuremath{\xi_p/\xi_b}",
           # observeables
           "fluen": r"Fluence", "perflx": r"Persistent flux", "fpeak": r"Peak flux" }
 UNIT_LATEX = {"X": r"", "Z": r"", "Q_b": r"MeV/nucleon", "d": r"kpc", "xi_b": r"", "xi_p": r"",
@@ -311,7 +311,7 @@ def lnZprior(z):
     )
 
 
-def prior_func(theta_in):
+def prior_func(theta_in, latex=False):
     """
     This function is the default prior and implements a simple box prior
     for all the parameters. Notably the systematic error on the burst
@@ -320,9 +320,16 @@ def prior_func(theta_in):
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, and (optionally) *mass*, *radius* & *f_t*
+    :param latex: if True, just return the prior limits suitable for inclusion in a LaTeX table
 
     :return: prior probability
     """
+
+    # make sure the text version matches the limits below
+    if latex:
+        return ['$U[10^{-5},0.76]$', '$U[10^{-5},0.056]$', '$U[10^{-6},5]$',
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$U[1.15,2.5]$', '$U[9,17]$', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
     mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
@@ -340,7 +347,7 @@ def prior_func(theta_in):
         return -np.inf
 
 
-def prior_kepler(theta_in):
+def prior_kepler(theta_in, latex=False):
     """
     This function applies a more restrictive prior suitable for use with
     the corr_kepler correction function, which is only defined over the
@@ -350,9 +357,16 @@ def prior_kepler(theta_in):
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, and (optionally) *mass*, *radius* & *f_t*
+    :param latex: if True, just return the prior limits suitable for inclusion in a LaTeX table
 
     :return: prior probability
     """
+
+    # make sure the text version matches the limits below
+    if latex:
+        return ['$U[0.2,0.8]$', '$U[0.005},0.1]$', '$U[10^{-6},5]$',
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$U[1.15,2.5]$', '$U[9,17]$', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
     mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
@@ -370,7 +384,7 @@ def prior_kepler(theta_in):
         return -np.inf
 
 
-def prior_mr(theta_in):
+def prior_mr(theta_in, latex=False):
     """
     This function implements a simple box prior for all the parameters
     excluding mass and radius, which comes instead from
@@ -378,9 +392,16 @@ def prior_mr(theta_in):
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, *mass*, *radius*, and (optionally) *f_t*
+    :param latex: if True, just return the prior limits suitable for inclusion in a LaTeX table
 
     :return: prior probability
     """
+
+    # make sure the text version matches the limits below
+    if latex:
+        return ['$U[10^{-5},0.76]$', '$U[10^{-5},0.056]$', '$U[10^{-6},5]$',
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            'steiner', 'steiner', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
     mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
@@ -398,7 +419,7 @@ def prior_mr(theta_in):
         return -np.inf
 
 
-def prior_1808(theta_in):
+def prior_1808(theta_in, latex=False):
     """
     This function implements a simple box prior for all the parameters
     excluding mass and radius, which comes instead from
@@ -410,9 +431,16 @@ def prior_1808(theta_in):
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, *mass*, *radius*, and (optionally) *f_t*
+    :param latex: if True, just return the prior limits suitable for inclusion in a LaTeX table
 
     :return: prior probability
     """
+
+    # make sure the text version matches the limits below
+    if latex:
+        return ['$U[10^{-5},0.76]$', 'beta', '$U[10^{-6},5]$',
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            'steiner', 'steiner', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
     mass, radius, f_t = extra+[M_NS, R_NS, 1.0][len(extra):]
@@ -430,7 +458,7 @@ def prior_1808(theta_in):
         return -np.inf
 
 
-def prior_grid(theta_in):
+def prior_grid(theta_in, latex=False):
     """
     This function is to accompany grid_interp and implements a simple
     box prior for all the parameters, respecting the grid range
@@ -439,9 +467,16 @@ def prior_grid(theta_in):
 
     :param theta_in: parameter vector, with *X*, *Z*, *Q_b*, *d*, *xi_b*,
       *xi_p*, and (optionally) *mass*, *radius* & *f_t*
+    :param latex: if True, just return the prior limits suitable for inclusion in a LaTeX table
 
     :return: prior probability
     """
+
+    # make sure the text version matches the limits below
+    if latex:
+        return ['$U[0.64,0.76]$', '$U[0.0025,0.03]$', '$U[0.0,0.6]$',
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$g$', '$g$', '$U[1,10]$']
 
     c = const.c.to('cm s-1')
     G = const.G.to('cm3 g-1 s-2')
@@ -2536,14 +2571,38 @@ Initial parameters:
         return bursts
 
 
-    def write_param_uncert(self, clobber=False, latex=True):
+    def write_param_uncert(self, clobber=False, latex=True, rst=False):
         """
         Calculate and save the parameter uncertainties; previously part of
         do_analysis
 
         :param clobber: if True, overwrite file without prompting
         :param latex: if True, also display the information in LaTeX form, suitable for inclusion in a paper
+        :param rst: if True, also display the information as reStructuredText, for use in the beansp documentation
         """
+
+        def _rma(text):
+            """
+            Convert string to reStructuredText, including math translation if required
+            """
+
+            import re
+
+            # print ('_rma: '+text)
+            _temp = ':math:`{}`'
+            if text.find('$') >= 0:
+                # math text of the form '$<latex maths>$'
+                return _temp.format(re.search(r'\$(.*)\$$', text)[1])
+            elif text.find('ensuremath') >= 0:
+                # math text of the form '\ensuremath{<latex maths>}'
+                return _temp.format(re.search("(ensuremath{)(.*)}$", text)[2])
+            elif text == "":
+                # missing table element
+                return "\\"
+            else:
+                pass
+
+            return text
 
         if not hasattr(self, 'reader'):
             logger.error ('no samples available, run do_analysis first')
@@ -2551,8 +2610,23 @@ Initial parameters:
 
         file = f'{self.run_id}_parameterconstraints_pred.txt'
 
+        # get prior information, if available
+        try:
+            priors = self.lnprior(latex=True)
+        except:
+            logger.warning("can't get prior string from {}".format(self.lnprior))
+            priors = [''] * len(self.cc_parameters)
+
         latex_header = "Parameter & Units"
         latex_rows = [" & ".join((PARAM_LATEX[key], UNIT_LATEX[key])) for key in self.cc_parameters]
+
+        # rst is a bit tricky, as I can't fully assemble the table until I
+        # know the maximum width of each row. So set it up as a table
+        rst_header = ['Parameter','Units','Prior']
+        rst_rows = [
+            [_rma(PARAM_LATEX[key]), 
+             _rma(UNIT_LATEX[key]),
+             _rma(priors[i]) ] for i, key in enumerate(self.cc_parameters)]
 
         if (clobber is False) and (os.path.exists(file)):
             logger.error ('will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
@@ -2623,33 +2697,49 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 if len(parts) > 1:
                     latex_header += ' & {} ({:.2f}%)'.format(_part,
                         100*self.model_pred['part_stats'][_part]/n_samples)
+                    rst_header.append('{} ({:.2f}%)'.format(_part,
+                        100*self.model_pred['part_stats'][_part]/n_samples))
                 else:
-                    latex_header += ' & Value'
+                    latex_header += ' & '+self.run_id
+                    rst_header.append(self.run_id)
+
                 # get_param_uncert returns 50th percentile, upper, lower error; so have to reverse
                 # error ordering for stremas
                 latex_rows[0] += ' & {}'.format(strmeas(Xpred[0], Xpred[2], Xpred[1]))
+                rst_rows[0].append(_rma(strmeas(Xpred[0], Xpred[2], Xpred[1])))
                 latex_rows[1] += ' & {}'.format(strmeas(Zpred[0], Zpred[2], Zpred[1]))
+                rst_rows[1].append(_rma(strmeas(Zpred[0], Zpred[2], Zpred[1])))
                 latex_rows[2] += ' & {}'.format(strmeas(basepred[0], basepred[2], basepred[1]))
+                rst_rows[2].append(_rma(strmeas(basepred[0], basepred[2], basepred[1])))
                 latex_rows[3] += ' & {}'.format(strmeas(dpred[0], dpred[2], dpred[1]))
+                rst_rows[3].append(_rma(strmeas(dpred[0], dpred[2], dpred[1])))
                 latex_rows[4] += ' & {}'.format(strmeas(xibpred[0], xibpred[2], xibpred[1]))
+                rst_rows[4].append(_rma(strmeas(xibpred[0], xibpred[2], xibpred[1])))
                 latex_rows[5] += ' & {}'.format(strmeas(xippred[0], xippred[2], xippred[1]))
+                rst_rows[5].append(_rma(strmeas(xippred[0], xippred[2], xippred[1])))
 
                 latex_rows[self.ndim] += ' & {}'.format(strmeas(cosipred[0], cosipred[2], cosipred[1]))
+                rst_rows[self.ndim].append(_rma(strmeas(cosipred[0], cosipred[2], cosipred[1])))
 
                 if self.ndim >= 7:
                     masspred = get_param_uncert(self.samples[sel,6])
                     latex_rows[6] += ' & {}'.format(strmeas(masspred[0], masspred[2], masspred[1]))
+                    rst_rows[6].append(_rma(strmeas(masspred[0], masspred[2], masspred[1])))
                 if self.ndim >= 8:
                     radiuspred = get_param_uncert(self.samples[sel,7])
                     redshiftpred = get_param_uncert(redshift[sel])
                     gravitypred = get_param_uncert(gravity[sel]/1e14)
                     latex_rows[7] += ' & {}'.format(strmeas(radiuspred[0], radiuspred[2], radiuspred[1]))
+                    rst_rows[7].append(_rma(strmeas(radiuspred[0], radiuspred[2], radiuspred[1])))
                     latex_rows[self.ndim+1] += ' & {}'.format(strmeas(gravitypred[0], gravitypred[2], gravitypred[1]))
+                    rst_rows[self.ndim+1].append(_rma(strmeas(gravitypred[0], gravitypred[2], gravitypred[1])))
                     latex_rows[self.ndim+2] += ' & {}'.format(strmeas(redshiftpred[0], redshiftpred[2], redshiftpred[1]))
+                    rst_rows[self.ndim+2].append(_rma(strmeas(redshiftpred[0], redshiftpred[2], redshiftpred[1])))
 
                 if self.ndim >=9:
                     ftpred = get_param_uncert(self.samples[sel,8])
                     latex_rows[8] += ' & {}'.format(strmeas(ftpred[0], ftpred[2], ftpred[1]))
+                    rst_rows[8].append(_rma(strmeas(ftpred[0], ftpred[2], ftpred[1])))
 
                 if len(parts) > 1:
                     header += '''------------------------------------------------------------------------------
@@ -2692,6 +2782,25 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     print (row+' \\\\')
                 print ('\\hline\n\\end{tabular}')
 
+            if rst:
+                # determine the max. length of each of the columns
+                maxlen = []
+                _nrows, _ncols = np.shape(rst_rows)
+                for i in range(_ncols):
+                    _max = max([len(s) for s in np.array(rst_rows)[:,i]])
+                    maxlen.append( max([_max, len(rst_header[i])]) )
+                _temp = ["{{:{}s}}".format(x) for x in maxlen]
+
+                # now print
+                print (".. table:: System parameters for run {}".format(self.run_id))
+                print ("    :widths: auto\n")
+                print ("    "+" ".join([_temp[i].format("=" * x) for i,x in enumerate(maxlen)]))
+                print ("    "+" ".join([_temp[i].format(x) for i,x in enumerate(rst_header)]))
+                print ("    "+" ".join([_temp[i].format("=" * x) for i,x in enumerate(maxlen)]))
+                for j in range(_nrows):
+                    print ("    "+" ".join([_temp[i].format(x) for i,x in enumerate(rst_rows[j])]))
+                print ("    "+" ".join([_temp[i].format("=" * x) for i,x in enumerate(maxlen)]))
+
 
     def do_analysis(self, options=['autocor','posteriors'],
                           part=None, truths=False, burnin=-1000,
@@ -2714,16 +2823,15 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
         | cc_parameters - list of parameters for cc object; keys for PARAM_LATEX
         | model_pred - dictionary with model realisations read in from the "blobs"
 
-	    By default the method will also create several files, labeled by
+        By default the method will also create several files, labeled by
         the run_id; drawn from
 
         | {}_autocorrelationtimes.pdf (via plot_autocorr)
         | {}_posteriors.pdf
         | {}_parameterconstraints_pred.txt
 
-        :param options: array of strings corresponding to various analysis
-          options, listed in the analyses dict below
-	    :param part: string or array "partition" dividing the set of
+        :param options: array of strings corresponding to various analysis options, listed in the analyses dict below
+        :param part: string or array "partition" dividing the set of
           samples into two or more separate groups for analysis
         :param truths: parameter vector to overplot on (one of the) corner
           plots (TODO: need to check if >1 corner plot are selected
