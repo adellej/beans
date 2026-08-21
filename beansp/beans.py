@@ -2612,13 +2612,14 @@ Initial parameters:
 
         # get prior information, if available
         try:
-            priors = self.lnprior(latex=True)
+            priors = self.lnprior(None, latex=True)
         except:
             logger.warning("can't get prior string from {}".format(self.lnprior))
             priors = [''] * len(self.cc_parameters)
 
-        latex_header = "Parameter & Units"
-        latex_rows = [" & ".join((PARAM_LATEX[key], UNIT_LATEX[key])) for key in self.cc_parameters]
+        latex_header = "Parameter & Units & Prior"
+        latex_rows = [" & ".join((PARAM_LATEX[key], UNIT_LATEX[key],
+            '' if i>=self.ndim else priors[i])) for i, key in enumerate(self.cc_parameters)]
 
         # rst is a bit tricky, as I can't fully assemble the table until I
         # know the maximum width of each row. So set it up as a table
@@ -2626,7 +2627,7 @@ Initial parameters:
         rst_rows = [
             [_rma(PARAM_LATEX[key]), 
              _rma(UNIT_LATEX[key]),
-             _rma(priors[i]) ] for i, key in enumerate(self.cc_parameters)]
+             "\\" if i>=self.ndim else _rma(priors[i]) ] for i, key in enumerate(self.cc_parameters)]
 
         if (clobber is False) and (os.path.exists(file)):
             logger.error ('will overwrite existing parameter file {}, set clobber=True to replace'.format(file))
