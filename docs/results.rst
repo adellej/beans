@@ -182,8 +182,8 @@ Bibliography
 ------------
 
 .. _gal26:
-* Galloway et al. (submitted to PASA, 2026) and accompanying data at `Monash bridges <https://doi.org/10.26180/33065816>`_
-* `Galloway et al. (2024) <https://10.1093/mnras/stae2422>`_ and accompanying data at `Monash bridges <10.1093/mnras/stae2422>`_
+* Galloway et al. (submitted to PASA, 2026) and accompanying data at `DOI:10.26180/33065816 <https://doi.org/10.26180/33065816>`_
+* `Galloway et al. (2024) <https://10.1093/mnras/stae2422>`_ and accompanying data at `DOI:10.26180/24773367 <https://doi.org/10.26180/24773367>`_
 * `Goodwin et al. (MNRAS 490, 2228, 2019) <https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.2228G>`_
 * `Johnston et al. (MNRAS 477, 2112, 2018) <http://adsabs.harvard.edu/abs/2018MNRAS.477.2112J>`_
 * `Galloway & Cumming (ApJ 652, 559, 2006) <http://adsabs.harvard.edu/abs/2006ApJ...652..559>`_

@@ -31,20 +31,24 @@ This software uses a Markov Chain Monte Carlo approach to match observations of 
 The code is written in Python 3, except for settle which is a C++ code
 with a Python wrapper (now implemented as pySettle, available via pypi or
 at
-https://github.com/adellej/pysettle.
+https://github.com/adellej/pysettle).
 
 beansp makes use of Dan Foreman-Mackey's Python implementation of MCMC, emcee, available at https://github.com/dfm/emcee.
 
 Credits
 -------
 
-Software written by Adelle Goodwin and Duncan Galloway; for a full description see Goodwin et al. (2019, https://doi.org/10.1093/mnras/stz2638 or preprint at https://arxiv.org/pdf/1907.00996).
+Software written by Adelle Goodwin and Duncan Galloway; for a full
+description see Goodwin et al.
+(`MNRAS 490, 2228, 2019 <https://doi.org/10.1093/mnras/stz2638>`_ or
+preprint at `arXiv:1907.00996 <https://arxiv.org/pdf/1907.00996>`_).
 
-The original algorithm is described in Galloway & Cumming (2006, 
-https://iopscience.iop.org/article/10.1086/507598).
+The algorithm was first described in Galloway & Cumming
+(`ApJ 652, 559 2006 <https://iopscience.iop.org/article/10.1086/507598>`_).
 
-pySettle was forked from the original settle written by Andrew Cumming and
-available at https://github.com/andrewcumming/settle
+`pySettle <https://github.com/adellej/pysettle>`_ was forked from the
+original code written by Andrew Cumming and available at
+https://github.com/andrewcumming/settle
 
 Package installation and usage
 ------------------------------

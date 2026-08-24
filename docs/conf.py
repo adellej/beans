@@ -55,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'beansp'
-copyright = u"2023, Adelle Goodwin & Duncan Galloway"
+copyright = u"2026, Adelle Goodwin & Duncan Galloway"
 author = u"Adelle Goodwin & Duncan Galloway"
 
 # The version info for the project you're documenting, acts as replacement

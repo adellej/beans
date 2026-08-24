@@ -13,19 +13,18 @@ Build and installation from this github repository
       cd beans
    
 
-#. Create and activate a clean conda environment
+#. [optional] Create and activate a clean conda environment
 
-   The example below will create an environment with Python 3.13 (or newer), but beans should work with Python 3.9 onwards.
+   The example below will create and activate an environment named `beans` with all requirements. Tested with Python 3.13, but beans should work with Python 3.9 onwards.
+
+   The first command below will remove an existing environment if needed, e.g. to start from scratch
 
    .. code-block:: console
     
-      # optional: remove existing environment if needed - to start from scratch
       conda remove -n beans --all
-      # create named conda environment beans with all requirements
       conda env create -f environment.yml
       conda activate beans
 
-      
 #. Install/upgrade pip, build and local install
 
    .. code-block:: console
@@ -33,22 +32,9 @@ Build and installation from this github repository
       python3 -m pip install --upgrade pip
       python3 -m pip install --upgrade build
 
-..
-    removed from the code block below:
-      # test build & local install
-      # The "-e" install does not seem to be reliable for re-install on Linux
-      #       - keeps pulling some old build from somewhere middlewhere.
-      #         python -m pip install -e .*
-      # This is more reliable:
-..
-
-   .. code-block:: console
-  
       python3 -m build
       python3 -m pip install .
 
-   .. ::
-   
    *Note: when working on the code, in case of doubts that recent changes got propagated, uninstall & purge the installed module _before_* ``pip install`` *to ensure the installed version has all the recent modifications.*
 
    .. code-block:: console
@@ -56,14 +42,20 @@ Build and installation from this github repository
       python3 -m pip -v uninstall beansp
       python3 -m pip -v cache purge
 
-   After this, in that enviroment, beansp just works from every directory, providing the conda environment is activated.
-   Imports like:
+After completing these steps, once the enviroment is activated, beansp
+should just work from every directory.  Import as follows:
 
-   .. code-block:: python
+.. code-block:: python
    
       from beansp import Beans,beans
 
-   (See `test_sft_beans.py <tests/test_sft_beans.py>`_.)
+..
+    removed from the code block above:
+      # test build & local install
+      # The "-e" install does not seem to be reliable for re-install on Linux
+      #       - keeps pulling some old build from somewhere middlewhere.
+      #         python -m pip install -e .*
+      # This is more reliable:
 
 
 Testing

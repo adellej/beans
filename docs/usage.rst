@@ -5,7 +5,6 @@ Basic usage
 To use beans, there are a few steps you need to follow:
 
 1. Collect all of the required observational data in the correct format
-and put it in ``beans/data`` folder.
 2. Choose all of the initial conditions and initialise the class object :class:`beansp.Beans`.
 3. Run the code!
 4. Analyse the results
