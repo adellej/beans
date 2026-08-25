@@ -67,6 +67,10 @@ def get_obs(bean, logger, alpha, fluen, pflux):
         # should be OK
         # The "ensemble" mode tables, with additional columns, seem to require these additional
         # parameters to guarantee they are read in correctly
+        if not exists(bean.burstname):
+            logger.error("burst data file {} not found".format(bean.burstname))
+            return False
+
         burstdata = ascii.read(bean.burstname, format='tab', header_start=None, data_start=0)
         _n_cols = len(burstdata.columns)
         assert (_n_cols >=5) or ((bean.obsname is None) & (_n_cols >=9))
@@ -113,8 +117,10 @@ def get_obs(bean, logger, alpha, fluen, pflux):
     # Need len(tobs) to intialise emcee:
     # Get the observing times and peak flux arrays:
     if bean.obsname is not None:
-        # if not exists(obsname):
-        #     sys.exit("** ERROR ** observation file {} not found".format(obsname))
+        if not exists(bean.obsname):
+            logger.error("observation file {} not found".format(bean.obsname))
+            return False
+
         obsdata = ascii.read(bean.obsname)# format='tab', header_start=None, data_start=0)
         ta_1 = obsdata['col1']
         ta_2 = obsdata['col2']
@@ -264,8 +270,10 @@ min(tobs), max(tobs)))
 
         # Read in the gtis (required arrays are st (start time) and et (end time) of times telescope IS observing (indexes need to match)
         # gtis should be in MJD
-        # if not exists(gtidata):
-        #     sys.exit("** ERROR ** GTI data file {} not found".format(gtidata))
+        if not exists(bean.gtiname):
+            logger.error("GTI data file {} not found".format(bean.gtiname))
+            return False
+
         gtidata = np.loadtxt(bean.gtiname)
 
         # Now extract and scale gti data:
@@ -284,4 +292,4 @@ min(tobs), max(tobs)))
 
     logger.info ("... done.")
 
-    return # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs
+    return True # bstart0, bstart, fluen, fluene, obs, obs_err, pflux, pfluxe, tobs

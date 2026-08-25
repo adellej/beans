@@ -328,7 +328,7 @@ def prior_func(theta_in, latex=False):
     # make sure the text version matches the limits below
     if latex:
         return ['$U[10^{-5},0.76]$', '$U[10^{-5},0.056]$', '$U[10^{-6},5]$',
-            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$',
             '$U[1.15,2.5]$', '$U[9,17]$', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
@@ -365,7 +365,7 @@ def prior_kepler(theta_in, latex=False):
     # make sure the text version matches the limits below
     if latex:
         return ['$U[0.2,0.8]$', '$U[0.005},0.1]$', '$U[10^{-6},5]$',
-            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$',
             '$U[1.15,2.5]$', '$U[9,17]$', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
@@ -400,7 +400,7 @@ def prior_mr(theta_in, latex=False):
     # make sure the text version matches the limits below
     if latex:
         return ['$U[10^{-5},0.76]$', '$U[10^{-5},0.056]$', '$U[10^{-6},5]$',
-            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$',
             'steiner', 'steiner', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
@@ -439,7 +439,7 @@ def prior_1808(theta_in, latex=False):
     # make sure the text version matches the limits below
     if latex:
         return ['$U[10^{-5},0.76]$', 'beta', '$U[10^{-6},5]$',
-            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$',
             'steiner', 'steiner', '$U[1,10]$']
 
     X, Z, Q_b, dist, xi_b, xi_p, *extra = theta_in
@@ -475,7 +475,7 @@ def prior_grid(theta_in, latex=False):
     # make sure the text version matches the limits below
     if latex:
         return ['$U[0.64,0.76]$', '$U[0.0025,0.03]$', '$U[0.0,0.6]$',
-            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$', 
+            '$U[1,20]$', '$U[0.01,2]$', '$U[0.01,10]$',
             '$g$', '$g$', '$U[1,10]$']
 
     c = const.c.to('cm s-1')
@@ -852,7 +852,7 @@ def restore(savefile=None):
     if savefile is None:
         logger.error('please enter a valid pickle file name for the archived Beans object')
         return
-  
+
     if os.path.exists(savefile):
         _bean = pickle.load(open(savefile, 'rb'))
         logger.info('restored beans v{} object with run_id {}'.format(_bean.version, _bean.run_id))
@@ -903,7 +903,7 @@ class Beans:
                  obsname=None, burstname=None, gtiname=None,
                  continuous=True, maxgap=2,
                  interp='linear', smooth=0.02, model = settle,
-                 theta= (0.58, 0.013, 0.4, 3.5, 1.0, 1.0, 1.5, 11.8),
+                 theta= (0.41, 0.0151, 0.6, 3.2, 1.0, 1.6, 1.5, 11.8),
                  sampler='emcee', fluen=True, alpha=False, pflux=True,
                  numburstssim=3, bc=1.0, ref_ind=1, threads = 4,
                  test_model=True, restart=False, **kwargs):
@@ -1015,8 +1015,10 @@ class Beans:
         # and we might want to set burstname=None if we're doing some
         # simulations, e.g. using the :meth:`Beans.sim_data` method).
         if (obsname is None) & (burstname is None):
+            logger.warning('no input data files provided, setting defaults for 2002 outburst of SAX J1808.4-3658')
             obsname = os.path.join(self.data_path, '1808_obs.txt')
-            burstname = os.path.join(self.data_path, '1808_bursts.txt')
+            burstname = os.path.join(self.data_path, '1808_bursts_newalpha.txt')
+            bc = 2.21
 
         if run_id is None:
             # run_id = os.path.join(self.data_path, '1808/test1')
@@ -1106,13 +1108,6 @@ class Beans:
                 logger.error('config file not found, applying keywords')
                 config_file_exists = False
 
-        # for some older runs we need to add parameters here, that
-        # are not listed in the .ini file
-
-        if (self.sampler == 'emcee') & (not hasattr(self, 'stretch_a')):
-            logger.warning('stretch_a not set or provided by .ini file, assuming default')
-            self.stretch_a = 2.0
-
         # below set the parameters which are not part of the config
         # file
 
@@ -1159,7 +1154,18 @@ class Beans:
         # bypasses the earlier init function, and instead calls get_obs
         # directly
 
-        get_obs(self, logger, alpha, fluen, pflux)
+        result = get_obs(self, logger, alpha, fluen, pflux)
+
+        if not result:
+            logger.error('please check the supplied input name(s) and re-try')
+            return
+
+        # for some older runs we need to add parameters here, that
+        # are not listed in the .ini file
+
+        if (self.sampler == 'emcee') & (not hasattr(self, 'stretch_a')):
+            logger.warning('stretch_a not set or provided by .ini file, assuming default')
+            self.stretch_a = 2.0
 
         # pre-calculate the sigmas and other parameters, for use in lnlike
 
@@ -2625,7 +2631,7 @@ Initial parameters:
         # know the maximum width of each row. So set it up as a table
         rst_header = ['Parameter','Units','Prior']
         rst_rows = [
-            [_rma(PARAM_LATEX[key]), 
+            [_rma(PARAM_LATEX[key]),
              _rma(UNIT_LATEX[key]),
              "\\" if i>=self.ndim else _rma(priors[i]) ] for i, key in enumerate(self.cc_parameters)]
 
@@ -3593,7 +3599,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     ebpred_errup = [x[1] for x in ebs[numburstssim]]
                     ebpred_errlow = [x[2] for x in ebs[numburstssim]]
                     axs['time'].errorbar(timepred[itoff:], ebpred,
-                        yerr=[ebpred_errlow, ebpred_errup], linestyle='', 
+                        yerr=[ebpred_errlow, ebpred_errup], linestyle='',
                         # xerr=[timepred_errup[1:], timepred_errlow[1:]],
                         marker='*', ms=STAR_SIZE, color='C{}'.format(i),
                         label='predicted ({})'.format(numburstssim))
@@ -3615,7 +3621,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     # types of models
                     imatchm1 = [x-itoff for x in imatch if x-itoff >= 0]
                     axs['time'].plot(np.array(timepred[itoff:])[imatchm1],
-                        np.array(ebpred)[imatchm1], linestyle='', 
+                        np.array(ebpred)[imatchm1], linestyle='',
                         marker='*', ms=STAR_SIZE/2, color='tab:red',
                         label=_label,zorder=99)
                     _label = None # only give the label the first time
@@ -3668,8 +3674,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
                 # and finally plot the observations, so they come out on top
                 axs['time'].errorbar(self.bstart[self.ifluen], self.fluen[self.ifluen],
-                             yerr=self.fluene[self.ifluen], linestyle='', 
-                             marker='.', ms=DOT_SIZE, color=OBS_COLOUR, 
+                             yerr=self.fluene[self.ifluen], linestyle='',
+                             marker='.', ms=DOT_SIZE, color=OBS_COLOUR,
                              label='observed')
 
                 if _has_pflux:
@@ -3725,7 +3731,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                     fig, axs = plt.subplot_mosaic("""
                                                   AA
                                                   BC
-                                                  """, 
+                                                  """,
                         figsize=figsize, constrained_layout=True)
                     ax1 = axs['A']
                 else:
@@ -3747,7 +3753,7 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
 
                     ax1.errorbar(timepred, ebpred,
                         yerr=[ebpred_errlow, ebpred_errup],
-                        xerr=[timepred_errup, timepred_errlow], linestyle='', 
+                        xerr=[timepred_errup, timepred_errlow], linestyle='',
                         # color=bursts_colour
                         marker='*', ms=STAR_SIZE, color='C{}'.format(i),
                         label='predicted ({})'.format(tkey))
@@ -4097,11 +4103,11 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
             logger.info('archive complete')
 
             return savefile, samples_savefile
-  
+
 
         logger.info('archive complete')
 
         return savefile
-  
+
 
 # end of beans.py
