@@ -1014,8 +1014,8 @@ class Beans:
         # obsname=None is also how we indicate an "ensemble" mode run
         # and we might want to set burstname=None if we're doing some
         # simulations, e.g. using the :meth:`Beans.sim_data` method).
-        if (obsname is None) & (burstname is None):
-            logger.warning('no input data files provided, setting defaults for 2002 outburst of SAX J1808.4-3658')
+        if (config_file is None) & (obsname is None) & (burstname is None):
+            logger.warning('no config file or input data files provided, setting defaults for 2002 outburst of SAX J1808.4-3658')
             obsname = os.path.join(self.data_path, '1808_obs.txt')
             burstname = os.path.join(self.data_path, '1808_bursts_newalpha.txt')
             bc = 2.21
