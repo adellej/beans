@@ -3775,7 +3775,10 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                         marker='*', ms=STAR_SIZE, linestyle='', color='C{}'.format(i))
 
                     # print some information about this set of analyses
-                    resid = -(self.tdel-np.array(timepred))*24.
+                    # times are already in hours (in contrast to the train
+                    # mode)
+
+                    resid = -(self.tdel-np.array(timepred)) #*24.
                     logger.info ('RMS obs-model offset ({}, {:.2f}%) = {:.4f} hr'.format(
                         tkey, 100.*self.model_pred['part_stats'][tkey]/len(self.samples),
                         np.sqrt(np.mean(resid**2))))
