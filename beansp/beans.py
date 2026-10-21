@@ -3570,9 +3570,17 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                 # indicate by the background colour if the data is present but not used
                 if (_has_pflux):
                     # want about 10 bins covering the whole range of peak fluxes
+                    # but need to tailor this on the range of Eddington
+                    # fluxes, to avoid the problem of a very narrow
+                    # distribution of the latter
+                    # _max_int is the maximum intensity of the bars
                     # _bin_width, _max_int = 5, 0.5
-                    _max_int, _bin_width, = 0.5, (int((max(self.bpflux+self.bpfluxe)
-                            - min((self.bpflux-self.bpfluxe)[np.concatenate((self.pre, self.non_pre))]))/10./5.)+1)*5
+                    # _max_int, _bin_width, = 0.5, (int((max(self.bpflux+self.bpfluxe)
+                    #         - min((self.bpflux-self.bpfluxe)[np.concatenate((self.pre, self.non_pre))]))/10./5.)+1)*5
+                    _F_Edd = self.L_Edd/self.samples[:,3]**2
+                    _max_int, _bin_width, = 0.5, int((max(_F_Edd)
+                            - min(_F_Edd))/10.+0.5)
+
                     if not self.cmpr_pflux:
                         axs['pflux'].set_facecolor('lightgrey')
                 if (_has_alpha) & (not self.cmpr_alpha):
@@ -3662,6 +3670,8 @@ persistent anisotropy factor (xi_p), burst anisotropy factor (xi_b)'''.format(
                         _F_Edd = self.L_Edd/self.samples[:,3][np.array(self.model_pred['partition']) == numburstssim]**2
                         _hst, _bins = np.histogram(_F_Edd,
                                                    bins=np.arange(int(min(_F_Edd)/_bin_width)*_bin_width, max(_F_Edd), _bin_width))
+
+                        breakpoint()
                         plt.stackplot([0,max(_bnum)+1],[[_bins[0], _bins[0]]] + [[_bin_width, _bin_width]]*(len(_hst)-1),
                                       # colors=['{:.2f}'.format(1-x/max(_hst)*_max_int) for x in _hst])
                                       colors=[('C{}'.format(i), x/max(_hst)*_max_int) for x in _hst])
